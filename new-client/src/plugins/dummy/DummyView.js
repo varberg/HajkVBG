@@ -36,6 +36,10 @@ class DummyView extends React.PureComponent {
     });
   };
 
+  toggleCesium = () => {
+    this.model.toggle3d();
+  };
+
   // Event handler for a button that shows a global info message when clicked
   handleMessageClick = () => {
     this.props.enqueueSnackbar("Yay, a nice message with default styling.");
@@ -50,6 +54,7 @@ class DummyView extends React.PureComponent {
   render() {
     return (
       <>
+        <Button onClick={this.toggleCesium}>Toggle Cesium</Button>
         <Button onClick={this.buttonClick}>
           {this.state.test || "Click to change state"}
         </Button>

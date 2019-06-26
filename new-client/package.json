@@ -45,6 +45,7 @@
     "marked": "^0.7.0",
     "notistack": "^0.8.8",
     "ol": "^5.3.3",
+    "olcs": "^2.9.0",
     "proj4": "^2.5.0",
     "react": "^16.8.6",
     "react-app-polyfill": "^1.0.1",
