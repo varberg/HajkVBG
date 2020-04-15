@@ -48,7 +48,7 @@ class DrawView extends React.PureComponent {
     this.model = this.props.model;
     this.app = this.props.app;
     this.localObserver = this.props.localObserver;
-    this.localObserver.on("dialog", feature => {
+    this.localObserver.subscribe("dialog", feature => {
       this.setState({
         feature: feature,
         dialog: true,
@@ -79,6 +79,8 @@ class DrawView extends React.PureComponent {
   };
 
   onCloseTextDialog = text => {
+    this.props.model.openDialog(false);
+
     const { feature } = this.state;
     feature.set("type", "Text");
     feature.set("text", text);
@@ -91,6 +93,8 @@ class DrawView extends React.PureComponent {
 
   renderDialog() {
     if (this.state.dialog) {
+      this.props.model.openDialog(true);
+
       return createPortal(
         <Dialog
           options={{
@@ -232,7 +236,7 @@ class DrawView extends React.PureComponent {
       <div>
         <Typography>Välj KML-fil att importera:</Typography>
         <div className={classes.row}>
-          <Input
+          <input
             type="file"
             name="files[]"
             accept=".kml"
@@ -289,7 +293,7 @@ class DrawView extends React.PureComponent {
                       displayText: !this.state.displayText
                     });
                     this.model.displayText = !this.model.displayText;
-                    this.localObserver.emit("update");
+                    this.localObserver.publish("update");
                   }}
                   color="primary"
                 />

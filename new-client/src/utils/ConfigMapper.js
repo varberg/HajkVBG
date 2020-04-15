@@ -7,37 +7,50 @@ export default class ConfigMapper {
 
   mapWMSConfig(args, properties) {
     function getLegendUrl(layer) {
-      var legend = "";
-      // If property exists in map settings, use specified legend options (font, color, size, etc)
-      let geoserverLegendOptions = "";
-      if (properties.mapConfig.map.hasOwnProperty("geoserverLegendOptions")) {
-        geoserverLegendOptions =
-          "legend_options=" + properties.mapConfig.map.geoserverLegendOptions;
-      }
+      let legendUrl = "";
 
-      var w = 60;
-      var h = 60;
-
-      if (args.layers.length > 1) {
-        w = 30;
-        h = 30;
-      }
-
-      let getIndex = args.layersInfo
-        ? args.layersInfo.findIndex(l => l.id === layer)
-        : "";
-      let style = args.layersInfo ? args.layersInfo[getIndex].style : "";
-
+      // If there's no legend URL specified, we'll need to get it from our WMS
       if (args.legend === "") {
-        legend = `${proxy}${
-          args.url
-        }?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&WIDTH=${w}&HEIGHT=${h}&LAYER=${layer}&STYLE=${style}&${geoserverLegendOptions}`;
-      } else {
-        legend = args.legend;
+        /**
+         * A layer can have multiple styles, so when getting Legend Graphic, it's important
+         * to get it for the currently selected style.
+         */
+
+        // First get index if we're dealing with array
+        let getIndex =
+          args.layersInfo !== null
+            ? args.layersInfo.findIndex(l => l.id === layer)
+            : null;
+        // Next, use that index to grab correct style and save its name for later use
+        let style =
+          args.layersInfo !== null &&
+          getIndex >= 0 &&
+          args.layersInfo[getIndex].style;
+
+        /**
+         * GeoServer allows finer control over the legend appearance via the vendor parameter LEGEND_OPTIONS.
+         * See: https://docs.geoserver.org/latest/en/user/services/wms/get_legend_graphic/index.html#controlling-legend-appearance-with-legend-options
+         */
+        // Use custom legend options if specified by admin
+        const geoserverLegendOptions = properties.mapConfig.map.hasOwnProperty(
+          "geoserverLegendOptions"
+        )
+          ? "LEGEND_OPTIONS=" + properties.mapConfig.map.geoserverLegendOptions
+          : "";
+
+        // TODO: Make width and height of WMS legend graphics customizable via admin
+        const w = 30;
+        const h = 30;
+        legendUrl = `${proxy}${args.url}?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&WIDTH=${w}&HEIGHT=${h}&LAYER=${layer}&STYLE=${style}&${geoserverLegendOptions}`;
+      }
+      // If there's a legend URL specified in admin, use it as is
+      else {
+        legendUrl = args.legend;
       }
 
-      var protocol = /^http/.test(legend) ? "" : "https://";
-      return protocol + legend;
+      // If 'legend' URL doesn't start with "http", add "https://" prior 'legend', else let it be as is
+      const protocol = /^http/.test(legendUrl) ? "" : "https://";
+      return protocol + legendUrl;
     }
 
     function getLegends() {
@@ -49,13 +62,17 @@ export default class ConfigMapper {
       });
     }
 
-    function mapLayersInfo(layersInfo) {
+    function mapLayersInfo(layersInfo, infobox) {
       if (Array.isArray(layersInfo)) {
         return layersInfo.reduce((layersInfoObject, layerInfo) => {
           layersInfoObject[layerInfo.id] = layerInfo;
           if (!layerInfo.legend) {
             layersInfoObject[layerInfo.id].legend = getLegendUrl(layerInfo.id);
           }
+          if (infobox?.length) {
+            layersInfoObject[layerInfo.id].infobox = infobox;
+          }
+
           return layersInfoObject;
         }, {});
       }
@@ -120,7 +137,7 @@ export default class ConfigMapper {
             ? args.layersInfo.map(l => l.style || "").join(",")
             : null
         },
-        layersInfo: mapLayersInfo(args.layersInfo),
+        layersInfo: mapLayersInfo(args.layersInfo, args.infobox),
         infoVisible: args.infoVisible || false,
         infoTitle: args.infoTitle,
         infoText: args.infoText,

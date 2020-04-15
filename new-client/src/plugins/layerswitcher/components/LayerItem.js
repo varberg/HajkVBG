@@ -1,43 +1,95 @@
-import "./LayerItem.css";
-import React, { Component } from "react";
-import Typography from "@material-ui/core/Typography";
-import Slider from "@material-ui/lab/Slider";
+import React from "react";
+import { Button, Tooltip, Typography } from "@material-ui/core";
+import { withStyles } from "@material-ui/core/styles";
 import IconWarning from "@material-ui/icons/Warning";
+import CallMadeIcon from "@material-ui/icons/CallMade";
+import InfoIcon from "@material-ui/icons/Info";
+import RemoveCircleIcon from "@material-ui/icons/RemoveCircle";
 import CheckBoxIcon from "@material-ui/icons/CheckBox";
 import CheckBoxOutlineBlankIcon from "@material-ui/icons/CheckBoxOutlineBlank";
+import MoreHorizIcon from "@material-ui/icons/MoreHoriz";
+import CloseIcon from "@material-ui/icons/Close";
+import LayerGroupItem from "./LayerGroupItem.js";
+import LayerSettings from "./LayerSettings.js";
+import DownloadLink from "./DownloadLink.js";
 
-class LayerItem extends Component {
-  constructor() {
-    super();
-    this.state = {
-      caption: "",
-      visible: false,
-      expanded: false,
-      name: "",
-      legend: [],
-      status: "ok",
-      infoVisible: false,
-      infoTitle: "",
-      infoText: "",
-      infoUrl: "",
-      infoUrlText: "",
-      infoOwner: "",
-      infoExpanded: false,
-      instruction: "",
-      opacityValue: 1
-    };
+const styles = theme => ({
+  button: {
+    opacity: "0"
+  },
+  caption: {
+    cursor: "pointer"
+  },
+  captionText: {
+    top: "-6px",
+    cursor: "pointer",
+    fontSize: theme.typography.pxToRem(15)
+  },
+  image: {},
+  links: {
+    padding: 0,
+    margin: 0,
+    listStyle: "none"
+  },
+  layerItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginTop: "0",
+    marginBottom: "-5px"
+  },
+  layerItemContainer: {
+    background: "white",
+    paddingLeft: "0",
+    paddingTop: "5px",
+    paddingBottom: "5px",
+    borderBottom: "1px solid #CCC",
+    marginLeft: "45px"
+  },
+  layerItemInfo: {
+    display: "flex"
+  },
+  rightIcon: {
+    marginLeft: theme.spacing(1),
+    fontSize: "16px"
+  },
+  layerInfo: {
+    display: "flex",
+    alignItems: "center",
+    padding: "3px",
+    border: "1px solid #ccc"
+  },
+  infoContainer: {},
+  infoButton: {},
+  infoTextContainer: {
+    margin: "10px 45px"
+  },
+  settingsButton: {},
+  layerButtons: {
+    display: "flex",
+    alignItems: "center"
+  },
+  layerButton: {
+    cursor: "pointer",
+    fontSize: "15pt",
+    width: "32px"
+  },
+  checkBoxIcon: {
+    cursor: "pointer",
+    float: "left",
+    marginRight: "5px"
   }
-  /**
-   * Triggered when the component is successfully mounted into the DOM.
-   * @instance
-   */
-  componentDidMount() {
-    var layerInfo = this.props.layer.get("layerInfo");
-    this.setState({
+});
+
+class LayerItem extends React.PureComponent {
+  constructor(props) {
+    super(props);
+    const { layer } = props;
+    var layerInfo = layer.get("layerInfo");
+    this.state = {
       caption: layerInfo.caption,
-      visible: this.props.layer.get("visible"),
+      visible: layer.get("visible"),
       expanded: false,
-      name: this.props.layer.get("name"),
+      name: layer.get("name"),
       legend: layerInfo.legend,
       status: "ok",
       infoVisible: false,
@@ -48,63 +100,51 @@ class LayerItem extends Component {
       infoOwner: layerInfo.infoOwner,
       infoExpanded: false,
       instruction: layerInfo.instruction,
-      opacity: this.props.layer.get("opacity")
-    });
+      open: false,
+      toggleSettings: false
+    };
   }
-
   /**
-   * Triggered when component unmounts.
+   * Triggered when the component is successfully mounted into the DOM.
    * @instance
    */
-  componentWillUnmount() {}
+  componentDidMount() {
+    this.props.layer.on("change:visible", e => {
+      this.setState({
+        visible: !e.oldValue
+      });
+    });
 
-  /**
-   * On visible change event handler.
-   * @instance
-   */
-  onVisibleChanged() {}
-
-  /**
-   * On legend change event handler.
-   * @instance
-   */
-  onLegendChanged() {}
-
-  /**
-   * On show legend change event handler.
-   * @instance
-   */
-  onShowLegendChanged() {}
-
-  /**
-   * On show info change event handler.
-   * @instance
-   */
-  onShowInfoChanged() {}
+    // Set load status by subscribing to a global event. Expect ID (int) of layer
+    // and status (string "ok"|"loaderror"). Also, once status was set to "loaderror",
+    // don't change it back to "ok": we'll get a response for each tile, so most of
+    // the tiles might be "ok", but if only one of the tiles has "loaderror", we
+    // consider that the layer has failed loading and want to inform the user.
+    this.props.app.globalObserver.subscribe(
+      "layerswitcher.wmsLayerLoadStatus",
+      d => {
+        this.state.status !== "loaderror" &&
+          this.state.name === d.id &&
+          this.setState({
+            status: d.status
+          });
+      }
+    );
+  }
 
   /**
    * Toggle visibility of this layer item.
+   * Also, if layer is being hidden, reset "status" (if layer loading failed,
+   * "status" is "loaderror", and it should be reset if user unchecks layer).
    * @instance
    */
-  toggleVisible(e) {
-    var visible = !this.state.visible;
+  toggleVisible = layer => e => {
+    const visible = !this.state.visible;
     this.setState({
-      visible: visible
+      visible
     });
-    this.props.layer.setVisible(visible);
-  }
-
-  /**
-   * Toggle legend visibility
-   * @instance
-   */
-  toggleLegend() {}
-
-  /**
-   * Toggle info visibility
-   * @instance
-   */
-  toggleInfo() {}
+    layer.setVisible(visible);
+  };
 
   /**
    * Render the load information component.
@@ -112,125 +152,289 @@ class LayerItem extends Component {
    * @return {external:ReactElement}
    */
   renderStatus() {
-    return this.state.status === "loaderror" ? (
-      <IconWarning
-        style={{ float: "right" }}
-        title="Lagret kunde inte laddas in. Kartservern svarar inte."
-      />
-    ) : null;
+    const { classes } = this.props;
+    return (
+      this.state.status === "loaderror" && (
+        <div className={classes.layerButton}>
+          <Tooltip title="Lagret kunde inte laddas in. Kartservern svarar inte.">
+            <IconWarning />
+          </Tooltip>
+        </div>
+      )
+    );
   }
 
-  /* This function does two things:
-   * 1) it updates opacityValue, which is in state,
-   *    and is important as <Slider> uses it to set
-   *    its internal value.
-   * 2) it changes OL layer's opacity
-   *
-   * As <Slider> is set up to return a value between
-   * 0 and 1 and it has a step of 0.1, we don't have
-   * to worry about any conversion and rounding here.
-   * */
-  handleChange = (event, opacityValue) => {
-    this.setState({ opacityValue }, () => {
-      this.props.layer.setOpacity(this.state.opacityValue);
-    });
+  renderLegendImage() {
+    var src =
+      this.state.legend[0] && this.state.legend[0].url
+        ? this.state.legend[0].url
+        : "";
+    return src ? <img width="30" alt="legend" src={src} /> : null;
+  }
+
+  isInfoEmpty() {
+    let chaptersWithLayer = this.findChapters(
+      this.props.layer.get("name"),
+      this.props.chapters
+    );
+    const { infoCaption, infoUrl, infoOwner, infoText } = this.state;
+    return !(
+      infoCaption ||
+      infoUrl ||
+      infoOwner ||
+      infoText ||
+      chaptersWithLayer.length > 0
+    );
+  }
+
+  openInformative = chapter => e => {
+    this.props.onOpenChapter(chapter);
   };
 
-  render() {
-    let opacityValue = this.state.opacityValue;
+  findChapters(id, chapters) {
+    var result = [];
+    if (Array.isArray(chapters)) {
+      result = chapters.reduce((chaptersWithLayer, chapter) => {
+        if (Array.isArray(chapter.layers)) {
+          if (chapter.layers.some(layerId => layerId === id)) {
+            chaptersWithLayer = [...chaptersWithLayer, chapter];
+          }
+          if (chapter.chapters.length > 0) {
+            chaptersWithLayer = [
+              ...chaptersWithLayer,
+              ...this.findChapters(id, chapter.chapters)
+            ];
+          }
+        }
+        return chaptersWithLayer;
+      }, []);
+    }
+    return result;
+  }
 
-    var caption = this.props.layer.get("caption"),
-      expanded = this.state.showLegend,
-      visible = this.state.visible,
-      toggleLegend = e => {
-        this.toggleLegend(e);
-      },
-      toggleVisible = e => {
-        this.toggleVisible(e);
-      },
-      toggleInfo = e => {
-        this.toggleInfo(e);
-      },
-      infoVisible = this.state.infoVisible;
-
-    var components = {
-      legend: {
-        legendButton: null
+  renderChapterLinks(chapters) {
+    const { classes } = this.props;
+    if (chapters && chapters.length > 0) {
+      let chaptersWithLayer = this.findChapters(
+        this.props.layer.get("name"),
+        chapters
+      );
+      if (chaptersWithLayer.length > 0) {
+        return (
+          <div className={classes.infoTextContainer}>
+            <Typography>
+              Innehåll från denna kategori finns benämnt i följande kapitel i
+              översiktsplanen:
+            </Typography>
+            <ul className={classes.links}>
+              {chaptersWithLayer.map((chapter, i) => {
+                return (
+                  <li key={i}>
+                    <Button
+                      size="small"
+                      onClick={this.openInformative(chapter)}
+                    >
+                      {chapter.header}
+                      <CallMadeIcon className={classes.rightIcon} />
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      } else {
+        return null;
       }
-    };
-    var innerInfoBodyClass = "hidden";
-    var innerBodyClass = "hidden";
+    } else {
+      return null;
+    }
+  }
+
+  toggle() {
+    this.setState({
+      open: !this.state.open
+    });
+  }
+
+  renderInfo() {
+    const { infoTitle, infoText } = this.state;
+    const { classes } = this.props;
+    if (infoText) {
+      return (
+        <div className={classes.infoTextContainer}>
+          <Typography variant="subtitle2">{infoTitle}</Typography>
+          <Typography
+            dangerouslySetInnerHTML={{
+              __html: infoText
+            }}
+          />
+        </div>
+      );
+    } else {
+      return null;
+    }
+  }
+
+  renderMetadataLink() {
+    const { infoUrl, infoUrlText } = this.state;
+    const { classes } = this.props;
+    if (infoUrl) {
+      return (
+        <div className={classes.infoTextContainer}>
+          <a href={infoUrl} target="_blank" rel="noopener noreferrer">
+            {infoUrlText || infoUrl}
+          </a>
+        </div>
+      );
+    } else {
+      return null;
+    }
+  }
+
+  renderOwner() {
+    const { infoOwner } = this.state;
+    const { classes } = this.props;
+    if (infoOwner) {
+      return (
+        <div className={classes.infoTextContainer}>
+          <Typography>
+            <span dangerouslySetInnerHTML={{ __html: infoOwner }} />
+          </Typography>
+        </div>
+      );
+    } else {
+      return null;
+    }
+  }
+
+  renderDetails() {
+    if (this.state.infoVisible) {
+      return (
+        <div>
+          {this.renderInfo()}
+          {this.renderOwner()}
+          {this.renderMetadataLink()}
+          <div>{this.renderChapterLinks(this.props.chapters || [])}</div>
+        </div>
+      );
+    }
+  }
+
+  toggleSettings() {
+    this.setState({
+      toggleSettings: !this.state.toggleSettings
+    });
+  }
+
+  toggleInfo() {
+    this.setState({
+      infoVisible: !this.state.infoVisible
+    });
+  }
+
+  render() {
+    const { classes, layer, model, app, chapters } = this.props;
+    const { visible } = this.state;
+    const caption = layer.get("caption");
 
     if (!caption) {
       return null;
     }
 
-    var infoUrlText =
-      this.state.infoUrlText && this.state.infoUrlText.length
-        ? this.state.infoUrlText
-        : this.state.infoUrl;
+    if (layer.layerType === "group") {
+      return (
+        <LayerGroupItem
+          appConfig={app.config.appConfig}
+          layer={layer}
+          model={model}
+          chapters={chapters}
+          onOpenChapter={chapter => {
+            const informativeWindow = app.windows.find(
+              window => window.type === "informative"
+            );
+            informativeWindow.props.custom.open(chapter);
+          }}
+        />
+      );
+    }
 
     return (
-      <div className="panel panel-default layer-item">
-        <div className="panel-heading unselectable" onClick={toggleLegend}>
-          <span onClick={toggleVisible} className="clickable">
-            {visible ? <CheckBoxIcon /> : <CheckBoxOutlineBlankIcon />}
-            {this.renderStatus()}
-            <label
-              className={
-                visible
-                  ? "layer-item-header-text active-group"
-                  : "layer-item-header-text"
-              }
+      <div className={classes.layerItemContainer}>
+        <div className={classes.layerItem}>
+          <div className={classes.layerItemInfo}>
+            <div
+              className={classes.caption}
+              onClick={this.toggleVisible(layer)}
             >
-              {caption}
-            </label>
-          </span>
-          {components.legend.legendButton}
-
-          <span onClick={infoVisible ? toggleInfo : null}>
-            {infoVisible ? components.legend.infoButton : null}
-          </span>
+              <Typography>
+                {visible ? (
+                  <CheckBoxIcon className={classes.checkBoxIcon} />
+                ) : (
+                  <CheckBoxOutlineBlankIcon className={classes.checkBoxIcon} />
+                )}
+                <label className={classes.captionText}>{caption}</label>
+              </Typography>
+            </div>
+          </div>
+          <div className={classes.layerButtons}>
+            <DownloadLink
+              layer={this.props.layer}
+              appConfig={this.props.app.config.appConfig}
+            />
+            {this.renderStatus()}
+            {!this.isInfoEmpty() && (
+              <div className={classes.layerButton}>
+                <div className={classes.infoContainer}>
+                  {this.state.infoVisible ? (
+                    <RemoveCircleIcon
+                      className={classes.infoButton}
+                      onClick={() => this.toggleInfo()}
+                    />
+                  ) : (
+                    <InfoIcon
+                      onClick={() => this.toggleInfo()}
+                      className={classes.infoButton}
+                      style={{
+                        boxShadow: this.state.infoVisible
+                          ? "rgb(204, 204, 204) 2px 3px 1px"
+                          : "inherit",
+                        borderRadius: "100%"
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+            <div className={classes.layerButton}>
+              {this.state.toggleSettings ? (
+                <CloseIcon onClick={() => this.toggleSettings()} />
+              ) : (
+                <MoreHorizIcon
+                  onClick={() => this.toggleSettings()}
+                  className={classes.settingsButton}
+                />
+              )}
+            </div>
+          </div>
         </div>
-        <div className={innerInfoBodyClass}>
-          <p
-            className="info-title"
-            dangerouslySetInnerHTML={{ __html: this.state.infoTitle }}
-          />
-          <p
-            className="info-text"
-            dangerouslySetInnerHTML={{ __html: this.state.infoText }}
-          />
-          <a
-            className="info-text"
-            href={this.state.infoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            dangerouslySetInnerHTML={{ __html: infoUrlText }}
-          />
-          <p
-            className="info-text"
-            dangerouslySetInnerHTML={{ __html: this.state.infoOwner }}
+        <div>
+          {this.renderDetails()}
+          {this.state.toggleSettings &&
+          this.state.infoVisible &&
+          !this.isInfoEmpty() ? (
+            <hr />
+          ) : null}
+          <LayerSettings
+            layer={layer}
+            toggled={this.state.toggleSettings}
+            showOpacity={true}
+            showLegend={true}
           />
         </div>
-
-        <div className={innerBodyClass}>
-          {expanded ? components.legend.legendPanel : null}
-        </div>
-
-        <Typography id="label">Opacity</Typography>
-        <Slider
-          value={opacityValue}
-          min={0}
-          max={1}
-          step={0.1}
-          aria-labelledby="label"
-          onChange={this.handleChange}
-          onDragEnd={this.handleDragEnd}
-        />
       </div>
     );
   }
 }
 
-export default LayerItem;
+export default withStyles(styles)(LayerItem);

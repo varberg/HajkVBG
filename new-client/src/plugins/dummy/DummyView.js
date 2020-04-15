@@ -1,20 +1,44 @@
 import React from "react";
-import { withStyles } from "@material-ui/core/styles";
 import PropTypes from "prop-types";
-import Button from "@material-ui/core/Button";
+import { withStyles } from "@material-ui/core/styles";
 import { withSnackbar } from "notistack";
+import Button from "@material-ui/core/Button";
 
-const styles = theme => ({});
+// Define JSS styles that will be used in this component.
+// Example below utilizes the very powerful "theme" object
+// that gives access to some constants, see: https://material-ui.com/customization/default-theme/
+const styles = theme => ({
+  buttonWithBottomMargin: {
+    marginBottom: theme.spacing(2)
+  }
+});
 
 class DummyView extends React.PureComponent {
-  state = {};
+  // Initialize state - this is the correct way of doing it nowadays.
+  state = {
+    counter: 0
+  };
+
+  // propTypes and defaultProps are static properties, declared
+  // as high as possible within the component code. They should
+  // be immediately visible to other devs reading the file,
+  // since they serve as documentation.
+  static propTypes = {
+    model: PropTypes.object.isRequired,
+    app: PropTypes.object.isRequired,
+    localObserver: PropTypes.object.isRequired,
+    classes: PropTypes.object.isRequired,
+    enqueueSnackbar: PropTypes.func.isRequired,
+    closeSnackbar: PropTypes.func.isRequired
+  };
+
+  static defaultProps = {};
 
   constructor(props) {
     // If you're not using some of properties defined below, remove them from your code.
     // They are shown here for demonstration purposes only.
     super(props);
     this.model = this.props.model;
-    this.app = this.props.app;
     this.localObserver = this.props.localObserver;
     this.globalObserver = this.props.app.globalObserver;
   }
@@ -31,9 +55,9 @@ class DummyView extends React.PureComponent {
     );
 
     // And we can of course access this component's state
-    this.setState({
-      test: "State changed!"
-    });
+    this.setState(prevState => ({
+      counter: prevState.counter + 1
+    }));
   };
 
   toggleCesium = () => {
@@ -41,32 +65,96 @@ class DummyView extends React.PureComponent {
   };
 
   // Event handler for a button that shows a global info message when clicked
-  handleMessageClick = () => {
+  showDefaultSnackbar = () => {
     this.props.enqueueSnackbar("Yay, a nice message with default styling.");
   };
 
-  handleMessageClick2 = () => {
+  showIntroduction = () => {
+    // Show the introduction guide, see components/Introduction.js
+    this.globalObserver.publish("core.showIntroduction");
+  };
+
+  // A more complicate snackbar example, this one with an action button and persistent snackbar
+  showAdvancedSnackbar = () => {
+    const action = key => (
+      <>
+        <Button
+          onClick={() => {
+            alert(`I belong to snackbar with key ${key}`);
+          }}
+        >
+          {"Alert"}
+        </Button>
+        <Button
+          onClick={() => {
+            this.props.closeSnackbar(key);
+          }}
+        >
+          {"Dismiss"}
+        </Button>
+      </>
+    );
+
     this.props.enqueueSnackbar("Oops, a message with error styling!", {
-      variant: "error"
+      variant: "error",
+      persist: true,
+      action
     });
   };
 
   render() {
+    const { classes } = this.props;
     return (
       <>
         <Button onClick={this.toggleCesium}>Toggle Cesium</Button>
         <Button onClick={this.buttonClick}>
           {this.state.test || "Click to change state"}
         </Button>
-        <Button onClick={this.handleMessageClick}>Show default snackbar</Button>
-        <Button onClick={this.handleMessageClick2}>Show error snackbar</Button>
+        <Button
+          className={classes.buttonWithBottomMargin}
+          variant="contained"
+          fullWidth={true}
+          // onChange={(e) => { console.log(e) }}
+          // ^ Don't do this. Closures here are inefficient. Use the below:
+          onClick={this.buttonClick}
+        >
+          {this.state.test ||
+            `Clicked ${this.state.counter} ${
+              this.state.counter === 1 ? "time" : "times"
+            }`}
+        </Button>
+        <Button
+          className={classes.buttonWithBottomMargin}
+          variant="contained"
+          fullWidth={true}
+          onClick={this.showDefaultSnackbar}
+        >
+          Show default snackbar
+        </Button>
+        <Button
+          className={classes.buttonWithBottomMargin}
+          variant="contained"
+          fullWidth={true}
+          onClick={this.showAdvancedSnackbar}
+        >
+          Show error snackbar
+        </Button>
+        <Button
+          className={classes.buttonWithBottomMargin}
+          variant="contained"
+          fullWidth={true}
+          color="primary"
+          onClick={this.showIntroduction}
+        >
+          Show Hajk Introduction
+        </Button>
       </>
     );
   }
 }
 
-DummyView.propTypes = {
-  classes: PropTypes.object.isRequired
-};
-
+// Exporting like this adds some props to DummyView.
+// withStyles will add a 'classes' prop, while withSnackbar
+// adds to functions (enqueueSnackbar() and closeSnackbar())
+// that can be used throughout the Component.
 export default withStyles(styles)(withSnackbar(DummyView));

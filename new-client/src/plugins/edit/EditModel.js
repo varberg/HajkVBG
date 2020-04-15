@@ -67,7 +67,10 @@ class EditModel {
           if (layer.getSource().getParams) {
             let params = layer.getSource().getParams();
             if (typeof params === "object") {
-              let paramName = params.LAYERS.split(":");
+              // FIXME: Can be a bug here: we can't expect our edited layer to always be of index 0 if a LayerGroup (which gives Array so we must handle that as well)
+              let paramName = Array.isArray(params.LAYERS)
+                ? params.LAYERS[0].split(":")
+                : params.LAYERS.split(":");
               let layerSplit = layerName.split(":");
               if (paramName.length === 2 && layerSplit.length === 2) {
                 match = layerName === params.LAYERS;
@@ -130,13 +133,16 @@ class EditModel {
   }
 
   save(done) {
-    var find = mode =>
+    const find = mode =>
       this.vectorSource
         .getFeatures()
         .filter(feature => feature.modification === mode);
 
-    var features = {
-      updates: find("updated"),
+    const features = {
+      updates: find("updated").map(feature => {
+        feature.unset("boundedBy");
+        return feature;
+      }),
       inserts: find("added"),
       deletes: find("removed")
     };
@@ -289,9 +295,13 @@ class EditModel {
     } catch (e) {
       alert("Fel: data kan inte läsas in. Kontrollera koordinatsystem.");
     }
-    if (features.length > 0) {
-      this.geometryName = features[0].getGeometryName();
-    }
+
+    // Make sure we have a name for geometry column. If there are features already,
+    // take a look at the first one and get geometry field's name from that first feature.
+    // If there are no features however, default to 'geom'. If we don't then OL will
+    // fallback to its own default geometry field name, which happens to be 'geometry' and not 'geom.
+    this.geometryName =
+      features.length > 0 ? features[0].getGeometryName() : "geom";
 
     if (this.editSource.editableFields.some(field => field.hidden)) {
       features = this.filterByDefaultValue(features);
@@ -357,7 +367,7 @@ class EditModel {
 
   editAttributes(feature) {
     this.editFeature = feature;
-    this.observer.emit("editFeature", feature);
+    this.observer.publish("editFeature", feature);
   }
 
   featureSelected(event) {
@@ -421,9 +431,9 @@ class EditModel {
     this.map.addLayer(this.layer);
     this.editSource = this.source;
     this.editFeature = null;
-    this.observer.emit("editSource", this.source);
-    this.observer.emit("editFeature", null);
-    this.observer.emit("layerChanged", this.layer);
+    this.observer.publish("editSource", this.source);
+    this.observer.publish("editFeature", null);
+    this.observer.publish("layerChanged", this.layer);
   }
 
   activateModify() {
@@ -547,9 +557,9 @@ class EditModel {
 
   deactivate() {
     this.reset();
-    this.observer.emit("editFeature", this.editFeature);
-    this.observer.emit("editSource", this.editSource);
-    this.observer.emit("deactivate");
+    this.observer.publish("editFeature", this.editFeature);
+    this.observer.publish("editSource", this.editSource);
+    this.observer.publish("deactivate");
   }
 
   getSources() {

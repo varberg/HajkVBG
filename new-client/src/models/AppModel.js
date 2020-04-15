@@ -11,7 +11,19 @@ import { bindMapClickEvent } from "./Click.js";
 import { defaults as defaultInteractions } from "ol/interaction";
 import { Map, View } from "ol";
 // TODO: Uncomment and ensure they show as expected
-//{ Rotate, ScaleLine, Attribution, FullScreen } from "ol/control";
+// import {
+// defaults as defaultControls,
+// Attribution,
+// Control,
+// FullScreen, // TODO: Consider implementation
+// MousePosition, // TODO: Consider implementation, perhaps in a separate plugin
+// OverviewMap // TODO: Consider implementation
+// Rotate,
+// ScaleLine
+// Zoom,
+// ZoomSlider,
+// ZoomToExtent
+// } from "ol/control";
 import { register } from "ol/proj/proj4";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
@@ -20,22 +32,22 @@ import { Icon, Fill, Stroke, Style } from "ol/style.js";
 var map;
 
 class AppModel {
-  registerPanel(panelComponent) {
-    this.panels.push(panelComponent);
+  registerWindowPlugin(windowComponent) {
+    this.windows.push(windowComponent);
   }
 
-  closePanels() {
-    this.panels.forEach(panel => {
-      panel.closePanel();
+  invokeCloseOnAllWindowPlugins() {
+    this.windows.forEach(window => {
+      window.closeWindow();
     });
   }
 
-  onPanelOpen(currentPanel) {
-    this.panels
-      .filter(panel => panel !== currentPanel)
-      .forEach(panel => {
-        if (panel.position === currentPanel.position || isMobile) {
-          panel.closePanel();
+  onWindowOpen(currentWindow) {
+    this.windows
+      .filter(window => window !== currentWindow)
+      .forEach(window => {
+        if (window.position === currentWindow.position || isMobile) {
+          window.closeWindow();
         }
       });
   }
@@ -46,7 +58,7 @@ class AppModel {
    * @param Observer observer
    */
   constructor(config, globalObserver) {
-    this.panels = [];
+    this.windows = [];
     this.plugins = {};
     this.activeTool = undefined;
     this.config = config;
@@ -74,27 +86,40 @@ class AppModel {
     }, []);
   }
   /**
-   * Get plugins that are currently loaded in the toolbar.
-   * @returns Array<Plugin>
+   * A plugin may have the 'target' option. Currently we use three
+   * targets: toolbar, left and right. Toolbar means it's a
+   * plugin that will be visible in Drawer list. Left and right
+   * are Widget plugins, that on large displays show on left/right
+   * side of the map viewport, while on small screens change its
+   * appearance and end up as Drawer list plugins too.
+   *
+   * This method filters out those plugins that should go into
+   * the Drawer or Widget list and returns them.
+   *
+   * It is used in AppModel to initiate all plugins' Components,
+   * so whatever is returned here will result in a render() for
+   * that plugin. That is the reason why 'search' is filtered out
+   * from the results: we render Search plugin separately in App,
+   * and we don't want a second render invoked from here.
+   *
+   * @returns array of Plugins
+   * @memberof AppModel
    */
-  getToolbarPlugins() {
-    return this.getPlugins()
-      .filter(plugin => plugin.options.target === "toolbar")
+  getBothDrawerAndWidgetPlugins() {
+    const r = this.getPlugins()
+      .filter(plugin => {
+        return ["toolbar", "left", "right"].includes(plugin.options.target);
+      })
       .sort((a, b) => a.sortOrder - b.sortOrder);
+    return r;
   }
-  /**
-   * Check if the search plugin is avaliable and if so return it.
-   * @returns Array<Plugin>
-   */
-  getSearchPlugin() {
-    return this.getPlugins().find(plugin => plugin.type === "search");
-  }
+
   /**
    * Dynamically load plugins from the configured plugins folder.
    * Assumed that a folder exists with the same name as the requested plugin.
    * There must also be a file present with the same name as well.
-   * @param Array<string> - List of plugins to be loaded.
-   * @returns Array<Promise> - List of promises to be resolved for.
+   * @param {Array} - List of plugins to be loaded.
+   * @returns {Array} - List of promises to be resolved for.
    */
   loadPlugins(plugins) {
     var promises = [];
@@ -108,16 +133,6 @@ class AppModel {
 
           const toolOptions =
             toolConfig && toolConfig.options ? toolConfig.options : {};
-
-          // Crucial step to ensure that target is passed on as an option.
-          // First find out if target has been set in JSON config for plugin.
-          // If yes, keep it. Else, default to 'toolbar'.
-          const target = toolOptions.hasOwnProperty("target")
-            ? toolConfig.options.target
-            : "toolbar";
-          // Next, pass on this determined target to _options_ array of plugin,
-          // and not as a property of the plugin itself.
-          toolOptions.target = target;
 
           const sortOrder = toolConfig.hasOwnProperty("index")
             ? Number(toolConfig.index)
@@ -151,20 +166,34 @@ class AppModel {
   createMap() {
     var config = this.translateConfig();
     map = new Map({
+      controls: [
+        // new FullScreen({ target: document.getElementById("controls-column") }),
+        // new Rotate({ target: document.getElementById("controls-column") }),
+        // new MousePosition({
+        //   target: document.querySelector("#root > div > footer")
+        // }),
+        // new OverviewMap({
+        //   target: document.querySelector("#root > div > footer"),
+        //   view: new View({
+        //     projection: config.map.projection
+        //   })
+        // })
+      ],
       interactions: defaultInteractions(),
-      target: config.map.target,
       layers: [],
-      logo: false,
-      pil: false,
-      controls: [],
+      target: config.map.target,
       overlays: [],
       view: new View({
-        zoom: config.map.zoom,
-        units: "m",
-        resolutions: config.map.resolutions,
         center: config.map.center,
+        extent: config.map.extent.length > 0 ? config.map.extent : undefined, // backend will always write extent as an Array, so basic "config.map.extent || undefined" wouldn't work here
+        constrainOnlyCenter: config.map.constrainOnlyCenter, // If true, the extent constraint will only apply to the view center and not the whole extent.
+        constrainResolution: config.map.constrainResolution, // If true, the view will always animate to the closest zoom level after an interaction; false means intermediary zoom levels are allowed.
+        maxZoom: config.map.maxZoom || 24,
+        minZoom: config.map.minZoom || 0,
         projection: config.map.projection,
-        extent: config.map.length !== 0 ? config.map.extent : undefined
+        resolutions: config.map.resolutions,
+        units: "m",
+        zoom: config.map.zoom
       })
     });
     setTimeout(() => {
@@ -173,7 +202,7 @@ class AppModel {
 
     if (config.tools.some(tool => tool.type === "infoclick")) {
       bindMapClickEvent(map, mapClickDataResult => {
-        this.globalObserver.publish("mapClick", mapClickDataResult);
+        this.globalObserver.publish("core.mapClick", mapClickDataResult);
       });
     }
     return this;
@@ -196,7 +225,7 @@ class AppModel {
           layer.getProperties().layerInfo.layerType === "layer"
         ) {
           if (layer.layerType === "group") {
-            this.globalObserver.emit("hideLayer", layer);
+            this.globalObserver.publish("layerswitcher.hideLayer", layer);
           } else {
             layer.setVisible(false);
           }
@@ -215,7 +244,8 @@ class AppModel {
         layerConfig = configMapper.mapWMSConfig(layer, this.config);
         layerItem = new WMSLayer(
           layerConfig.options,
-          this.config.appConfig.proxy
+          this.config.appConfig.proxy,
+          this.globalObserver
         );
         map.addLayer(layerItem.layer);
         break;
@@ -253,7 +283,7 @@ class AppModel {
   lookup(layers, type) {
     var matchedLayers = [];
     layers.forEach(layer => {
-      var layerConfig = this.config.layersConfig.find(
+      const layerConfig = this.config.layersConfig.find(
         lookupLayer => lookupLayer.id === layer.id
       );
       layer.layerType = type;
@@ -283,22 +313,23 @@ class AppModel {
   }
 
   flattern(layerSwitcherConfig) {
-    var layers = [
+    const layers = [
       ...this.lookup(layerSwitcherConfig.options.baselayers, "base"),
       ...this.lookup(this.expand(layerSwitcherConfig.options.groups), "layer")
     ];
-    // layers = layers.reduce((a, b) => {
-    //   a[b["id"]] = b;
-    //   return a;
-    // }, {});
 
     return layers;
   }
 
   addLayers() {
-    let layerSwitcherConfig = this.config.mapConfig.tools.find(
-      tool => tool.type === "layerswitcher"
-    );
+    const layerSwitcherConfig = this.config.mapConfig.tools.find(
+        tool => tool.type === "layerswitcher"
+      ),
+      infoclickConfig = this.config.mapConfig.tools.find(
+        t => t.type === "infoclick"
+      );
+
+    // Prepare layers
     this.layers = this.flattern(layerSwitcherConfig);
     Object.keys(this.layers)
       .sort((a, b) => this.layers[a].drawOrder - this.layers[b].drawOrder)
@@ -312,29 +343,46 @@ class AppModel {
         this.addMapLayer(layer);
       });
 
+    if (infoclickConfig !== undefined) {
+      this.addHighlightLayer(infoclickConfig.options);
+    }
+
+    return this;
+  }
+
+  addHighlightLayer(options) {
+    const { anchor, scale, src, strokeColor, strokeWidth, fillColor } = options;
+    const strokeColorAsArray = strokeColor && [
+      strokeColor.r,
+      strokeColor.g,
+      strokeColor.b,
+      strokeColor.a
+    ];
+    const fillColorAsArray = fillColor && [
+      fillColor.r,
+      fillColor.g,
+      fillColor.b,
+      fillColor.a
+    ];
     this.highlightSource = new VectorSource();
     this.highlightLayer = new VectorLayer({
       source: this.highlightSource,
       style: new Style({
         stroke: new Stroke({
-          color: "rgba(200, 0, 0, 0.7)",
-          width: 4
+          color: strokeColorAsArray || [200, 0, 0, 0.7],
+          width: strokeWidth || 4
         }),
         fill: new Fill({
-          color: "rgba(255, 0, 0, 0.1)"
+          color: fillColorAsArray || [255, 0, 0, 0.1]
         }),
         image: new Icon({
-          anchor: [0.5, 1],
-          scale: 0.15,
-          anchorXUnits: "fraction",
-          anchorYUnits: "fraction",
-          src: "marker.png"
+          anchor: [anchor[0] || 0.5, anchor[1] || 1],
+          scale: scale || 0.15,
+          src: src || "marker.png"
         })
       })
     });
     map.addLayer(this.highlightLayer);
-
-    return this;
   }
 
   getCenter(e) {
@@ -365,9 +413,23 @@ class AppModel {
       });
     return o;
   }
-
+  /**
+   * @summary Merges two objects.
+   *
+   * @param {*} a
+   * @param {*} b
+   * @returns {*} a Result of overwritting a with values from b
+   * @memberof AppModel
+   */
   mergeConfig(a, b) {
-    var x = parseFloat(b.x),
+    // clean is used to strip the UI of all elements so we get a super clean viewport back, without any plugins
+    const clean =
+      Boolean(b.hasOwnProperty("clean")) &&
+      b.clean !== "false" &&
+      b.clean !== "0";
+
+    // Merge query params to the map config from JSON
+    let x = parseFloat(b.x),
       y = parseFloat(b.y),
       z = parseInt(b.z, 10),
       l = undefined;
@@ -375,16 +437,17 @@ class AppModel {
       l = b.l.split(",");
     }
 
-    if (isNaN(x)) {
+    if (Number.isNaN(x)) {
       x = a.map.center[0];
     }
-    if (isNaN(y)) {
+    if (Number.isNaN(y)) {
       y = a.map.center[1];
     }
-    if (isNaN(z)) {
+    if (Number.isNaN(z)) {
       z = a.map.zoom;
     }
 
+    a.map.clean = clean;
     a.map.center[0] = x;
     a.map.center[1] = y;
     a.map.zoom = z;
@@ -393,19 +456,26 @@ class AppModel {
       this.layersFromParams = l;
     }
 
+    // If 'v' query param is specified, it looks like we will want to search on load
+    if (b.v !== undefined && b.v.length > 0) {
+      a.map.searchOnStart = {
+        v: this.returnStringOrUndefined(b.v), // Search Value (will NOT search on start if null)
+        s: this.returnStringOrUndefined(b.s), // Search Service (will search in all, if null)
+        t: this.returnStringOrUndefined(b.t) // Search Type (controls which search plugin is used, default search if null)
+      };
+    }
+
     return a;
   }
-
-  getADSpecificSearchLayers() {
-    // $.ajax({
-    //   url: "/mapservice/config/ADspecificSearch",
-    //   method: "GET",
-    //   contentType: "application/json",
-    //   success: data => {},
-    //   error: message => {
-    //     callback(message);
-    //   }
-    // });
+  /**
+   * @summary If supplied argument, v, is a string and is longer then 0, return an encoded value of v. Else return undefined.
+   *
+   * @param {*} v
+   * @returns
+   * @memberof AppModel
+   */
+  returnStringOrUndefined(v) {
+    return typeof v === "string" && v.trim().length > 0 ? v : undefined;
   }
 
   overrideGlobalSearchConfig(searchTool, data) {
@@ -428,15 +498,15 @@ class AppModel {
       document.title = this.config.mapConfig.map.title; // TODO: add opt-out in admin to cancel this override behaviour.
     }
 
-    let layerSwitcherTool = this.config.mapConfig.tools.find(tool => {
+    const layerSwitcherTool = this.config.mapConfig.tools.find(tool => {
       return tool.type === "layerswitcher";
     });
 
-    let searchTool = this.config.mapConfig.tools.find(tool => {
+    const searchTool = this.config.mapConfig.tools.find(tool => {
       return tool.type === "search";
     });
 
-    let editTool = this.config.mapConfig.tools.find(tool => {
+    const editTool = this.config.mapConfig.tools.find(tool => {
       return tool.type === "edit";
     });
 

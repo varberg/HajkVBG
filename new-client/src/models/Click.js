@@ -10,7 +10,9 @@ const fetchConfig = {
 
 function query(map, layer, evt) {
   let coordinate = evt.coordinate;
+
   let resolution = map.getView().getResolution();
+
   let subLayersToQuery = [];
   let referenceSystem = map
     .getView()
@@ -21,12 +23,10 @@ function query(map, layer, evt) {
     let subLayers = Object.values(layer.layersInfo);
     let visibleSubLayers = layer.getSource().getParams()["LAYERS"];
     subLayersToQuery = subLayers
-      .filter(subLayer => {
-        return (
-          subLayer.queryable === true &&
-          visibleSubLayers.indexOf(subLayer.id) !== -1 // QUERY_LAYERS must not include anything that's not in LAYERS, see https://github.com/hajkmap/Hajk/issues/211
-        );
-      })
+      .filter(
+        subLayer =>
+          subLayer.queryable === true && visibleSubLayers.includes(subLayer.id)
+      ) // QUERY_LAYERS must not include anything that's not in LAYERS, see https://github.com/hajkmap/Hajk/issues/211
       .map(queryableSubLayer => {
         return queryableSubLayer.id;
       });
@@ -38,9 +38,10 @@ function query(map, layer, evt) {
       INFO_FORMAT: layer.getSource().getParams().INFO_FORMAT,
       QUERY_LAYERS: subLayersToQuery.join(",")
     };
+
     let url = layer
       .getSource()
-      .getGetFeatureInfoUrl(coordinate, resolution, referenceSystem, params);
+      .getFeatureInfoUrl(coordinate, resolution, referenceSystem, params);
     return fetch(url, fetchConfig);
   } else {
     return false;
@@ -79,7 +80,7 @@ function getFeaturesFromGml(response, text) {
  * When the requests are done the features are parsed and given the original layer reference.
  * Vector layers are added with the features at pixel method and given the original layer reference as well.
  */
-function handleClick(evt, map, callback) {
+export function handleClick(evt, map, callback) {
   // TODO: Remove this temporary fix for OL6 beta when no longer necessary
   // if (evt.originalEvent.target.className !== "ol-unselectable") {
   //   return;
@@ -137,7 +138,6 @@ function handleClick(evt, map, callback) {
                 console.error(
                   "GetFeatureInfo couldn't retrieve correct data for the clicked object. "
                 );
-                console.error(err);
               })
           );
           break;
@@ -153,13 +153,11 @@ function handleClick(evt, map, callback) {
                 console.error(
                   "GetFeatureInfo couldn't retrieve correct data for the clicked object. "
                 );
-                console.error(err);
               })
           );
           break;
         }
         default:
-          console.log("Unsupported response type:", type);
           break;
       }
     });
@@ -168,7 +166,10 @@ function handleClick(evt, map, callback) {
       map.forEachFeatureAtPixel(
         evt.pixel,
         (feature, layer) => {
-          if (layer.get("queryable") === true && layer.getProperties().name) {
+          if (
+            layer.get("queryable") === true ||
+            layer.get("type") === "searchResultLayer"
+          ) {
             feature.layer = layer;
             features.push(feature);
           }
@@ -191,16 +192,15 @@ export function bindMapClickEvent(map, callback) {
   map.on("singleclick", evt => {
     // If Draw, Modify or Snap interaction are currently active, ignore clicks
     if (
+      map.clicklock ||
       map
         .getInteractions()
         .getArray()
-        .filter(
-          interaction =>
-            ["Draw", "Snap", "Modify", "Select", "Translate"].indexOf(
-              interaction.constructor.name
-            ) !== -1
-        ).length > 0 ||
-      map.clicklock
+        .filter(interaction =>
+          ["Draw", "Snap", "Modify", "Select", "Translate"].includes(
+            interaction.constructor.name
+          )
+        ).length > 0
     ) {
       return;
     } else {

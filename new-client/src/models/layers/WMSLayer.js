@@ -4,23 +4,24 @@ import TileLayer from "ol/layer/Tile";
 import ImageWMS from "ol/source/ImageWMS";
 import TileWMS from "ol/source/TileWMS";
 import GeoJSON from "ol/format/GeoJSON";
-import Attribution from "ol/control/Attribution";
 import LayerInfo from "./LayerInfo.js";
 
-var WmsLayerProperties = {
-  url: "",
-  projection: "EPSG:3006",
-  serverType: "geoserver",
-  opacity: 1,
-  status: "ok",
-  params: {}
-};
+// var WmsLayerProperties = {
+//   url: "",
+//   projection: "EPSG:3006",
+//   serverType: "geoserver",
+//   crossOrigin: "anonymous",
+//   opacity: 1,
+//   status: "ok",
+//   params: {}
+// };
 
 class WMSLayer {
-  constructor(config, proxyUrl) {
+  constructor(config, proxyUrl, globalObserver) {
     this.proxyUrl = proxyUrl;
+    this.globalObserver = globalObserver;
     this.validInfo = true;
-    this.defaultProperties = WmsLayerProperties;
+    // this.defaultProperties = WmsLayerProperties;
     this.legend = config.legend;
     this.attribution = config.attribution;
     this.layerInfo = new LayerInfo(config);
@@ -31,8 +32,9 @@ class WMSLayer {
       params: config.params,
       projection: config.projection,
       serverType: config.serverType,
+      crossOrigin: "anonymous",
       imageFormat: config.imageFormat,
-      attributions: this.getAttributions(),
+      attributions: config.attribution,
       cacheSize: this.subLayers.length > 1 ? 32 : 2048,
       transition: this.subLayers.length > 1 ? 0 : 100
     };
@@ -93,16 +95,6 @@ class WMSLayer {
     this.type = "wms";
   }
 
-  getAttributions() {
-    if (this.attribution) {
-      return [
-        new Attribution({
-          label: this.attribution
-        })
-      ];
-    }
-  }
-
   /**
    * Load feature information.
    * @instance
@@ -117,7 +109,7 @@ class WMSLayer {
 
       url = this.getLayer()
         .getSource()
-        .getGetFeatureInfoUrl(
+        .getFeatureInfoUrl(
           params.coordinate,
           params.resolution,
           params.projection,
@@ -168,7 +160,10 @@ class WMSLayer {
    * @instance
    */
   tileLoadError() {
-    this.status = "loaderror";
+    this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
+      id: this.layer.get("name"),
+      status: "loaderror"
+    });
   }
 
   /**
@@ -176,7 +171,10 @@ class WMSLayer {
    * @instance
    */
   tileLoadOk() {
-    this.status = "ok";
+    this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
+      id: this.layer.get("name"),
+      status: "ok"
+    });
   }
 
   /**

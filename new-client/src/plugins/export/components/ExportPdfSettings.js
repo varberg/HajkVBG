@@ -1,6 +1,8 @@
-import { getCenter } from "ol/extent.js";
 import React from "react";
+import propTypes from "prop-types";
 import { withStyles } from "@material-ui/core/styles";
+import { withSnackbar } from "notistack";
+
 import {
   Paper,
   FormControl,
@@ -10,10 +12,10 @@ import {
   NativeSelect,
   LinearProgress
 } from "@material-ui/core";
-
 import ArrowDownward from "@material-ui/icons/ArrowDownward";
 import PictureAsPdf from "@material-ui/icons/PictureAsPdf";
 
+import { getCenter } from "ol/extent.js";
 const styles = theme => ({
   root: {
     display: "flex",
@@ -36,7 +38,13 @@ const styles = theme => ({
   }
 });
 
-class ExportPdfSettings extends React.Component {
+class ExportPdfSettings extends React.PureComponent {
+  static propTypes = {
+    classes: propTypes.object.isRequired,
+    localObserver: propTypes.object.isRequired,
+    model: propTypes.object.isRequired
+  };
+
   constructor(props) {
     super(props);
     this.resolutions = [72, 96, 150, 200, 300];
@@ -44,14 +52,26 @@ class ExportPdfSettings extends React.Component {
     this.state = {
       selectFormat: "A4",
       selectOrientation: "S",
-      selectScale: props.model.scales[0],
+      selectScale:
+        props.model.scales[Math.floor(props.model.scales.length / 2)], // Start with the scale in the middle of array
       manualScale: "10000",
       selectResolution: "72",
       center: props.model.getPreviewFeature()
         ? props.model.getPreviewCenter()
         : props.model.map.getView().getCenter(),
-      loading: false
+      loading: false,
+      previewLayerVisible: false
     };
+
+    props.localObserver.subscribe("showPreviewLayer", () => {
+      this.setState({ previewLayerVisible: true });
+      this.addPreview(props.model.map);
+    });
+
+    props.localObserver.subscribe("hidePreviewLayer", () => {
+      this.setState({ previewLayerVisible: false });
+      this.removePreview();
+    });
   }
 
   getPaperMeasures() {
@@ -103,7 +123,7 @@ class ExportPdfSettings extends React.Component {
 
   getScale() {
     return this.state.selectScale === "other"
-      ? !isNaN(Number(this.state.manualScale))
+      ? !Number.isNaN(Number(this.state.manualScale))
         ? this.state.manualScale
         : 0
       : this.state.selectScale;
@@ -235,17 +255,25 @@ class ExportPdfSettings extends React.Component {
     };
 
     this.props.model.exportPDF(options, pdfUrl => {
-      this.setState({
-        loading: false,
-        url: pdfUrl
-      });
+      let newState = {
+        loading: false
+      };
+
+      // Set URL in state only if respons ends with ".pdf"
+      if (pdfUrl.trimEnd().substr(-4) === ".pdf") {
+        newState["url"] = pdfUrl;
+      } else {
+        this.props.enqueueSnackbar(
+          "Utskriften kunde inte skapas. Prova med lägre upplösning, mindre område eller färre lager i kartan.",
+          {
+            variant: "error"
+          }
+        );
+      }
+
+      this.setState(newState);
     });
   };
-
-  // downloadAttachment = () => {
-  //  // Not so good as it actually shows the PDF in browser, instead of displaying a Save dialog…
-  //   window.location = this.state.url;
-  // };
 
   render() {
     const { classes } = this.props;
@@ -299,7 +327,7 @@ class ExportPdfSettings extends React.Component {
       }
     });
 
-    if (this.props.model.displayPreview) {
+    if (this.state.previewLayerVisible === true) {
       this.addPreview(this.props.model.map);
     } else {
       this.removePreview();
@@ -390,7 +418,7 @@ class ExportPdfSettings extends React.Component {
             <Button
               variant="contained"
               fullWidth={true}
-              // onClick={this.downloadAttachment}
+              target="_blank"
               href={this.state.url}
             >
               <ArrowDownward className={classes.icon} /> Ladda ner
@@ -402,4 +430,4 @@ class ExportPdfSettings extends React.Component {
   }
 }
 
-export default withStyles(styles)(ExportPdfSettings);
+export default withStyles(styles)(withSnackbar(ExportPdfSettings));

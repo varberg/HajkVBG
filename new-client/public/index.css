@@ -1,6 +1,11 @@
+html,
 body {
   margin: 0;
   padding: 0;
+  overflow: hidden;
+}
+
+body {
   font-family: "Roboto", sans-serif;
 }
 .app-start {
@@ -39,4 +44,17 @@ body {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* Used only for displaying error if nothing loaded (and we don't have any MUI yet) */
+.start-error {
+  color: red;
+  background: rgb(255, 200, 200);
+  border: 1px solid red;
+  border-radius: 5px;
+  padding: 15px;
+  margin: 0 auto;
+  width: 50%;
+  text-align: center;
+  margin-top: 5%;
 }

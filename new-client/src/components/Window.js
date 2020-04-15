@@ -1,14 +1,21 @@
 import React from "react";
-import PropTypes from "prop-types";
+import propTypes from "prop-types";
 import { withStyles } from "@material-ui/core/styles";
 import PanelHeader from "./PanelHeader";
 import { Rnd } from "react-rnd";
 import { isMobile, getIsMobile } from "../utils/IsMobile.js";
 import FeatureInfo from "./FeatureInfo.js";
+import clsx from "clsx";
 
 const zIndexStart = 1e3;
 // Patch the RND component's onDragStart method with the ability to disable drag by its internal state.
 // This is necessary so we can disable/enable drag at any time.
+//
+// Please note that since we override the onDragStart on prototype level, we must ensure that it's
+// kept up-to-date with the current version, see https://github.com/bokuweb/react-rnd/blob/master/src/index.tsx
+// for latest version of this method.
+//
+// TODO: Perhaps there's no need to disable drag at any time anymore, so this override could be removed?
 //
 Rnd.prototype.onDragStart = function(e, data) {
   if (this.state.disableDrag) {
@@ -18,49 +25,67 @@ Rnd.prototype.onDragStart = function(e, data) {
   if (this.props.onDragStart) {
     this.props.onDragStart(e, data);
   }
-
   if (!this.props.bounds) return;
-
-  var parent = this.getParent();
-  var boundary;
+  const parent = this.getParent();
+  const scale = this.props.scale;
+  let boundary;
   if (this.props.bounds === "parent") {
     boundary = parent;
   } else if (this.props.bounds === "body") {
-    boundary = document.body;
+    const parentRect = parent.getBoundingClientRect();
+    const parentLeft = parentRect.left;
+    const parentTop = parentRect.top;
+    const bodyRect = document.body.getBoundingClientRect();
+    const left =
+      -(parentLeft - parent.offsetLeft * scale - bodyRect.left) / scale;
+    const top = -(parentTop - parent.offsetTop * scale - bodyRect.top) / scale;
+    const right =
+      (document.body.offsetWidth - this.resizable.size.width * scale) / scale +
+      left;
+    const bottom =
+      (document.body.offsetHeight - this.resizable.size.height * scale) /
+        scale +
+      top;
+    return this.setState({ bounds: { top, right, bottom, left } });
   } else if (this.props.bounds === "window") {
     if (!this.resizable) return;
-    return this.setState({
-      bounds: {
-        top: 0,
-        right: window.innerWidth - this.resizable.size.width,
-        bottom: window.innerHeight - this.resizable.size.height,
-        left: 0
-      }
-    });
+    const parentRect = parent.getBoundingClientRect();
+    const parentLeft = parentRect.left;
+    const parentTop = parentRect.top;
+    const left = -(parentLeft - parent.offsetLeft * scale) / scale;
+    const top = -(parentTop - parent.offsetTop * scale) / scale;
+    const right =
+      (window.innerWidth - this.resizable.size.width * scale) / scale + left;
+    const bottom =
+      (window.innerHeight - this.resizable.size.height * scale) / scale + top;
+    return this.setState({ bounds: { top, right, bottom, left } });
   } else {
     boundary = document.querySelector(this.props.bounds);
   }
   if (!(boundary instanceof HTMLElement) || !(parent instanceof HTMLElement)) {
     return;
   }
-  var boundaryRect = boundary.getBoundingClientRect();
-  var boundaryLeft = boundaryRect.left;
-  var boundaryTop = boundaryRect.top;
-  var parentRect = parent.getBoundingClientRect();
-  var parentLeft = parentRect.left;
-  var parentTop = parentRect.top;
-  var left = boundaryLeft - parentLeft;
-  var top = boundaryTop - parentTop;
+  const boundaryRect = boundary.getBoundingClientRect();
+  const boundaryLeft = boundaryRect.left;
+  const boundaryTop = boundaryRect.top;
+  const parentRect = parent.getBoundingClientRect();
+  const parentLeft = parentRect.left;
+  const parentTop = parentRect.top;
+  const left = (boundaryLeft - parentLeft) / scale;
+  const top = boundaryTop - parentTop;
   if (!this.resizable) return;
-  var offset = this.getOffsetFromParent();
+  this.updateOffsetFromParent();
+  const offset = this.offsetFromParent;
   this.setState({
     bounds: {
       top: top - offset.top,
       right:
-        left + (boundary.offsetWidth - this.resizable.size.width) - offset.left,
+        left +
+        (boundary.offsetWidth - this.resizable.size.width) -
+        offset.left / scale,
       bottom:
         top + (boundary.offsetHeight - this.resizable.size.height) - offset.top,
-      left: left - offset.left
+      left: left - offset.left / scale
     }
   });
 };
@@ -77,11 +102,8 @@ const styles = theme => {
       overflow: "hidden",
       pointerEvents: "all",
       [theme.breakpoints.down("xs")]: {
-        borderRadius: "0 !important",
-        width: "100% !important",
-        zIndex: 2,
-        position: "fixed !important",
-        top: "64px !important"
+        borderRadius: "0",
+        position: "fixed !important"
       }
     },
     panelContent: {
@@ -91,21 +113,49 @@ const styles = theme => {
       left: 0,
       bottom: 0,
       right: 0,
-      flexDirection: "column"
+      flexDirection: "column",
+      userSelect: "none"
     },
     content: {
       flex: "1",
       overflowY: "auto",
       padding: "10px",
-      cursor: "default !important",
-      [theme.breakpoints.down("xs")]: {
-        bottom: "64px"
-      }
+      cursor: "default !important"
+    },
+    nonScrollable: {
+      overflowY: "hidden",
+      padding: "0px"
     }
   };
 };
 
 class Window extends React.PureComponent {
+  static propTypes = {
+    children: propTypes.object,
+    classes: propTypes.object.isRequired,
+    features: propTypes.array,
+    globalObserver: propTypes.object.isRequired,
+    height: propTypes.oneOfType([propTypes.number, propTypes.string])
+      .isRequired,
+    layerswitcherConfig: propTypes.object,
+    map: propTypes.object,
+    mode: propTypes.string.isRequired,
+    onClose: propTypes.func.isRequired,
+    onDisplay: propTypes.func,
+    onResize: propTypes.func,
+    open: propTypes.bool.isRequired,
+    position: propTypes.string.isRequired,
+    title: propTypes.string.isRequired,
+    width: propTypes.number.isRequired
+  };
+
+  static defaultProps = {
+    draggingEnabled: true,
+    resizingEnabled: true,
+    allowMaximizedWindow: true,
+    scrollable: true
+  };
+
   constructor(props) {
     super(props);
     document.windows.push(this);
@@ -118,60 +168,91 @@ class Window extends React.PureComponent {
 
     window.addEventListener("resize", () => {
       if (this.mode === "maximized") {
-        this.fit(this.rnd.getSelfElement().parentElement);
+        this.fit(document.getElementById("windows-container"));
       } else {
-        this.updatePos();
+        this.updatePosition();
       }
     });
-
-    if (props.globalObserver) {
-      props.globalObserver.subscribe("toolbarExpanded", open => {
-        if (this.mode === "maximized") {
-          this.fit(this.rnd.getSelfElement().parentElement);
-        } else {
-          this.update(this.rnd.getSelfElement().parentElement);
-        }
-      });
-    }
   }
 
   componentDidMount() {
     const { globalObserver } = this.props;
     if (globalObserver) {
-      globalObserver.on("appLoaded", () => {
+      globalObserver.subscribe("core.appLoaded", () => {
         this.updatePosition();
+      });
+      globalObserver.subscribe("core.drawerToggled", () => {
+        this.updatePosition();
+      });
+      globalObserver.subscribe("core.dialogOpen", open => {
+        this.rnd.setState({
+          disableDrag: open
+        });
       });
     }
   }
 
-  updatePosition() {
-    var { width, height, mode, position } = this.props;
-    const parent = this.rnd.getSelfElement().parentElement;
-    const header = document.getElementsByTagName("header")[0];
-    this.headerHeight = header.clientHeight;
-    this.left = parent.getBoundingClientRect().left;
-    this.top = parent.getBoundingClientRect().top - this.headerHeight;
-    this.width = width;
+  /**
+   * In LayerSwitcher plugin's settings, there's an option that allows
+   * user to show or hide the so called "breadcrumbs": small boxes, one
+   * for each active layer, that show up at the bottom of the screen.
+   *
+   * If breadcrumbs are activated, we should ensure that our Windows
+   * don't hide breadcrumbs, by reducing Windows' default height slightly.
+   *
+   * This helper is used to determine whether breadcrumbs are activated
+   * or not.
+   *
+   * @returns boolean
+   * @memberof Window
+   */
+  areBreadcrumbsActivated() {
+    return this.props.layerswitcherConfig &&
+      this.props.layerswitcherConfig.hasOwnProperty("options")
+      ? this.props.layerswitcherConfig.options.showBreadcrumbs
+      : false;
+  }
 
-    if (mode === "panel") {
-      this.height = parent.clientHeight;
+  updatePosition() {
+    const { width, height, position } = this.props;
+    const parent = this.rnd.getSelfElement().parentElement;
+
+    //FIXME: JW - Not the best solution for parent resize to set top/left to 0/0, but it ensures we don't get a window outside of the parent
+    this.left = 16; // Make sure we respect padding
+    this.top = 16 + 62; // Respect padding + nasty hack to ensure that Window is placed below Search bar
+    this.width = width || 400;
+    this.height = height || 300;
+
+    // If "auto" height is set, it means we want the Window to take up maximum space available
+    if (this.height === "auto") {
+      // If Breadcrumbs are activated (in LayerSwitcher's config), we must make
+      // sure that our Windows leave some space at the bottom for the Breadcrumbs.
+      const spaceForBreadcrumbs = this.areBreadcrumbsActivated() ? 42 : 0;
+      this.height =
+        parent.clientHeight - // Maximum height of parent element
+        16 - // Reduce height with top margin
+        16 - // Reduce height with bottom margin
+        62 - // Reduce with space for Search bar
+        spaceForBreadcrumbs; // If Breadcrumbs are active, make space for them as well
     }
-    if (mode === "window") {
-      this.height = height === "auto" ? parent.clientHeight : height;
-    }
+
+    // If Window renders on the right, there are some things that we need to compensate for
     if (position === "right") {
-      this.left = parent.getBoundingClientRect().right - width;
+      this.left = parent.getBoundingClientRect().width - width - 16 - 56; // -16 to take care of usual right padding, -56 to not cover the Control buttons that are on the right
+      this.top = this.top - 62; // We won't overlap Search bar if Window is placed to the right, so don't take Search bar's height into account
+      this.height = this.height + 62; // Same as above
     }
-    if (isMobile) {
+
+    // Mobile screens are another special case: here our Window should take up max space available
+    if (getIsMobile()) {
       this.left = 0;
       this.top = 0;
       this.height = window.innerHeight;
       this.width = document.body.clientWidth;
     }
-    this.left = this.left !== undefined ? this.left : 8;
 
+    this.left = this.left !== undefined ? this.left : 16;
     this.mode = "window";
-    this.right = window.innerWidth - (this.left + parseFloat(this.width));
 
     this.setState(
       {
@@ -179,7 +260,7 @@ class Window extends React.PureComponent {
         top: this.top,
         width: this.width,
         height: this.height,
-        mode: "window"
+        mode: this.mode
       },
       () => {
         this.rnd.updatePosition({
@@ -196,55 +277,10 @@ class Window extends React.PureComponent {
     if (onClose) onClose();
   };
 
-  updatePos = target => {
-    if (this.right < 62)
-      this.left =
-        window.innerWidth - (parseFloat(this.right) + parseFloat(this.width));
-
-    this.right = window.innerWidth - (this.left + parseFloat(this.width));
-
-    this.rnd.updatePosition({
-      x: Math.round(this.left),
-      y: Math.round(this.top)
-    });
-  };
-
-  update = target => {
-    var currentOffset = target.getBoundingClientRect().left;
-    if (!this.offset || currentOffset > this.offset) {
-      this.offset = target.getBoundingClientRect().left;
-    }
-
-    var width = this.rnd.getSelfElement().clientWidth;
-
-    if (this.left < currentOffset || this.offset === this.left) {
-      let n = target.getBoundingClientRect().left;
-      this.rnd.updatePosition({
-        x: Math.round(n)
-      });
-      this.left = n;
-    }
-    if (width === 0) {
-      width = this.latestWidth;
-    }
-    if (width > target.clientWidth) {
-      this.setState({
-        width: this.rnd.getParentSize().width
-      });
-    }
-    if (this.left + width > window.innerWidth) {
-      let w = window.innerWidth - width;
-      this.rnd.updatePosition({
-        x: Math.round(w)
-      });
-      this.left = w;
-    }
-  };
-
   fit = target => {
     this.rnd.updatePosition({
       x: Math.round(target.getBoundingClientRect().left),
-      y: Math.round(target.getBoundingClientRect().top - this.headerHeight)
+      y: Math.round(target.getBoundingClientRect().top)
     });
     this.rnd.setState({
       disableDrag: true
@@ -275,7 +311,7 @@ class Window extends React.PureComponent {
     let t = parseFloat(this.top);
     let h = parseFloat(this.height);
     let c = this.rnd.getSelfElement().parentElement.getBoundingClientRect();
-    let o = t + h + this.headerHeight;
+    let o = t + h;
 
     if (o > c.bottom) {
       this.top = this.top - o + c.bottom;
@@ -301,13 +337,13 @@ class Window extends React.PureComponent {
 
   moveToBottom = target => {
     this.rnd.updatePosition({
-      y: Math.round(window.innerHeight - 110)
+      y: Math.round(window.innerHeight - 106)
     });
     this.mode = "minimized";
   };
 
   maximize = e => {
-    const { onMaximize } = this.props;
+    const { onMaximize, allowMaximizedWindow } = this.props;
     if (getIsMobile()) {
       this.moveToTop();
     } else {
@@ -316,10 +352,11 @@ class Window extends React.PureComponent {
           this.enlarge();
           break;
         case "window":
-          this.fit(this.rnd.getSelfElement().parentElement);
+          allowMaximizedWindow &&
+            this.fit(document.getElementById("windows-container"));
           break;
         case "maximized":
-          this.reset(this.rnd.getSelfElement().parentElement);
+          this.reset(document.getElementById("windows-container"));
           break;
         default:
           break;
@@ -331,11 +368,17 @@ class Window extends React.PureComponent {
 
   minimize = e => {
     const { onMinimize } = this.props;
+    if (getIsMobile()) {
+      this.moveToBottom();
+    }
+    if (this.mode === "minimized") {
+      return;
+    }
     if (this.mode === "maximized") {
-      this.reset(this.rnd.getSelfElement().parentElement);
+      this.reset(document.getElementById("windows-container"));
     }
     if (getIsMobile()) {
-      this.moveToBottom(this.rnd.getSelfElement().parentElement);
+      this.moveToBottom();
     } else {
       this.mode = "minimized";
       this.height = this.state.height;
@@ -359,15 +402,17 @@ class Window extends React.PureComponent {
 
   render() {
     const {
-      classes,
-      title,
       children,
+      classes,
       features,
       open,
-      localObserver
+      title,
+      resizingEnabled,
+      draggingEnabled
     } = this.props;
-    var { left, top, width, height } = this.state;
-    var resizeBottom = true,
+    const { left, top, width, height } = this.state;
+
+    let resizeBottom = true,
       resizeBottomLeft = true,
       resizeBottomRight = true,
       resizeLeft = true,
@@ -375,6 +420,7 @@ class Window extends React.PureComponent {
       resizeTop = true,
       resizeTopLeft = true,
       resizeTopRight = true;
+
     if (isMobile) {
       resizeBottom = resizeBottomLeft = resizeBottomRight = resizeRight = resizeTopLeft = resizeTopRight = resizeLeft = false;
     } else {
@@ -383,6 +429,10 @@ class Window extends React.PureComponent {
       }
       if (this.mode === "minimized") {
         resizeBottom = resizeBottomLeft = resizeBottomRight = resizeTop = resizeTopLeft = resizeTopRight = resizeLeft = false;
+      }
+
+      if (!resizingEnabled) {
+        resizeBottom = resizeBottomLeft = resizeBottomRight = resizeRight = resizeTop = resizeTopLeft = resizeTopRight = resizeLeft = false;
       }
     }
 
@@ -393,6 +443,7 @@ class Window extends React.PureComponent {
         onMouseDown={e => {
           this.bringToFront();
         }}
+        onMouseOver={e => e.stopPropagation()} // If this bubbles, we'll have Tooltip show up even when we're only on Window. FIXME: Not needed when we change the rendering order.
         ref={c => {
           this.rnd = c;
         }}
@@ -403,12 +454,12 @@ class Window extends React.PureComponent {
           const rect = this.rnd.getSelfElement().getClientRects()[0];
           if (rect) {
             this.left = rect.left;
-            this.top = rect.top - this.headerHeight;
+            this.top = rect.top;
             this.right =
               window.innerWidth - (this.left + parseFloat(this.width));
           }
         }}
-        onResize={(e, direction, ref, delta, position) => {
+        onResizeStop={(e, direction, ref, delta, position) => {
           this.width = ref.style.width;
           if (this.mode !== "minimized") {
             this.height = ref.style.height;
@@ -420,8 +471,8 @@ class Window extends React.PureComponent {
           if (this.props.onResize) this.props.onResize();
         }}
         cancel="section,nav"
-        bounds={"article"}
-        disableDragging={false || getIsMobile()}
+        bounds={"#windows-container"}
+        disableDragging={!draggingEnabled || false || getIsMobile()}
         enableResizing={{
           bottom: resizeBottom,
           bottomLeft: resizeBottomLeft,
@@ -433,8 +484,8 @@ class Window extends React.PureComponent {
           topRight: resizeTopRight
         }}
         className={classes.window}
-        minWidth={300}
-        minHeight={this.mode === "minimized" ? 42 : 300}
+        minWidth={200}
+        minHeight={this.mode === "minimized" ? 42 : 200}
         size={{
           width: width,
           height: height
@@ -448,15 +499,18 @@ class Window extends React.PureComponent {
       >
         <div className={classes.panelContent}>
           <PanelHeader
-            localObserver={localObserver}
             onClose={this.close}
             title={title}
-            top={top}
             onMaximize={this.maximize}
             onMinimize={this.minimize}
             mode={this.mode}
           />
-          <section className={classes.content}>
+          <section
+            className={clsx(
+              classes.content,
+              this.props.scrollable ? null : classes.nonScrollable
+            )}
+          >
             {features ? (
               <FeatureInfo
                 features={this.props.features}
@@ -477,9 +531,5 @@ class Window extends React.PureComponent {
     );
   }
 }
-
-Window.propTypes = {
-  classes: PropTypes.object.isRequired
-};
 
 export default withStyles(styles)(Window);

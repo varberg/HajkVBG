@@ -7,6 +7,9 @@ class InformativeModel {
     this.olMap = settings.map;
     this.url = settings.app.config.appConfig.proxy + settings.url;
     this.globalObserver = settings.app.globalObserver;
+    this.localObserver = settings.localObserver;
+    this.app = settings.app;
+    this.exportUrl = settings.exportUrl;
   }
 
   flyTo(view, location, zoom) {
@@ -16,6 +19,83 @@ class InformativeModel {
       center: location,
       duration: duration
     });
+  }
+
+  getLegends(chapter) {
+    var legendUrls = [];
+
+    const layers = this.olMap
+      .getLayers()
+      .getArray()
+      .filter(
+        l =>
+          chapter.layers &&
+          chapter.layers.some(layer => layer === l.getProperties()["name"])
+      );
+
+    layers.forEach(layer => {
+      if (
+        layer.getProperties().layerInfo &&
+        layer.getProperties().layerInfo["layerType"] !== "base"
+      ) {
+        if (layer.layersInfo) {
+          Object.values(layer.layersInfo).forEach(layerInfo => {
+            legendUrls.push({
+              caption:
+                layerInfo.caption || layer.getProperties().layerInfo["caption"],
+              url: layerInfo.legend
+            });
+          });
+        } else {
+          legendUrls.push({
+            caption: layer.getProperties().layerInfo.caption,
+            url: layer.getProperties().layerInfo.legend[0].url
+          });
+        }
+      }
+    });
+
+    return legendUrls;
+  }
+
+  print(chapter, callback) {
+    const mapFile = this.app.config.activeMap + ".json";
+    const documentFile =
+      this.app.plugins.informative.options.document + ".json";
+
+    const baseLayer = this.olMap
+      .getLayers()
+      .getArray()
+      .find(
+        l =>
+          l.getProperties().layerInfo &&
+          l.getProperties().layerInfo.layerType === "base" &&
+          l.getVisible()
+      );
+
+    fetch(this.exportUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        data: JSON.stringify({
+          mapFile: mapFile,
+          documentFile: documentFile,
+          chapterHeader: chapter.header,
+          chapterHtml: chapter.html,
+          baseMapId: baseLayer ? baseLayer.getProperties().name : ""
+        })
+      })
+    })
+      .then(rsp => {
+        rsp.text().then(url => {
+          callback(url);
+        });
+      })
+      .catch(() => {
+        callback("error");
+      });
   }
 
   displayMap(visibleLayers, mapSettings) {
@@ -33,13 +113,13 @@ class InformativeModel {
           )
         ) {
           if (layer.layerType === "group") {
-            this.globalObserver.publish("showLayer", layer);
+            this.globalObserver.publish("layerswitcher.showLayer", layer);
           } else {
             layer.setVisible(true);
           }
         } else {
           if (layer.layerType === "group") {
-            this.globalObserver.publish("hideLayer", layer);
+            this.globalObserver.publish("layerswitcher.hideLayer", layer);
           } else {
             layer.setVisible(false);
           }
@@ -71,15 +151,13 @@ class InformativeModel {
       callback(data.chapters);
       this.chapters = data.chapters;
     } catch (err) {
-      // TODO: replace "alert" with something that will use the Snackbar. But first, we must find a way to bind for Snackbar in AppModel.
-      // this.globalObserver.publish(
-      //   "alert",
-      //   "Informative Plugin kunde inte ladda data korrekt. Om felet kvarstår var god och meddela administratören."
-      // );
+      this.localObserver.publish("showSnackbar", {
+        message:
+          "Laddning av Informative-pluginet misslyckades. Pluginet verkar vara felaktigt konfigurerat. Var god kontakta systemadministratören.",
+        options: { variant: "error" }
+      });
       console.error(
-        `Couldn't load data for Informative plugin. Make sure that the URL to mapservice is correctly configured. Current value: ${
-          response.url
-        }`
+        `Couldn't load data for Informative plugin. Make sure that the URL to mapservice is correctly configured.`
       );
     }
   }

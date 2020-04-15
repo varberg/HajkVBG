@@ -1,7 +1,33 @@
 import React from "react";
 import { Component } from "react";
 import ReactModal from "react-modal";
+import Page from "./Page.jsx";
+import { Container, Draggable } from "react-smooth-dnd";
+import Button from "@material-ui/core/Button";
+import { withStyles } from "@material-ui/core/styles";
+import { green, red } from "@material-ui/core/colors";
+import AddIcon from "@material-ui/icons/Add";
+import CancelIcon from "@material-ui/icons/Cancel";
 
+const ColorButtonGreen = withStyles(theme => ({
+  root: {
+    color: theme.palette.getContrastText(green[700]),
+    backgroundColor: green[500],
+    "&:hover": {
+      backgroundColor: green[700]
+    }
+  }
+}))(Button);
+
+const ColorButtonRed = withStyles(theme => ({
+  root: {
+    color: theme.palette.getContrastText(red[700]),
+    backgroundColor: red[500],
+    "&:hover": {
+      backgroundColor: red[700]
+    }
+  }
+}))(Button);
 class FieldAdder extends Component {
   state = {
     displayOptions: false,
@@ -102,23 +128,15 @@ class FieldAdder extends Component {
 
 class FieldEditor extends Component {
   constructor(props) {
-    super();
+    super(props);
+    this.state = {
+      showModal: false,
+      pages: this.props.form
+    };
   }
-
-  state = {
-    showModal: false
-  };
-
-  removeField = field => e => {
-    const { parent } = this.props;
-    parent.setState({
-      form: parent.state.form.filter(f => f !== field)
-    });
-  };
 
   addField = e => {
     const { parent } = this.props;
-
     this.setState({
       showModal: true,
       modalContent: this.fieldAdder,
@@ -129,6 +147,18 @@ class FieldEditor extends Component {
         });
       }
     });
+  };
+
+  addPage = e => {
+    const { onUpdate } = this.props;
+    this.setState(
+      {
+        pages: [{ id: Math.round(Math.random() * 1e12) }, ...this.state.pages]
+      },
+      () => {
+        onUpdate(this.getForm());
+      }
+    );
   };
 
   hideModal() {
@@ -142,9 +172,14 @@ class FieldEditor extends Component {
 
   renderModal() {
     var abortButton = this.state.showAbortButton ? (
-      <button className="btn btn-danger" onClick={e => this.hideModal()}>
+      <ColorButtonRed
+        variant="contained"
+        className="btn"
+        onClick={e => this.hideModal()}
+        startIcon={<CancelIcon />}
+      >
         Avbryt
-      </button>
+      </ColorButtonRed>
     ) : (
       ""
     );
@@ -186,52 +221,74 @@ class FieldEditor extends Component {
     );
   }
 
-  renderFields(form) {
-    if (form && Array.isArray(form)) {
-      return form.map((field, i) => {
-        return (
-          <div key={i} className="collector-field">
-            <span
-              className="collector-field-remove btn btn-danger"
-              onClick={this.removeField(field)}
-            >
-              Ta bort
-            </span>
-            <div>
-              <strong>Typ: </strong>
-              {field.type}
-            </div>
-            <div>
-              <strong>Etikett: </strong>
-              {field.name}
-            </div>
-            {Array.isArray(field.values) && field.values.length > 0 ? (
-              <div>
-                <strong>Värden: </strong>
-                <ul className="collector-values">
-                  {field.values.map((value, i) => (
-                    <li key={i}>{value}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        );
-      });
-    }
+  renderPages() {
+    const { onUpdate } = this.props;
+
+    return (
+      <Container
+        nonDragAreaSelector=".nodrag"
+        onDrop={r => {
+          var pages = [...this.state.pages];
+          const { removedIndex, addedIndex } = r;
+          var removed = pages.splice(removedIndex, 1);
+          pages.splice(addedIndex, 0, removed[0]);
+          this.setState({
+            pages: pages
+          });
+          onUpdate(this.getForm());
+        }}
+      >
+        {this.state.pages.map((page, i) => (
+          <Draggable key={page.id}>
+            <Page
+              page={page}
+              ref={page.id}
+              onUpdate={() => {
+                onUpdate(this.getForm());
+              }}
+              onRemove={id => {
+                this.setState(
+                  {
+                    pages: this.state.pages.filter(p => p.id !== id)
+                  },
+                  () => {
+                    onUpdate(this.getForm());
+                  }
+                );
+              }}
+            />
+          </Draggable>
+        ))}
+      </Container>
+    );
+  }
+
+  getForm() {
+    return this.state.pages.map((page, i) => ({
+      id: page.id,
+      order: i,
+      header: this.refs[page.id].state.header,
+      text: this.refs[page.id].state.text
+    }));
   }
 
   render() {
-    const { form } = this.props;
     this.fieldAdder = <FieldAdder ref="fieldAdder" />;
     return (
       <div>
         {this.renderModal()}
         <h3>Formulär</h3>
-        <span className="btn btn-primary" onClick={this.addField}>
-          Lägg till fält
-        </span>
-        {this.renderFields(form)}
+        <ColorButtonGreen
+          variant="contained"
+          className="btn"
+          color="primary"
+          onClick={this.addPage}
+          startIcon={<AddIcon />}
+        >
+          Lägg till ny sida
+        </ColorButtonGreen>
+
+        <div className="pages">{this.renderPages()}</div>
       </div>
     );
   }

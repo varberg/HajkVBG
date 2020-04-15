@@ -22,6 +22,20 @@
 
 import React from "react";
 import { Component } from "react";
+import Button from "@material-ui/core/Button";
+import SaveIcon from "@material-ui/icons/SaveSharp";
+import { withStyles } from "@material-ui/core/styles";
+import { blue } from "@material-ui/core/colors";
+
+const ColorButtonBlue = withStyles(theme => ({
+  root: {
+    color: theme.palette.getContrastText(blue[500]),
+    backgroundColor: blue[500],
+    "&:hover": {
+      backgroundColor: blue[700]
+    }
+  }
+}))(Button);
 
 var defaultState = {
   validationErrors: [],
@@ -37,6 +51,7 @@ var defaultState = {
   instruction: "",
   scales: "250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000",
   proxyUrl: "",
+  visibleAtStart: false,
   visibleForGroups: []
 };
 
@@ -56,7 +71,10 @@ class ToolOptions extends Component {
       this.setState({
         active: true,
         index: tool.index,
-        target: tool.options.target,
+        target: tool.options.target || "toolbar",
+        position: tool.options.position,
+        width: tool.options.width,
+        height: tool.options.height,
         exportUrl: tool.options.exportUrl,
         exportTiffUrl: tool.options.exportTiffUrl,
         tiffActive: tool.options.tiffActive,
@@ -66,6 +84,7 @@ class ToolOptions extends Component {
         proxyUrl: tool.options.proxyUrl,
         instruction: tool.options.instruction,
         scales: tool.options.scales || this.state.scales,
+        visibleAtStart: tool.options.visibleAtStart,
         visibleForGroups: tool.options.visibleForGroups
           ? tool.options.visibleForGroups
           : []
@@ -132,6 +151,9 @@ class ToolOptions extends Component {
       index: this.state.index,
       options: {
         target: this.state.target,
+        position: this.state.position,
+        width: this.state.width,
+        height: this.state.height,
         exportUrl: this.state.exportUrl,
         exportTiffUrl: this.state.exportTiffUrl,
         pdfActive: this.state.pdfActive,
@@ -141,6 +163,7 @@ class ToolOptions extends Component {
         scales: this.state.scales,
         proxyUrl: this.state.proxyUrl,
         instruction: this.state.instruction,
+        visibleAtStart: this.state.visibleAtStart,
         visibleForGroups: this.state.visibleForGroups.map(
           Function.prototype.call,
           String.prototype.trim
@@ -234,15 +257,17 @@ class ToolOptions extends Component {
       <div>
         <form>
           <p>
-            <button
-              className="btn btn-primary"
+            <ColorButtonBlue
+              variant="contained"
+              className="btn"
               onClick={e => {
                 e.preventDefault();
                 this.save();
               }}
+              startIcon={<SaveIcon />}
             >
               Spara
-            </button>
+            </ColorButtonBlue>
           </p>
           <div>
             <input
@@ -257,12 +282,15 @@ class ToolOptions extends Component {
             &nbsp;
             <label htmlFor="active">Aktiverad</label>
           </div>
+          <div className="separator">Fönsterinställningar</div>
           <div>
             <label htmlFor="index">Sorteringsordning</label>
             <input
               id="index"
               name="index"
-              type="text"
+              type="number"
+              min="0"
+              className="control-fixed-width"
               onChange={e => {
                 this.handleInputChange(e);
               }}
@@ -271,15 +299,97 @@ class ToolOptions extends Component {
           </div>
           <div>
             <label htmlFor="target">Verktygsplacering</label>
-            <input
+            <select
               id="target"
               name="target"
-              type="text"
+              className="control-fixed-width"
               onChange={e => {
                 this.handleInputChange(e);
               }}
               value={this.state.target}
+            >
+              <option value="toolbar">Drawer</option>
+              <option value="left">Widget left</option>
+              <option value="right">Widget right</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="position">
+              Fönsterplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Placering av verktygets fönster. Anges som antingen 'left' eller 'right'."
+              />
+            </label>
+            <select
+              id="position"
+              name="position"
+              className="control-fixed-width"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.position}
+            >
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="width">
+              Fönsterbredd{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Bredd i pixlar på verktygets fönster. Anges som ett numeriskt värde. Lämna tomt för att använda standardbredd."
+              />
+            </label>
+            <input
+              id="width"
+              name="width"
+              type="number"
+              min="0"
+              className="control-fixed-width"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.width}
             />
+          </div>
+          <div>
+            <label htmlFor="height">
+              Fönsterhöjd{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Höjd i pixlar på verktygets fönster. Anges som ett numeriskt värde. Lämna tomt för att använda maximal höjd."
+              />
+            </label>
+            <input
+              id="height"
+              name="height"
+              type="number"
+              min="0"
+              className="control-fixed-width"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.height}
+            />
+          </div>
+          <div className="separator">Övriga inställningar</div>
+          <div>
+            <input
+              id="visibleAtStart"
+              name="visibleAtStart"
+              type="checkbox"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              checked={this.state.visibleAtStart}
+            />
+            &nbsp;
+            <label htmlFor="visibleAtStart">Synlig vid start</label>
           </div>
           <div>
             <label htmlFor="scales">Skalor</label>
@@ -351,7 +461,9 @@ class ToolOptions extends Component {
               checked={this.state.base64Encode}
             />
             &nbsp;
-            <label htmlFor="Base64-active">Base64-encoding</label>
+            <label className="long-label" htmlFor="Base64-active">
+              Base64-encoding
+            </label>
           </div>
           <div>
             <input
@@ -367,7 +479,14 @@ class ToolOptions extends Component {
             <label htmlFor="autoScale-active">Automatisk skala</label>
           </div>
           <div>
-            <label htmlFor="instruction">Instruktion</label>
+            <label htmlFor="instruction">
+              Instruktion{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Visas som tooltip vid mouseover på verktygsknappen"
+              />
+            </label>
             <textarea
               type="text"
               id="instruction"

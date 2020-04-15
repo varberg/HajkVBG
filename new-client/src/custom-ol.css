@@ -1,0 +1,55 @@
+/* OpenLayers custom styling ONLY */
+.ol-zoom,
+.ol-full-screen,
+.ol-rotate {
+  top: 8px;
+  left: inherit;
+  right: 0px;
+}
+
+.ol-full-screen {
+  top: 98px;
+}
+
+.ol-rotate {
+  top: 175px;
+}
+
+.ol-control {
+  border-radius: 0;
+  padding: 0;
+  background: 0;
+}
+
+.ol-control:hover,
+.ol-control:focus {
+  background: inherit;
+}
+
+.ol-control button {
+  background: inherit;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  cursor: inherit;
+  margin: inherit;
+  box-shadow: inherit;
+}
+
+.ol-control button:hover,
+.ol-control button:focus {
+  background: inherit;
+}
+
+.ol-scale-line {
+  left: inherit;
+  right: 8px;
+}
+
+.ol-overlaycontainer-stopevent {
+  z-index: inherit !important;
+}
+
+.ol-overlay-container {
+  z-index: 2000 !important;
+}

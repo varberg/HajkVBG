@@ -34,14 +34,26 @@ namespace MapService.Models
 
         public double[] extent { get; set; }
 
+        public bool constrainOnlyCenter { get; set; }
+
+        public bool constrainResolution { get; set; }
+
         public string logo { get; set; }
 
         public string geoserverLegendOptions { get; set; }
 
-        public string pil { get; set; }
-
 		public bool mapselector { get; set; }
 
-		public Colors colors { get; set; }
+        public bool mapcleaner { get; set; }
+
+        public bool drawerVisible { get; set; }
+
+        public bool drawerPermanent { get; set; }
+
+        public Colors colors { get; set; }
+
+        public string defaultCookieNoticeMessage { get; set; }
+
+        public string defaultCookieNoticeUrl { get; set; }
     }
 }

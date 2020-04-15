@@ -1,57 +1,71 @@
 import React from "react";
-import { withStyles } from "@material-ui/core/styles";
-import Zoom from "ol/control/Zoom";
+import { easeOut } from "ol/easing";
+import { Button, Paper } from "@material-ui/core";
+import AddIcon from "@material-ui/icons/Add";
+import RemoveIcon from "@material-ui/icons/Remove";
+import { makeStyles } from "@material-ui/styles";
 
-const styles = theme => {
-  return {
-    zoom: {
-      pointerEvents: "all",
-      "& .ol-control": {
-        position: "static"
-      },
-      "& button": {
-        "&:focus": {
-          background: "rgba(255, 255, 255, 1)"
-        },
-        "&:hover": {
-          background: "rgba(255, 255, 255, 1)"
-        },
-        fontSize: "20pt",
-        position: "static",
-        cursor: "pointer",
-        background: "rgba(255, 255, 255, 1)",
-        border: "1px solid rgba(255 ,255, 255, 0.5)",
-        boxShadow:
-          "0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12)",
-        borderRadius: "2px",
-        overflow: "hidden",
-        margin: "5px",
-        outline: "none",
-        padding: 0
+const useStyles = makeStyles(theme => ({
+  paper: {
+    marginBottom: theme.spacing(1)
+  },
+  button: {
+    minWidth: "unset"
+  }
+}));
+
+const ZoomControl = React.memo(props => {
+  const classes = useStyles();
+
+  function zoomByDelta(delta) {
+    if (!props.map) return;
+    const view = props.map.getView();
+
+    if (!view) return;
+    const currentZoom = view.getZoom();
+
+    if (currentZoom !== undefined) {
+      const newZoom = currentZoom + delta;
+
+      // TODO: Duration could be an option from map config, allowing admin to disable zoom animation
+      const duration = 200;
+      if (duration > 0) {
+        if (view.getAnimating()) {
+          view.cancelAnimations();
+        }
+        view.animate({
+          zoom: newZoom,
+          duration: duration,
+          easing: easeOut
+        });
+      } else {
+        view.setZoom(newZoom);
       }
-    },
-    icon: {
-      padding: "5px"
-    }
-  };
-};
-
-class ZoomControl extends React.PureComponent {
-  componentDidUpdate() {
-    if (this.props.map) {
-      const zoomControl = new Zoom({
-        target: this.refs.zoom,
-        zoomInTipLabel: "",
-        zoomOutTipLabel: ""
-      });
-      this.props.map.addControl(zoomControl);
     }
   }
 
-  render() {
-    const { classes } = this.props;
-    return <div ref="zoom" className={classes.zoom} />;
-  }
-}
+  return (
+    <Paper className={classes.paper}>
+      <Button
+        aria-label="Zooma in"
+        className={classes.button}
+        onClick={() => {
+          zoomByDelta(1);
+        }}
+      >
+        <AddIcon />
+      </Button>
+      <Button
+        aria-label="Zooma ut"
+        className={classes.button}
+        onClick={() => {
+          zoomByDelta(-1);
+        }}
+      >
+        <RemoveIcon />
+      </Button>
+    </Paper>
+  );
+});
 
-export default withStyles(styles)(ZoomControl);
+export default ZoomControl;

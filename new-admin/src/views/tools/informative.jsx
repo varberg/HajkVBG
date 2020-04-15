@@ -22,10 +22,25 @@
 
 import React from "react";
 import { Component } from "react";
+import Button from "@material-ui/core/Button";
+import SaveIcon from "@material-ui/icons/SaveSharp";
+import { withStyles } from "@material-ui/core/styles";
+import { blue } from "@material-ui/core/colors";
+
+const ColorButtonBlue = withStyles(theme => ({
+  root: {
+    color: theme.palette.getContrastText(blue[500]),
+    backgroundColor: blue[500],
+    "&:hover": {
+      backgroundColor: blue[700]
+    }
+  }
+}))(Button);
 
 var defaultState = {
   validationErrors: [],
   active: false,
+  tocExpanded: true,
   index: 0,
   target: "toolbar",
   panel: "right",
@@ -34,10 +49,12 @@ var defaultState = {
   caption: "Översiktsplan",
   html: "<div>HTML som beskriver dokumentets innehåll</div>",
   serviceUrl: "http://localhost:55630/informative/load",
+  exportUrl: "http://localhost:55630/export/document",
+  exportRoot: "",
   documentList: [],
   document: "",
   visibleAtStart: false,
-  templateJsonFilePath: "op",
+  templateJsonFilePath: "",
   visibleForGroups: []
 };
 
@@ -68,16 +85,24 @@ class ToolOptions extends Component {
             this.props.model.getDocumentList(url, list => {
               this.setState({
                 active: true,
+                tocExpanded:
+                  tool.options.tocExpanded === undefined
+                    ? true
+                    : tool.options.tocExpanded,
                 index: tool.index,
-                target: tool.options.target,
-                panel: tool.options.panel,
+                target: tool.options.target || "toolbar",
+                position: tool.options.position,
+                width: tool.options.width,
+                height: tool.options.height,
                 caption: tool.options.caption,
                 title: tool.options.title,
                 abstract: tool.options.abstract,
                 html: tool.options.html,
                 serviceUrl: tool.options.serviceUrl,
+                exportUrl: tool.options.exportUrl,
+                exportRoot: tool.options.exportRoot,
                 document: tool.options.document || list[0],
-                visibleAtStart: tool.options.visibleAtStart || false,
+                visibleAtStart: tool.options.visibleAtStart,
                 visibleForGroups: tool.options.visibleForGroups
                   ? tool.options.visibleForGroups
                   : []
@@ -144,10 +169,15 @@ class ToolOptions extends Component {
       index: this.state.index,
       options: {
         target: this.state.target,
-        panel: this.state.panel,
+        position: this.state.position,
+        width: this.state.width,
+        height: this.state.height,
+        tocExpanded: this.state.tocExpanded,
         title: this.state.title,
         caption: this.state.caption,
         serviceUrl: this.state.serviceUrl,
+        exportUrl: this.state.exportUrl,
+        exportRoot: this.state.exportRoot,
         abstract: this.state.abstract,
         html: this.state.html,
         document: this.state.document,
@@ -251,15 +281,17 @@ class ToolOptions extends Component {
       <div>
         <form>
           <p>
-            <button
-              className="btn btn-primary"
+            <ColorButtonBlue
+              variant="contained"
+              className="btn"
               onClick={e => {
                 e.preventDefault();
                 this.save();
               }}
+              startIcon={<SaveIcon />}
             >
               Spara
-            </button>
+            </ColorButtonBlue>
           </p>
           <div>
             <input
@@ -274,12 +306,15 @@ class ToolOptions extends Component {
             &nbsp;
             <label htmlFor="active">Aktiverad</label>
           </div>
+          <div className="separator">Fönsterinställningar</div>
           <div>
             <label htmlFor="index">Sorteringsordning</label>
             <input
               id="index"
               name="index"
-              type="text"
+              type="number"
+              min="0"
+              className="control-fixed-width"
               onChange={e => {
                 this.handleInputChange(e);
               }}
@@ -288,31 +323,123 @@ class ToolOptions extends Component {
           </div>
           <div>
             <label htmlFor="target">Verktygsplacering</label>
-            <input
+            <select
               id="target"
               name="target"
-              type="text"
+              className="control-fixed-width"
               onChange={e => {
                 this.handleInputChange(e);
               }}
               value={this.state.target}
-            />
+            >
+              <option value="toolbar">Drawer</option>
+              <option value="left">Widget left</option>
+              <option value="right">Widget right</option>
+            </select>
           </div>
-          {this.renderVisibleForGroups()}
           <div>
-            <label htmlFor="panel">Panelplacering</label>
-            <input
-              id="panel"
-              name="panel"
-              type="text"
+            <label htmlFor="position">
+              Fönsterplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Placering av verktygets fönster. Anges som antingen 'left' eller 'right'."
+              />
+            </label>
+            <select
+              id="position"
+              name="position"
+              className="control-fixed-width"
               onChange={e => {
                 this.handleInputChange(e);
               }}
-              value={this.state.panel}
+              value={this.state.position}
+            >
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="width">
+              Fönsterbredd{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Bredd i pixlar på verktygets fönster. Anges som ett numeriskt värde. Lämna tomt för att använda standardbredd."
+              />
+            </label>
+            <input
+              id="width"
+              name="width"
+              type="number"
+              min="0"
+              className="control-fixed-width"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.width}
             />
           </div>
           <div>
-            <label htmlFor="abstract">Beskrivning</label>
+            <label htmlFor="height">
+              Fönsterhöjd{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Höjd i pixlar på verktygets fönster. Anges som ett numeriskt värde. Lämna tomt för att använda maximal höjd."
+              />
+            </label>
+            <input
+              id="height"
+              name="height"
+              type="number"
+              min="0"
+              className="control-fixed-width"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.height}
+            />
+          </div>
+          <div className="separator">Övriga inställningar</div>
+          <div>
+            <input
+              id="visibleAtStart"
+              name="visibleAtStart"
+              type="checkbox"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              checked={this.state.visibleAtStart}
+            />
+            &nbsp;
+            <label htmlFor="visibleAtStart">Synlig vid start</label>
+          </div>
+          {this.renderVisibleForGroups()}
+          <div>
+            <input
+              id="tocExpanded"
+              name="tocExpanded"
+              type="checkbox"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              checked={this.state.tocExpanded}
+            />
+            &nbsp;
+            <label className="long-label" htmlFor="tocExpanded">
+              Expanderad teckenförklaring
+            </label>
+          </div>
+          <div>
+            <label htmlFor="abstract">
+              Beskrivning{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Om verktyget visas som widget (inställningen 'Verktygsplacering' sätts till 'left' eller 'right) så kommer denna beskrivning att visas inne i widget-knappen."
+              />
+            </label>
             <input
               value={this.state.abstract}
               type="text"
@@ -369,11 +496,36 @@ class ToolOptions extends Component {
             />
           </div>
           <div>
+            <label htmlFor="exportUrl">Länk till export</label>
+            <input
+              id="exportUrl"
+              name="exportUrl"
+              type="text"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.exportUrl}
+            />
+          </div>
+          <div>
+            <label htmlFor="exportRoot">Virtuell mapp till tjänst</label>
+            <input
+              id="exportRoot"
+              name="exportRoot"
+              type="text"
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.exportRoot}
+            />
+          </div>
+          <div>
             <label htmlFor="document">Välj dokument</label>
             <select
               id="document"
               name="document"
               value={this.state.document}
+              className="control-fixed-width"
               onChange={e => {
                 this.handleInputChange(e);
               }}
