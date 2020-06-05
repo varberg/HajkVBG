@@ -45,9 +45,8 @@ class LayersView extends React.PureComponent {
 
     // Clean up the groups prop so we obtain a nice tree that can be used in our TreeView
 
-    console.log("pre: ", props.groups);
     this.treeData = this.fixIncomingData(props.groups);
-    console.log("post: ", this.treeData);
+    console.log("this.treeData: ", this.treeData);
 
     this.state = {
       chapters: [],
@@ -86,12 +85,24 @@ class LayersView extends React.PureComponent {
   fixIncomingData = groups => {
     const iterateLayers = layers => {
       return layers.map(l => {
+        const mapLayer = this.props.model.layerMap[Number(l.id)];
+        let children = null;
+        // Handle Hajk layer groups (NB, not the same as OGC/GeoServer Layer Groups!).
+        // Hajk layer groups can never contain more layer groups, so no recursion is needed here.
+        if (mapLayer.layerType === "group") {
+          children = Object.values(mapLayer.layersInfo).map(sl => {
+            return { id: sl.id, title: sl.caption };
+          });
+        }
+
         // If config says layer should be visible at start, put it into our state
         l.visibleAtStart === true && this.defaultSelected.push(l.id);
 
         return {
           id: l.id,
-          title: this.props.model.layerMap[l.id].get("caption")
+          title: mapLayer.get("caption"),
+          ...(children && { children }), // nice way to add property only if it exists
+          type: children ? "hajkGroup" : "layer"
         };
       });
     };
@@ -104,7 +115,8 @@ class LayersView extends React.PureComponent {
         return {
           id: g.id,
           title: g.name,
-          children: [...iterateGroups(g.groups), ...iterateLayers(g.layers)]
+          children: [...iterateGroups(g.groups), ...iterateLayers(g.layers)],
+          type: "group"
         };
       });
     };
@@ -170,6 +182,7 @@ class LayersView extends React.PureComponent {
   handleClickOnToggle = (e, nodeId) => {};
 
   renderTree = nodes => {
+    // console.log("nodes: ", nodes);
     const { classes } = this.props;
     const hasChildren = Array.isArray(nodes.children);
 
@@ -288,15 +301,9 @@ class LayersView extends React.PureComponent {
           fullWidth
         />
         <TreeView
-          // defaultCollapseIcon={<ExpandMoreIcon />}
-          // defaultExpandIcon={<ChevronRightIcon />}
-          // defaultSelected={this.defaultSelected} // We use the controlled "selected" prop
-          // expanded={this.state.expanded} // We set defaultExpanded and then let the component handle expansion logic
           defaultExpanded={this.defaultExpanded}
           selected={this.state.selected}
           multiSelect={false} // We will take care of the select state ourselves, user will of course be allowed to have multiple selected layers at once
-          // disableSelection={true}
-          // onNodeSelect={this.onNodeSelect}
           onNodeToggle={e => {
             return false;
           }}
