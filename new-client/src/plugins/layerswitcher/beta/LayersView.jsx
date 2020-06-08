@@ -240,14 +240,15 @@ class LayersView extends React.PureComponent {
         key={nodes.id}
         nodeId={nodes.id}
         label={label}
+        // icon={selectedIcon}
         // endIcon={selectedIcon}
         collapseIcon={collapseIcon}
         expandIcon={expandIcon}
-        onClick={e => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          return false;
+        onIconClick={(e, v) => {
+          console.log("onIconClick", e, v);
+        }}
+        onLabelClick={(e, v) => {
+          console.log("onLabelClick", e, v);
         }}
         classes={{
           iconContainer: classes.iconContainer,
@@ -258,7 +259,6 @@ class LayersView extends React.PureComponent {
         }}
       >
         <>
-          {/* <Typography>Hej</Typography> */}
           {Array.isArray(nodes.children)
             ? nodes.children.map(node => this.renderTree(node))
             : null}
@@ -303,9 +303,11 @@ class LayersView extends React.PureComponent {
         <TreeView
           defaultExpanded={this.defaultExpanded}
           selected={this.state.selected}
-          multiSelect={false} // We will take care of the select state ourselves, user will of course be allowed to have multiple selected layers at once
-          onNodeToggle={e => {
-            return false;
+          onNodeToggle={(e, nids) => {
+            console.log("onNodeToggle", e, nids);
+          }}
+          onNodeSelect={(e, v) => {
+            console.log("onNodeSelect", e, v);
           }}
           className={classes.treeViewRoot}
         >
