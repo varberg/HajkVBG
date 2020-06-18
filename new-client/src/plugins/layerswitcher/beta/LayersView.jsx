@@ -189,12 +189,14 @@ class LayersView extends React.PureComponent {
     const selectedIcon = this.isLayerVisible(nodes.id) ? (
       <CheckBoxIcon
         onClick={e => {
+          console.log("Checkbox click triggers onNodeSelect");
           this.onNodeSelect(e, nodes.id);
         }}
       />
     ) : (
       <CheckBoxOutlineBlankIcon
         onClick={e => {
+          console.log("Blank checkbox click triggers onNodeSelect");
           this.onNodeSelect(e, nodes.id);
         }}
       />
@@ -228,6 +230,7 @@ class LayersView extends React.PureComponent {
     const label = (
       <div
         onClick={e => {
+          console.log("Label click triggers onNodeSelect");
           this.onNodeSelect(e, nodes.id);
         }}
       >
@@ -273,12 +276,14 @@ class LayersView extends React.PureComponent {
 
   onNodeSelect = (event, nodeId) => {
     const layerId = Number(nodeId);
+    console.log("onNodeSelect. nodeId: ", nodeId);
 
     // Handle click on Hajk groups - they will have an MD5 as ID, so we can filter them out that way.
     if (Number.isNaN(layerId)) return;
 
     // Else, we've got a real layer/layergroup with valid ID. Let's add/remove it from our selected state array.
     const mapLayer = this.props.model.layerMap[layerId];
+    console.log("Flipping visibility for mapLayer", mapLayer);
     mapLayer.setVisible(!this.isLayerVisible(nodeId));
   };
 
@@ -289,12 +294,12 @@ class LayersView extends React.PureComponent {
     return (
       <div
         style={{
-          display: this.props.display ? "block" : "none"
+          display: this.props.display ? "block" : "none" // This is a View in the Tabs component
         }}
       >
         <TextField
           id="layers-filter"
-          label="Filtera lager"
+          label="Filtrera lager"
           onChange={this.handleChangeInLayersFilter}
           value={layersFilterValue}
           variant="outlined"
@@ -307,9 +312,7 @@ class LayersView extends React.PureComponent {
           onNodeToggle={(e, nids) => {
             console.log("onNodeToggle", e, nids);
           }}
-          onNodeSelect={(e, v) => {
-            console.log("onNodeSelect", e, v);
-          }}
+          onNodeSelect={this.onNodeSelect}
           className={classes.treeViewRoot}
         >
           {filteredTreeData.map(this.renderTree)}
