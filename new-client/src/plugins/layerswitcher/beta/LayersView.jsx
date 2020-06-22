@@ -48,17 +48,22 @@ class LayersView extends React.PureComponent {
     this.treeData = this.fixIncomingData(props.groups);
     console.log("this.treeData: ", this.treeData);
 
+    // When groups/layers tree is filtered, we expand all nodes.
+    // This property is used to store the "old" expansion state,
+    // so it can be restored when filtering is done.
+    this.savedExpanded = null;
+
     this.state = {
       chapters: [],
       groups: props.groups,
       layersFilterValue: "",
       filteredTreeData: this.treeData,
-      // expanded: [],
+      expanded: this.defaultExpanded,
       selected: this.defaultSelected
     };
 
     // Let all layers subscribe to visibility changed event.
-    // We do it to ensure that our checkboxes are updated whether layer visiblity is changed
+    // We do it to ensure that our checkboxes are updated whether layer visibility is changed
     // in some other way than by clicking on a layer in LayerSwitcher.
     for (let [layerId, layer] of Object.entries(props.model.layerMap)) {
       // When layer's visibility is changed, ensure that correct checkboxes are ticked.
@@ -133,6 +138,15 @@ class LayersView extends React.PureComponent {
     });
   }
 
+  toggleExpandedForId(id) {
+    // this.state.selected is an array that holds ids of visible layers.
+    // By updating the array, we ensure that React checks the correct checkboxes.
+    this.setState(state => {
+      const expanded = this.toggleArrayValue(state.expanded, id);
+      return { expanded };
+    });
+  }
+
   copy(o) {
     return Object.assign({}, o);
   }
@@ -160,12 +174,51 @@ class LayersView extends React.PureComponent {
     }
   };
 
+  /**
+   * @summary Grabs all ids from the groups/layers tree. Useful
+   * if something needs to be done to all nodes.
+   * @returns nodeIds[]
+   * @memberof LayersView
+   */
+  grabAllIdsFromTree = (tree = this.treeData) => {
+    const getIds = array => {
+      return array.reduce((r, o) => {
+        if ("id" in o) {
+          r.push(o.id);
+        }
+        Object.values(o).forEach(v => {
+          if (Array.isArray(v)) r.push(...getIds(v));
+        });
+        return r;
+      }, []);
+    };
+
+    return getIds(tree);
+  };
+
   handleChangeInLayersFilter = e => {
+    // We want to expand all nodes before we filter.
+    // However, in order to restore the expanded state
+    // to the one prior this expansion, we must first
+    // store the current state in a safe place.
+    if (this.savedExpanded === null) {
+      this.savedExpanded = this.state.expanded;
+      this.setState({ expanded: this.grabAllIdsFromTree() });
+    }
+
     const layersFilterValue = e.target.value;
     this.setState({ layersFilterValue }, () => {
       if (layersFilterValue.length === 0) {
+        let newState = {};
+
         // Special case if empty string, reset to full tree data obtained in constructor()
-        this.setState({ filteredTreeData: this.treeData });
+        newState["filteredTreeData"] = this.treeData;
+
+        // Also, reset the expanded state to how it was previously
+        console.log("Resetting Expanded to defaults");
+        newState["expanded"] = this.savedExpanded;
+
+        this.setState(newState);
       } else {
         const filteredTreeData = this.treeData
           .map(this.copy)
@@ -175,29 +228,39 @@ class LayersView extends React.PureComponent {
     });
   };
 
-  // handleClickOnCheckbox = (e, nodeId) => {
-  //
-  // };
+  handleClickOnToggle = (e, nodeId) => {
+    console.log("handleClickOnToggle: ", nodeId);
+    this.toggleExpandedForId(nodeId);
+  };
 
-  handleClickOnToggle = (e, nodeId) => {};
+  handleClickOnCheckbox = (event, nodeId) => {
+    console.log("handleClickOnCheckbox: ", nodeId);
+    const layerId = Number(nodeId);
+
+    // Handle click on Hajk groups - they will have an MD5 as ID, so we can filter them out that way.
+    if (Number.isNaN(layerId)) return;
+
+    // Else, we've got a real layer/layergroup with valid ID. Let's add/remove it from our selected state array.
+    const mapLayer = this.props.model.layerMap[layerId];
+    console.log("Flipping visibility for mapLayer", mapLayer);
+    mapLayer.setVisible(!this.isLayerVisible(nodeId));
+  };
 
   renderTree = nodes => {
     // console.log("nodes: ", nodes);
     const { classes } = this.props;
     const hasChildren = Array.isArray(nodes.children);
 
-    const selectedIcon = this.isLayerVisible(nodes.id) ? (
+    const checkboxIcon = this.isLayerVisible(nodes.id) ? (
       <CheckBoxIcon
         onClick={e => {
-          console.log("Checkbox click triggers onNodeSelect");
-          this.onNodeSelect(e, nodes.id);
+          this.handleClickOnCheckbox(e, nodes.id);
         }}
       />
     ) : (
       <CheckBoxOutlineBlankIcon
         onClick={e => {
-          console.log("Blank checkbox click triggers onNodeSelect");
-          this.onNodeSelect(e, nodes.id);
+          this.handleClickOnCheckbox(e, nodes.id);
         }}
       />
     );
@@ -206,32 +269,31 @@ class LayersView extends React.PureComponent {
       <>
         <ExpandMoreIcon
           onClick={e => {
-            this.handleClickOnToggle(nodes.id);
+            this.handleClickOnToggle(e, nodes.id);
           }}
         />
-        {selectedIcon}
+        {checkboxIcon}
       </>
     ) : (
-      selectedIcon
+      checkboxIcon
     );
     const expandIcon = hasChildren ? (
       <>
         <ChevronRightIcon
           onClick={e => {
-            this.handleClickOnToggle(nodes.id);
+            this.handleClickOnToggle(e, nodes.id);
           }}
         />
-        {selectedIcon}
+        {checkboxIcon}
       </>
     ) : (
-      selectedIcon
+      checkboxIcon
     );
 
     const label = (
       <div
         onClick={e => {
-          console.log("Label click triggers onNodeSelect");
-          this.onNodeSelect(e, nodes.id);
+          this.handleClickOnCheckbox(e, nodes.id);
         }}
       >
         {nodes.title}
@@ -247,12 +309,12 @@ class LayersView extends React.PureComponent {
         // endIcon={selectedIcon}
         collapseIcon={collapseIcon}
         expandIcon={expandIcon}
-        onIconClick={(e, v) => {
-          console.log("onIconClick", e, v);
-        }}
-        onLabelClick={(e, v) => {
-          console.log("onLabelClick", e, v);
-        }}
+        // onIconClick={(e, v) => {
+        //   console.log("onIconClick", e, v);
+        // }}
+        // onLabelClick={(e, v) => {
+        //   console.log("onLabelClick", e, v);
+        // }}
         classes={{
           iconContainer: classes.iconContainer,
           group: classes.group,
@@ -274,19 +336,6 @@ class LayersView extends React.PureComponent {
     return this.state.selected.includes(nodeId);
   };
 
-  onNodeSelect = (event, nodeId) => {
-    const layerId = Number(nodeId);
-    console.log("onNodeSelect. nodeId: ", nodeId);
-
-    // Handle click on Hajk groups - they will have an MD5 as ID, so we can filter them out that way.
-    if (Number.isNaN(layerId)) return;
-
-    // Else, we've got a real layer/layergroup with valid ID. Let's add/remove it from our selected state array.
-    const mapLayer = this.props.model.layerMap[layerId];
-    console.log("Flipping visibility for mapLayer", mapLayer);
-    mapLayer.setVisible(!this.isLayerVisible(nodeId));
-  };
-
   render() {
     const { layersFilterValue, filteredTreeData } = this.state;
     const { classes } = this.props;
@@ -306,13 +355,13 @@ class LayersView extends React.PureComponent {
           fullWidth
         />
         <TreeView
-          defaultExpanded={this.defaultExpanded}
+          expanded={this.state.expanded}
           selected={this.state.selected}
           multiSelect={false} // We will take care of the select state ourselves, user will of course be allowed to have multiple selected layers at once
-          onNodeToggle={(e, nids) => {
-            console.log("onNodeToggle", e, nids);
-          }}
-          onNodeSelect={this.onNodeSelect}
+          // onNodeToggle={(e, nids) => {
+          //   console.log("onNodeToggle", e, nids);
+          // }}
+          // onNodeSelect={this.onNodeSelect}
           className={classes.treeViewRoot}
         >
           {filteredTreeData.map(this.renderTree)}
