@@ -327,8 +327,10 @@ class App extends React.PureComponent {
       .getLayers()
       .getArray()
       .forEach(layer => {
-        layer.on("change:visible", evt => {
-          let layer = evt.target;
+        layer.on("change:visible", e => {
+          this.globalObserver.publish("core.layerVisibilityChanged", e);
+
+          const layer = e.target;
           if (
             this.state.mapClickDataResult &&
             Array.isArray(this.state.mapClickDataResult.features)

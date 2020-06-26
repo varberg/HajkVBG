@@ -23,6 +23,15 @@ class LayerSwitcherModel {
       )
       .map(l => l.getProperties());
   }
+
+  getVisibleLayers() {
+    return this.olMap
+      .getLayers()
+      .getArray()
+      .filter(layer => {
+        return layer.layerType !== undefined && layer.get("visible") === true;
+      });
+  }
 }
 
 export default LayerSwitcherModel;

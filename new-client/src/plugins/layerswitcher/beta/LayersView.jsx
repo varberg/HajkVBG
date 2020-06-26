@@ -62,15 +62,36 @@ class LayersView extends React.PureComponent {
       selected: this.defaultSelected
     };
 
-    // Let all layers subscribe to visibility changed event.
+    // Let all layers subscribe to visibility changed event (fired from App.js).
     // We do it to ensure that our checkboxes are updated whether layer visibility is changed
     // in some other way than by clicking on a layer in LayerSwitcher.
-    for (let [layerId, layer] of Object.entries(props.model.layerMap)) {
+    props.app.globalObserver.subscribe("core.layerVisibilityChanged", e => {
+      // See what's currently visible
+      const visibleLayers = this.props.model.getVisibleLayers();
+      // console.table(visibleLayers.map(l => l));
+
+      /**
+       * Just a demo of how to get URLs for legend grahpic. We should
+       * do something like this in the upcoming Legend Graphic in Drawer
+       * Component.
+       */
+      // Prepare Array of URLs to get legend graphic
+      const urls = [];
+      visibleLayers
+        .map(layer => layer.get("layerInfo"))
+        .map(layerInfo => layerInfo.legend)
+        .map(legend => {
+          return legend.map(subLayer => {
+            return urls.push(subLayer.url);
+          });
+        });
+
+      console.log("Legend graphic URLs: ", urls);
+
       // When layer's visibility is changed, ensure that correct checkboxes are ticked.
-      layer.on("change:visible", e => {
-        this.toggleCheckboxForLayer(layerId);
-      });
-    }
+      const layerId = e.target.get("name");
+      this.toggleCheckboxForLayer(layerId);
+    });
 
     // If Informative is loaded, inject the "chapters" so we can take care of rendering "go-to chapter" buttons next to layer's name.
     props.app.globalObserver.subscribe("informativeLoaded", chapters => {
