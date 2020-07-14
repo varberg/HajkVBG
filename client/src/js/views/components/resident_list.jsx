@@ -24,7 +24,6 @@ var ResidentList = {
 
   getInitialState: function () {
     this.config = this.props.model.get("residentList");
-    console.log("this.config.minAge",this.config.minAge);
     return {
       visible: false,
       minAge: this.config.minAge!=null? this.config.minAge : 18,
