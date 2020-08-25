@@ -5,38 +5,56 @@ import ScatterPlotIcon from "@material-ui/icons/ScatterPlot";
 import BorderStyleIcon from "@material-ui/icons/BorderStyle";
 import LinearScaleIcon from "@material-ui/icons/LinearScale";
 import Typography from "@material-ui/core/Typography/Typography";
+import WKT from "ol/format/WKT";
 
-const styles = (theme) => ({
+const styles = theme => ({
   button: {
     margin: theme.spacing(1),
-    width: "115px",
+    width: "115px"
   },
   leftIcon: {
-    marginRight: theme.spacing(1),
+    marginRight: theme.spacing(1)
   },
   rightIcon: {
-    marginLeft: theme.spacing(1),
+    marginLeft: theme.spacing(1)
   },
   iconSmall: {
-    fontSize: 20,
+    fontSize: 20
   },
   toolbar: {
-    margin: "5px",
+    margin: "5px"
   },
-  toolbarRow: {},
+  toolbarRow: {}
 });
 
 class Toolbar extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      activeTool: undefined,
+      activeTool: undefined
     };
     this.props.model.observer.subscribe("abortInteraction", () => {
       this.setState({
-        activeTool: undefined,
+        activeTool: undefined
       });
     });
+
+    // Clear layer and attempt to read saved values
+    if (this.props.model.wkt) {
+      this.props.model.vectorSource.clear();
+
+      try {
+        var format = new WKT();
+        var features = format.readFeaturesFromText(
+          this.props.model.formValues[this.props.field]
+        );
+        features.map(feature => {
+          this.props.model.vectorSource.addFeature(feature);
+        });
+      } catch (e) {
+        // This error will happen when the page is visited for the first time
+      }
+    }
   }
 
   componentWillUnmount() {
@@ -50,13 +68,13 @@ class Toolbar extends Component {
     if (geometryType && this.state.activeTool === geometryType.toLowerCase()) {
       model.deactivateInteraction();
       return this.setState({
-        activeTool: undefined,
+        activeTool: undefined
       });
     }
     if (this.state.activeTool === type) {
       model.deactivateInteraction();
       return this.setState({
-        activeTool: undefined,
+        activeTool: undefined
       });
     }
     model.deactivateInteraction();
@@ -144,7 +162,7 @@ class Toolbar extends Component {
     if (!this.props.model.editSource) {
       return;
     }
-    this.props.model.save((response) => {
+    this.props.model.save(response => {
       this.props.model.filty = false;
       this.props.model.refreshEditingLayer();
       this.props.app.globalObserver.publish(
@@ -159,10 +177,10 @@ class Toolbar extends Component {
     this.props.panel.setState({
       checked: false,
       enabled: false,
-      selectedSource: false,
+      selectedSource: false
     });
     this.setState({
-      activeTool: undefined,
+      activeTool: undefined
     });
   }
 
@@ -174,18 +192,44 @@ class Toolbar extends Component {
     return style;
   }
 
+  storeValues() {
+    // Create WKT
+    if (!this.props.model.wkt) {
+      return;
+    }
+    var format = new WKT();
+    var wkt = format.writeFeatures(this.props.model.vectorSource.getFeatures());
+
+    if (this.props.model.vectorSource.getFeatures().length === 0) {
+      wkt = "";
+    }
+
+    // Store in model
+    var formValues = Object.assign({}, this.props.model.formValues);
+    formValues[this.props.field] = wkt;
+    this.props.model.formValues = formValues;
+    // Clear layer
+    this.props.model.vectorSource.clear();
+  }
+
   render() {
     const source = this.props.serviceConfig;
     var disabled = !this.props.enabled,
       editPoint = false,
       editPolygon = false,
       editLine = false;
-
-    if (source) {
+    if (this.props.model.wkt) {
+      // WKT gets the information from the tag since there is support for multiple toolbars
+      // Different toolbars can therefore support different types of geometries
+      editPoint = this.props.geotype.indexOf("point") !== -1;
+      editPolygon = this.props.geotype.indexOf("polygon") !== -1;
+      editLine = this.props.geotype.indexOf("line") !== -1;
+    } else if (source) {
       editPoint = source.editPoint;
       editLine = source.editLine;
       editPolygon = source.editPolygon;
     }
+
     const { classes } = this.props;
 
     return (
