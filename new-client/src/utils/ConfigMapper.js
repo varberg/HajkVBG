@@ -19,7 +19,7 @@ export default class ConfigMapper {
         // First get index if we're dealing with array
         let getIndex =
           args.layersInfo !== null
-            ? args.layersInfo.findIndex((l) => l.id === layer)
+            ? args.layersInfo.findIndex(l => l.id === layer)
             : null;
         // Next, use that index to grab correct style and save its name for later use
         let style =
@@ -51,10 +51,10 @@ export default class ConfigMapper {
     }
 
     function getLegends() {
-      return args.layers.map((layer) => {
+      return args.layers.map(layer => {
         return {
           url: getLegendUrl(layer),
-          description: "Teckenförklaring",
+          description: "Teckenförklaring"
         };
       });
     }
@@ -91,7 +91,7 @@ export default class ConfigMapper {
       projection = new Projection({
         code: projCode,
         axisOrientation: "neu",
-        extent: properties.mapConfig.map.extent,
+        extent: properties.mapConfig.map.extent
       });
     }
 
@@ -132,8 +132,8 @@ export default class ConfigMapper {
           [srsOrCrs]: projection || "EPSG:3006",
           TILED: args.tiled,
           STYLES: Array.isArray(args.layersInfo)
-            ? args.layersInfo.map((l) => l.style || "").join(",")
-            : null,
+            ? args.layersInfo.map(l => l.style || "").join(",")
+            : null
         },
         layersInfo: mapLayersInfo(args.layersInfo, args.infobox),
         infoVisible: args.infoVisible || false,
@@ -142,8 +142,8 @@ export default class ConfigMapper {
         infoUrl: args.infoUrl,
         infoUrlText: args.infoUrlText,
         infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow,
-      },
+        hideExpandArrow: args.hideExpandArrow
+      }
     };
 
     if (args.searchFields && args.searchFields[0]) {
@@ -155,7 +155,7 @@ export default class ConfigMapper {
         displayName: args.displayFields
           ? args.displayFields
           : args.searchFields[0] || "Sökträff",
-        srsName: properties.mapConfig.map.projection || "EPSG:3006",
+        srsName: properties.mapConfig.map.projection || "EPSG:3006"
       };
     }
 
@@ -192,8 +192,8 @@ export default class ConfigMapper {
         infoUrl: args.infoUrl,
         infoUrlText: args.infoUrlText,
         infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow,
-      },
+        hideExpandArrow: args.hideExpandArrow
+      }
     };
     return config;
   }
@@ -211,8 +211,8 @@ export default class ConfigMapper {
         opacity: 1,
         queryable: args.queryable !== false,
         extent: args.extent,
-        projection: args.projection,
-      },
+        projection: args.projection
+      }
     };
 
     return config;
@@ -263,8 +263,8 @@ export default class ConfigMapper {
         legend: [
           {
             url: args.legend,
-            description: args.caption,
-          },
+            description: args.caption
+          }
         ],
         params: {
           service: "WFS",
@@ -272,7 +272,7 @@ export default class ConfigMapper {
           request: "GetFeature",
           typename: args.layer,
           srsname: args.projection,
-          bbox: "",
+          bbox: ""
         },
         infoVisible: args.infoVisible || false,
         infoTitle: args.infoTitle,
@@ -280,8 +280,8 @@ export default class ConfigMapper {
         infoUrl: args.infoUrl,
         infoUrlText: args.infoUrlText,
         infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow,
-      },
+        hideExpandArrow: args.hideExpandArrow
+      }
     };
 
     return config;
@@ -316,13 +316,13 @@ export default class ConfigMapper {
         opacity: args.opacity,
         attribution: args.attribution,
         params: {
-          LAYERS: "show:" + args.layers.join(","),
+          LAYERS: "show:" + args.layers.join(",")
         },
         legend: [
           {
             url: getLegendUrl(args),
-            description: "Teckenförklaring",
-          },
+            description: "Teckenförklaring"
+          }
         ],
         infoVisible: args.infoVisible || false,
         infoTitle: args.infoTitle,
@@ -330,8 +330,76 @@ export default class ConfigMapper {
         infoUrl: args.infoUrl,
         infoUrlText: args.infoUrlText,
         infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow,
-      },
+        hideExpandArrow: args.hideExpandArrow
+      }
+    };
+
+    return config;
+  }
+
+  mapWFSConfig(args) {
+    var config = {
+      type: "wfs",
+      options: {
+        id: args.id,
+        dataFormat: args.dataFormat,
+        name: args.id,
+        layerType: args.layerType,
+        caption: args.caption,
+        visible: args.visibleAtStart,
+        opacity: args.opacity,
+        serverType: "geoserver",
+        loadType: "ajax",
+        projection: args.projection,
+        fillColor: args.fillColor,
+        lineColor: args.lineColor,
+        lineStyle: args.lineStyle,
+        lineWidth: args.lineWidth,
+        url: args.url,
+        queryable: args.queryable,
+        filterable: args.filterable,
+        information: args.infobox,
+        icon: args.legend,
+        symbolXOffset: args.symbolXOffset,
+        symbolYOffset: args.symbolYOffset,
+        pointSize: args.pointSize,
+        filterComparer: args.filterComparer,
+        filterAttribute: args.filterAttribute,
+        filterValue: args.filterValue,
+        labelAlign: args.labelAlign,
+        labelBaseline: args.labelBaseline,
+        labelSize: args.labelSize,
+        labelOffsetX: args.labelOffsetX,
+        labelOffsetY: args.labelOffsetY,
+        labelWeight: args.labelWeight,
+        labelFont: args.labelFont,
+        labelFillColor: args.labelFillColor,
+        labelOutlineColor: args.labelOutlineColor,
+        labelOutlineWidth: args.labelOutlineWidth,
+        labelAttribute: args.labelAttribute,
+        showLabels: args.showLabels,
+        featureId: "FID",
+        legend: [
+          {
+            url: args.legend,
+            description: args.caption
+          }
+        ],
+        params: {
+          service: "WFS",
+          version: "1.1.0",
+          request: "GetFeature",
+          typename: args.layers[0],
+          srsname: args.projection,
+          bbox: ""
+        },
+        infoVisible: args.infoVisible || false,
+        infoTitle: args.infoTitle,
+        infoText: args.infoText,
+        infoUrl: args.infoUrl,
+        infoUrlText: args.infoUrlText,
+        infoOwner: args.infoOwner
+      }
     };
 
     return config;

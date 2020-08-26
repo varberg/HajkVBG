@@ -7,6 +7,7 @@ import { isMobile } from "./../utils/IsMobile.js";
 import WMSLayer from "./layers/WMSLayer.js";
 import WMTSLayer from "./layers/WMTSLayer.js";
 import WFSVectorLayer from "./layers/VectorLayer.js";
+import WFSLayer from "./layers/WFSLayer";
 import { bindMapClickEvent } from "./Click.js";
 import { defaults as defaultInteractions } from "ol/interaction";
 import { Map, View } from "ol";
@@ -37,15 +38,15 @@ class AppModel {
   }
 
   invokeCloseOnAllWindowPlugins() {
-    this.windows.forEach((window) => {
+    this.windows.forEach(window => {
       window.closeWindow();
     });
   }
 
   onWindowOpen(currentWindow) {
     this.windows
-      .filter((window) => window !== currentWindow)
-      .forEach((window) => {
+      .filter(window => window !== currentWindow)
+      .forEach(window => {
         if (window.position === currentWindow.position || isMobile) {
           window.closeWindow();
         }
@@ -108,7 +109,7 @@ class AppModel {
    */
   getBothDrawerAndWidgetPlugins() {
     const r = this.getPlugins()
-      .filter((plugin) => {
+      .filter(plugin => {
         return ["toolbar", "left", "right", "control"].includes(
           plugin.options.target
         );
@@ -118,7 +119,7 @@ class AppModel {
   }
 
   getDrawerPlugins() {
-    return this.getPlugins().filter((plugin) => {
+    return this.getPlugins().filter(plugin => {
       return ["toolbar"].includes(plugin.options.target);
     });
   }
@@ -132,12 +133,12 @@ class AppModel {
    */
   loadPlugins(plugins) {
     var promises = [];
-    plugins.forEach((plugin) => {
+    plugins.forEach(plugin => {
       var prom = import(`../plugins/${plugin}/${plugin}.js`)
-        .then((module) => {
+        .then(module => {
           const toolConfig =
             this.config.mapConfig.tools.find(
-              (plug) => plug.type.toLowerCase() === plugin.toLowerCase()
+              plug => plug.type.toLowerCase() === plugin.toLowerCase()
             ) || {};
 
           const toolOptions =
@@ -155,12 +156,12 @@ class AppModel {
                 type: plugin,
                 sortOrder: sortOrder,
                 options: toolOptions,
-                component: module.default,
+                component: module.default
               })
             );
           }
         })
-        .catch((err) => {
+        .catch(err => {
           console.error(err);
         });
       promises.push(prom);
@@ -202,15 +203,15 @@ class AppModel {
         projection: config.map.projection,
         resolutions: config.map.resolutions,
         units: "m",
-        zoom: config.map.zoom,
-      }),
+        zoom: config.map.zoom
+      })
     });
     setTimeout(() => {
       map.updateSize();
     }, 0);
 
-    if (config.tools.some((tool) => tool.type === "infoclick")) {
-      bindMapClickEvent(map, (mapClickDataResult) => {
+    if (config.tools.some(tool => tool.type === "infoclick")) {
+      bindMapClickEvent(map, mapClickDataResult => {
         this.globalObserver.publish("core.mapClick", mapClickDataResult);
       });
     }
@@ -227,7 +228,7 @@ class AppModel {
     map
       .getLayers()
       .getArray()
-      .forEach((layer) => {
+      .forEach(layer => {
         if (
           layer.getProperties &&
           layer.getProperties().layerInfo &&
@@ -276,6 +277,15 @@ class AppModel {
         );
         map.addLayer(layerItem.layer);
         break;
+      case "wfs":
+        layerConfig = configMapper.mapWFSConfig(layer);
+        layerItem = new WFSLayer(
+          layerConfig.options,
+          this.config.appConfig.proxy,
+          map
+        );
+        map.addLayer(layerItem.layer);
+        break;
       // case "arcgis":
       //   layerConfig = configMapper.mapArcGISConfig(layer);
       //   layer = new ArcGISLayer(layerConfig);
@@ -291,9 +301,9 @@ class AppModel {
 
   lookup(layers, type) {
     var matchedLayers = [];
-    layers.forEach((layer) => {
+    layers.forEach(layer => {
       const layerConfig = this.config.layersConfig.find(
-        (lookupLayer) => lookupLayer.id === layer.id
+        lookupLayer => lookupLayer.id === layer.id
       );
       layer.layerType = type;
       // Use the general value for infobox if not present in map config.
@@ -304,7 +314,7 @@ class AppModel {
       }
       matchedLayers.push({
         ...layerConfig,
-        ...layer,
+        ...layer
       });
     });
     return matchedLayers;
@@ -312,7 +322,7 @@ class AppModel {
 
   expand(groups) {
     var result = [];
-    groups.forEach((group) => {
+    groups.forEach(group => {
       result = [...result, ...group.layers];
       if (group.groups) {
         result = [...result, ...this.expand(group.groups)];
@@ -324,7 +334,7 @@ class AppModel {
   flattern(layerSwitcherConfig) {
     const layers = [
       ...this.lookup(layerSwitcherConfig.options.baselayers, "base"),
-      ...this.lookup(this.expand(layerSwitcherConfig.options.groups), "layer"),
+      ...this.lookup(this.expand(layerSwitcherConfig.options.groups), "layer")
     ];
 
     return layers;
@@ -332,21 +342,21 @@ class AppModel {
 
   addLayers() {
     const layerSwitcherConfig = this.config.mapConfig.tools.find(
-        (tool) => tool.type === "layerswitcher"
+        tool => tool.type === "layerswitcher"
       ),
       infoclickConfig = this.config.mapConfig.tools.find(
-        (t) => t.type === "infoclick"
+        t => t.type === "infoclick"
       );
 
     // Prepare layers
     this.layers = this.flattern(layerSwitcherConfig);
     Object.keys(this.layers)
       .sort((a, b) => this.layers[a].drawOrder - this.layers[b].drawOrder)
-      .map((sortedKey) => this.layers[sortedKey])
-      .forEach((layer) => {
+      .map(sortedKey => this.layers[sortedKey])
+      .forEach(layer => {
         if (this.layersFromParams.length > 0) {
           layer.visibleAtStart = this.layersFromParams.some(
-            (layerId) => layerId === layer.id
+            layerId => layerId === layer.id
           );
         }
         layer.cqlFilter = this.cqlFiltersFromParams[layer.id] || null;
@@ -366,13 +376,13 @@ class AppModel {
       strokeColor.r,
       strokeColor.g,
       strokeColor.b,
-      strokeColor.a,
+      strokeColor.a
     ];
     const fillColorAsArray = fillColor && [
       fillColor.r,
       fillColor.g,
       fillColor.b,
-      fillColor.a,
+      fillColor.a
     ];
     this.highlightSource = new VectorSource();
     this.highlightLayer = new VectorLayer({
@@ -380,17 +390,17 @@ class AppModel {
       style: new Style({
         stroke: new Stroke({
           color: strokeColorAsArray || [200, 0, 0, 0.7],
-          width: strokeWidth || 4,
+          width: strokeWidth || 4
         }),
         fill: new Fill({
-          color: fillColorAsArray || [255, 0, 0, 0.1],
+          color: fillColorAsArray || [255, 0, 0, 0.1]
         }),
         image: new Icon({
           anchor: [anchor[0] || 0.5, anchor[1] || 1],
           scale: scale || 0.15,
-          src: src || "marker.png",
-        }),
-      }),
+          src: src || "marker.png"
+        })
+      })
     });
     map.addLayer(this.highlightLayer);
   }
@@ -417,7 +427,7 @@ class AppModel {
     document.location.search
       .replace(/(^\?)/, "")
       .split("&")
-      .forEach((param) => {
+      .forEach(param => {
         var a = param.split("=");
         o[a[0]] = a[1];
       });
@@ -479,7 +489,7 @@ class AppModel {
       a.map.searchOnStart = {
         v: this.returnStringOrUndefined(b.v), // Search Value (will NOT search on start if null)
         s: this.returnStringOrUndefined(b.s), // Search Service (will search in all, if null)
-        t: this.returnStringOrUndefined(b.t), // Search Type (controls which search plugin is used, default search if null)
+        t: this.returnStringOrUndefined(b.t) // Search Type (controls which search plugin is used, default search if null)
       };
     }
 
@@ -498,8 +508,8 @@ class AppModel {
 
   overrideGlobalSearchConfig(searchTool, data) {
     var configSpecificSearchLayers = searchTool.options.layers;
-    var searchLayers = data.wfslayers.filter((layer) => {
-      if (configSpecificSearchLayers.find((x) => x.id === layer.id)) {
+    var searchLayers = data.wfslayers.filter(layer => {
+      if (configSpecificSearchLayers.find(x => x.id === layer.id)) {
         return layer;
       } else {
         return undefined;
@@ -516,15 +526,15 @@ class AppModel {
       document.title = this.config.mapConfig.map.title; // TODO: add opt-out in admin to cancel this override behaviour.
     }
 
-    const layerSwitcherTool = this.config.mapConfig.tools.find((tool) => {
+    const layerSwitcherTool = this.config.mapConfig.tools.find(tool => {
       return tool.type === "layerswitcher";
     });
 
-    const searchTool = this.config.mapConfig.tools.find((tool) => {
+    const searchTool = this.config.mapConfig.tools.find(tool => {
       return tool.type === "search";
     });
 
-    const editTool = this.config.mapConfig.tools.find((tool) => {
+    const editTool = this.config.mapConfig.tools.find(tool => {
       return tool.type === "edit";
     });
 
@@ -538,18 +548,20 @@ class AppModel {
       layers.vectorlayers = this.config.layersConfig.vectorlayers || [];
       layers.arcgislayers = this.config.layersConfig.arcgislayers || [];
 
-      layers.wmslayers.forEach((l) => (l.type = "wms"));
-      layers.wmtslayers.forEach((l) => (l.type = "wmts"));
-      layers.wfstlayers.forEach((l) => (l.type = "edit"));
-      layers.vectorlayers.forEach((l) => (l.type = "vector"));
-      layers.arcgislayers.forEach((l) => (l.type = "arcgis"));
+      layers.wmslayers.forEach(l => (l.type = "wms"));
+      layers.wmtslayers.forEach(l => (l.type = "wmts"));
+      layers.wfslayers.forEach(l => (l.type = "wfs"));
+      layers.wfstlayers.forEach(l => (l.type = "edit"));
+      layers.vectorlayers.forEach(l => (l.type = "vector"));
+      layers.arcgislayers.forEach(l => (l.type = "arcgis"));
 
       let allLayers = [
         ...layers.wmslayers,
         ...layers.wmtslayers,
         ...layers.vectorlayers,
+        ...layers.wfslayers,
         ...layers.wfstlayers,
-        ...layers.arcgislayers,
+        ...layers.arcgislayers
       ];
 
       this.config.layersConfig = allLayers;
