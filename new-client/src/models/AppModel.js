@@ -110,7 +110,7 @@ class AppModel {
   getBothDrawerAndWidgetPlugins() {
     const r = this.getPlugins()
       .filter(plugin => {
-        return ["toolbar", "left", "right", "control"].includes(
+        return ["toolbar", "left", "right", "control", "hidden"].includes(
           plugin.options.target
         );
       })
@@ -174,7 +174,7 @@ class AppModel {
    * @return {ol.Map} map
    */
   createMap() {
-    var config = this.translateConfig();
+    const config = this.translateConfig();
     map = new Map({
       controls: [
         // new FullScreen({ target: document.getElementById("controls-column") }),
@@ -422,6 +422,10 @@ class AppModel {
     }
   }
 
+  /**
+   * TODO: Obsolete, replaced by new app-wide solution using URL APIs, see #568.
+   * Ensure that this gets removed too.
+   */
   parseQueryParams() {
     var o = {};
     document.location.search
@@ -482,15 +486,6 @@ class AppModel {
     if (f) {
       // Filters come as a URI encoded JSON object, so we must parse it first
       this.cqlFiltersFromParams = JSON.parse(decodeURIComponent(f));
-    }
-
-    // If 'v' query param is specified, it looks like we will want to search on load
-    if (b.v !== undefined && b.v.length > 0) {
-      a.map.searchOnStart = {
-        v: this.returnStringOrUndefined(b.v), // Search Value (will NOT search on start if null)
-        s: this.returnStringOrUndefined(b.s), // Search Service (will search in all, if null)
-        t: this.returnStringOrUndefined(b.t) // Search Type (controls which search plugin is used, default search if null)
-      };
     }
 
     return a;

@@ -17,13 +17,13 @@ import {
   IconButton,
   InputBase,
   Paper,
-  Tooltip,
+  Tooltip
 } from "@material-ui/core";
 
 import ClearIcon from "@material-ui/icons/Clear";
 import SearchIcon from "@material-ui/icons/Search";
 
-const styles = (theme) => {
+const styles = theme => {
   return {
     root: {
       display: "flex",
@@ -33,27 +33,27 @@ const styles = (theme) => {
       [theme.breakpoints.down("xs")]: {
         minWidth: 100,
         border: "none",
-        boxShadow: "none",
+        boxShadow: "none"
       },
       [theme.breakpoints.up("sm")]: {
-        maxWidth: 520,
-      },
+        maxWidth: 520
+      }
     },
     flexItemContainerForSearch: {
       [theme.breakpoints.down("xs")]: {
-        flexGrow: 1,
-      },
+        flexGrow: 1
+      }
     },
     input: {
       marginLeft: theme.spacing(1),
-      flex: 1,
+      flex: 1
     },
     iconButton: {
-      padding: 10,
+      padding: 10
     },
     hidden: {
-      display: "none",
-    },
+      display: "none"
+    }
   };
 };
 
@@ -68,7 +68,7 @@ class Search extends React.PureComponent {
     app: PropTypes.object.isRequired,
     classes: PropTypes.object.isRequired,
     map: PropTypes.object.isRequired,
-    options: PropTypes.object.isRequired,
+    options: PropTypes.object.isRequired
   };
 
   // Define initial state
@@ -76,7 +76,7 @@ class Search extends React.PureComponent {
     visible: true,
     loading: false,
     activeSearchView: STARTVIEW,
-    searchboxPlaceholder: this.props.options.tooltip || "Sök i Hajk",
+    searchboxPlaceholder: this.props.options.tooltip || "Sök i Hajk"
   };
 
   // Define some public class fields
@@ -94,7 +94,7 @@ class Search extends React.PureComponent {
   activeSpatialTools = {
     radiusSearch: this.props.options.radiusSearch,
     selectionSearch: this.props.options.selectionSearch,
-    polygonSearch: this.props.options.polygonSearch,
+    polygonSearch: this.props.options.polygonSearch
   };
 
   localObserver = new Observer();
@@ -108,36 +108,40 @@ class Search extends React.PureComponent {
   componentDidMount() {
     /**
      * When appLoaded is triggered, we want to look see if automatic
-     * search has been requested. If query param contains values for v,
-     * as well as s or t, it means that user wants to do a search on load.
-     * In that case, AppModel has already given us a searchOnStart object.
+     * search has been requested. If query param contains values for q,
+     * (and optionally s or t), it means that user wants to do a search on load.
+     * In that case we can get the URL params from the parsed object we got from index.js.
      *
-     * If searchOnStart exists, grab the value for v (the search value string),
-     * put the value in search box and do the search.
      *
-     * TODO: Limit WFS sources (if "s" query param is present, called "ds" below).
+     * TODO: Limit WFS sources (using the "s" query param).
      */
 
     this.props.app.globalObserver.subscribe("core.appLoaded", () => {
-      const { searchOnStart } = this.props.app.config.mapConfig.map;
-      // Hence this plugin (src/plugins/search) is the default Search plugin, act on both t="search" and t=undefined
+      // If any of the following URL params is specified, we will search on start:
+      //   * q: the search query string. The sole existence of this will trigger search.
+      //   * t: the type of search that should be used. undefined or "search" will trigger
+      //        this plugin. t opens up the possibility to initiate different search engines.
+      //   * s: (TODO: NOT IMPLEMENTED) the sources that will be used. Not yet implemented, but each plugin may have
+      //        its different sources, and we should be able to specify which source should be used.
+
+      // Grab the (already decoded) URL param values
+      const q = this.props.app.config.urlParams.get("q")?.trim(); // Use of "?." will return either a String or
+      const t = this.props.app.config.urlParams.get("t")?.trim(); // undefined (as opposed to null which would be the
+      // const s = this.props.app.config.urlParams.get("s")?.trim(); // return value of get() otherwise!).
+
+      // This search plugin is the default Search plugin and must act on both t="search" and t=undefined
       if (
-        searchOnStart?.t === undefined ||
-        searchOnStart?.t.toLowerCase() === this.type.toLowerCase()
+        q !== undefined && // If query string is supplied
+        q.length > 0 && // and not too short
+        (t === undefined || // and t is either not supplied
+          t.length <= 0 ||
+          t.toLowerCase() === this.type.toLowerCase()) // or equals to "search"
       ) {
-        const { v, s } = searchOnStart;
-
-        //eslint-disable-next-line
-        const { dv, ds } = {
-          dv: v && window.decodeURI(v),
-          ds: s && window.decodeURI(s),
-        };
-
-        // Put decoded search phrase into the search box
-        document.getElementById("searchbox").value = dv;
+        // Put the search phrase into the search box
+        document.getElementById("searchbox").value = q;
 
         // Invoke search for search phrase
-        this.searchModel.search(dv, true, (d) => {
+        this.searchModel.search(q, true, d => {
           this.resolve(d);
           this.selectFirstFeatureInResultsList();
         });
@@ -147,28 +151,28 @@ class Search extends React.PureComponent {
     this.localObserver.subscribe("searchStarted", () => {
       this.setState({
         loading: true,
-        activeSearchView: TEXTSEARCH,
+        activeSearchView: TEXTSEARCH
       });
     });
 
     this.localObserver.subscribe("spatialSearchStarted", () => {
       this.setState({
-        loading: true,
+        loading: true
       });
     });
 
-    this.localObserver.subscribe("searchToolChanged", (placeholderText) => {
+    this.localObserver.subscribe("searchToolChanged", placeholderText => {
       this.setState({
         result: false,
         searchboxPlaceholder: placeholderText
           ? placeholderText
-          : this.props.options.tooltip,
+          : this.props.options.tooltip
       });
     });
 
     this.localObserver.subscribe("searchComplete", () => {
       this.setState({
-        loading: false,
+        loading: false
       });
     });
   }
@@ -193,9 +197,9 @@ class Search extends React.PureComponent {
       .click();
   }
 
-  resolve = (result) => {
+  resolve = result => {
     this.setState({
-      result,
+      result
     });
   };
 
@@ -216,12 +220,12 @@ class Search extends React.PureComponent {
     v = v.trim();
     if (v.length < 1) return null;
     this.localObserver.publish("searchToolChanged");
-    this.searchModel.search(v, true, (d) => {
+    this.searchModel.search(v, true, d => {
       this.resolve(d);
     });
   }
 
-  handleSearchBoxInputChange = (e) => {
+  handleSearchBoxInputChange = e => {
     const v = e.target.value;
     if (v.length <= 3) {
       return;
@@ -236,7 +240,7 @@ class Search extends React.PureComponent {
     }
   };
 
-  handleSearchBoxKeyPress = (e) => {
+  handleSearchBoxKeyPress = e => {
     e.key === "Enter" && this.doSearch(e.target.value);
   };
 
@@ -261,7 +265,7 @@ class Search extends React.PureComponent {
             placeholder={this.state.searchboxPlaceholder}
             inputProps={{
               "aria-label": "search hajk maps",
-              id: "searchbox",
+              id: "searchbox"
             }}
             onChange={this.handleSearchBoxInputChange}
             onKeyPress={this.handleSearchBoxKeyPress}
@@ -276,7 +280,7 @@ class Search extends React.PureComponent {
             <IconButton
               className={classes.iconButton}
               aria-label="search"
-              onClick={(e) => {
+              onClick={e => {
                 if (this.state.activeSearchView === STARTVIEW) {
                   const v = document.getElementById("searchbox").value;
                   this.doSearch(v);
@@ -295,9 +299,9 @@ class Search extends React.PureComponent {
             </IconButton>
           </Tooltip>
           <SpatialSearchMenu
-            onToolChanged={(toolType) => {
+            onToolChanged={toolType => {
               this.setState({
-                activeSearchView: toolType,
+                activeSearchView: toolType
               });
             }}
             activeSpatialTools={this.activeSpatialTools}
@@ -327,7 +331,7 @@ class Search extends React.PureComponent {
               this.resetToStartView();
             }}
             localObserver={this.localObserver}
-            onSearchDone={(featureCollections) => {
+            onSearchDone={featureCollections => {
               this.resolve(featureCollections);
             }}
           />
@@ -339,9 +343,9 @@ class Search extends React.PureComponent {
             resetToStartView={() => {
               this.resetToStartView();
             }}
-            onSearchWithin={(layerIds) => {
+            onSearchWithin={layerIds => {
               this.setState({
-                result: layerIds,
+                result: layerIds
               });
               this.searchModel.clearRecentSpatialSearch();
             }}
@@ -357,7 +361,7 @@ class Search extends React.PureComponent {
               this.resetToStartView();
             }}
             model={this.searchModel}
-            onSearchDone={(featureCollections) => {
+            onSearchDone={featureCollections => {
               this.resolve(featureCollections);
             }}
           />

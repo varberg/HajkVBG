@@ -7,13 +7,13 @@ import {
   Hidden,
   ListItem,
   ListItemIcon,
-  ListItemText,
+  ListItemText
 } from "@material-ui/core";
 import Window from "../components/Window.js";
 import Card from "../components/Card.js";
 import PluginControlButton from "../components/PluginControlButton";
 
-const styles = (theme) => {
+const styles = theme => {
   return {};
 };
 
@@ -26,7 +26,7 @@ class BaseWindowPlugin extends React.PureComponent {
     map: propTypes.object.isRequired,
     options: propTypes.object.isRequired,
     theme: propTypes.object.isRequired,
-    type: propTypes.string.isRequired,
+    type: propTypes.string.isRequired
   };
 
   constructor(props) {
@@ -42,7 +42,7 @@ class BaseWindowPlugin extends React.PureComponent {
     this.state = {
       title: props.options.title || props.custom.title || "Unnamed plugin",
       color: props.options.color || props.custom.color || null,
-      windowVisible: false, // Does not have anything to do with color or title, but must also be set initially
+      windowVisible: false // Does not have anything to do with color or title, but must also be set initially
     };
 
     // Title is a special case: we want to use the state.title and pass on to Window in order
@@ -63,7 +63,7 @@ class BaseWindowPlugin extends React.PureComponent {
     const eventName = `${this.type}.showWindow`;
     // Next, subscribe to that event, expect 'opts' array.
     // To find all places where this event is publish, search for 'globalObserver.publish("show'
-    props.app.globalObserver.subscribe(eventName, (opts) => {
+    props.app.globalObserver.subscribe(eventName, opts => {
       this.showWindow(opts);
     });
   }
@@ -73,7 +73,7 @@ class BaseWindowPlugin extends React.PureComponent {
     // visibleAtStart is false by default. Change to true only if option really is 'true'.
     this.props.options.visibleAtStart === true &&
       this.setState({
-        windowVisible: true,
+        windowVisible: true
       });
   }
 
@@ -88,15 +88,15 @@ class BaseWindowPlugin extends React.PureComponent {
       this.setState({ color: this.props.custom.color });
   }
 
-  handleButtonClick = (e) => {
+  handleButtonClick = e => {
     this.showWindow({
       hideOtherPluginWindows: true,
-      runCallback: true,
+      runCallback: true
     });
     this.props.app.globalObserver.publish("core.onlyHideDrawerIfNeeded");
   };
 
-  showWindow = (opts) => {
+  showWindow = opts => {
     const hideOtherPluginWindows = opts.hideOtherPluginWindows || true,
       runCallback = opts.runCallback || true;
 
@@ -109,7 +109,7 @@ class BaseWindowPlugin extends React.PureComponent {
 
     this.setState(
       {
-        windowVisible: true,
+        windowVisible: true
       },
       () => {
         // If there's a callback defined in custom, run it
@@ -123,7 +123,7 @@ class BaseWindowPlugin extends React.PureComponent {
   closeWindow = () => {
     this.setState(
       {
-        windowVisible: false,
+        windowVisible: false
       },
       () => {
         typeof this.props.custom.onWindowHide === "function" &&
@@ -153,7 +153,7 @@ class BaseWindowPlugin extends React.PureComponent {
           position={this.position}
           mode={mode}
           layerswitcherConfig={this.props.app.config.mapConfig.tools.find(
-            (t) => t.type === "layerswitcher"
+            t => t.type === "layerswitcher"
           )}
         >
           {this.props.children}
@@ -175,22 +175,27 @@ class BaseWindowPlugin extends React.PureComponent {
    *
    * Those special conditions are small screens, were there's no screen
    * estate to render the Widget button in Map Overlay.
+   *
+   * There is another special case needed to be taken care of: the "hidden"
+   * value on target should not render any button at all, but still load the plugin.
    */
   renderDrawerButton() {
-    return createPortal(
-      <Hidden mdUp={this.props.options.target !== "toolbar"}>
-        <ListItem
-          button
-          divider={true}
-          selected={this.state.windowVisible}
-          onClick={this.handleButtonClick}
-        >
-          <ListItemIcon>{this.props.custom.icon}</ListItemIcon>
-          <ListItemText primary={this.title} />
-        </ListItem>
-      </Hidden>,
-      document.getElementById("plugin-buttons")
-    );
+    return this.props.options.target === "hidden"
+      ? null
+      : createPortal(
+          <Hidden mdUp={this.props.options.target !== "toolbar"}>
+            <ListItem
+              button
+              divider={true}
+              selected={this.state.windowVisible}
+              onClick={this.handleButtonClick}
+            >
+              <ListItemIcon>{this.props.custom.icon}</ListItemIcon>
+              <ListItemText primary={this.title} />
+            </ListItem>
+          </Hidden>,
+          document.getElementById("plugin-buttons")
+        );
   }
 
   renderWidgetButton(id) {
