@@ -57,6 +57,7 @@ class AppModel {
    * @param Observer observer
    */
   constructor(config, globalObserver) {
+    this.map = undefined;
     this.windows = [];
     this.plugins = {};
     this.activeTool = undefined;
