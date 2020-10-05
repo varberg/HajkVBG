@@ -357,6 +357,7 @@ class LayerItem extends React.PureComponent {
       return (
         <LayerGroupItem
           appConfig={app.config.appConfig}
+          mapConfig={app.config.mapConfig}
           layer={layer}
           model={model}
           chapters={chapters}
@@ -392,7 +393,9 @@ class LayerItem extends React.PureComponent {
           <div className={classes.layerButtons}>
             <DownloadLink
               layer={this.props.layer}
-              appConfig={this.props.app.config.appConfig}
+              enableDownloadLink={
+                this.props.app.config.mapConfig.map.enableDownloadLink
+              }
             />
             {this.renderStatus()}
             {!this.isInfoEmpty() && (
