@@ -4,6 +4,7 @@
 import "react-app-polyfill/ie11";
 import "react-app-polyfill/stable";
 import "abortcontroller-polyfill/dist/polyfill-patch-fetch";
+import "allsettled-polyfill";
 // IE 11 ends here.
 
 // iOS 12 and other older touch devices need this polyfill to
@@ -18,55 +19,18 @@ import * as serviceWorker from "./serviceWorker";
 
 import React from "react";
 import ReactDOM from "react-dom";
-import App from "./components/App.js";
 import buildConfig from "./buildConfig.json";
-import { deepMerge } from "./utils/DeepMerge";
-import CssBaseline from "@material-ui/core/CssBaseline";
-import { createMuiTheme } from "@material-ui/core/styles";
-import { ThemeProvider } from "@material-ui/styles";
 import ErrorIcon from "@material-ui/icons/Error";
+import HajkThemeProvider from "./components/HajkThemeProvider";
 
-const networkErrorMessage =
-  "Fel när applikationen skulle läsas in. Detta beror troligtvis på ett nätverksfel. Försök igen senare.";
-const parseErrorMessage =
+let networkErrorMessage =
+  "Nätverksfel. Prova att ladda om applikationen genom att trycka på F5 på ditt tangentbord.";
+let parseErrorMessage =
   "Fel när applikationen skulle läsas in. Detta beror troligtvis på ett konfigurationsfel. Försök igen senare.";
 
 const fetchOpts = {
-  credentials: "same-origin"
+  credentials: "same-origin",
 };
-
-/**
- * Helper function that creates a MUI theme by merging
- * hard-coded values (in this function), with custom values
- * (obtained from customTheme.json in /public).
- * This way, user can customize look and feel of application
- * AFTER it has been build with webpack, by simply tweaking
- * values in customTheme.json.
- *
- * @param {Object} config Map config that, among other objects, contains the default MUI theme
- * @param {Object} customTheme An object with the custom theme, obtained via fetch from customTheme.json
- * @returns {Object} A complete, ready to used theme object
- */
-function getTheme(config, customTheme) {
-  // Standard behavior is to use colors from current map config
-  // and make them primary and secondary colors for MUI theme.
-  const hardCodedDefaults = {
-    palette: {
-      primary: {
-        main: config.mapConfig.map.colors.primaryColor // primary: blue // <- Can be done like this (don't forget to import blue from "@material-ui/core/colors/blue"!)
-      },
-      secondary: {
-        main: config.mapConfig.map.colors.secondaryColor // secondary: { main: "#11cb5f" } // <- Or like this
-      }
-    },
-    shape: {
-      borderRadius: 2
-    }
-  };
-
-  const mergedTheme = deepMerge(hardCodedDefaults, customTheme);
-  return createMuiTheme(mergedTheme);
-}
 
 /**
  * Entry point to Hajk.
@@ -77,8 +41,14 @@ function getTheme(config, customTheme) {
  * as well as the default preferred map configuration's file name.
  */
 fetch("appConfig.json", fetchOpts)
-  .then(appConfigResponse => {
-    appConfigResponse.json().then(appConfig => {
+  .then((appConfigResponse) => {
+    appConfigResponse.json().then((appConfig) => {
+      // See if we have site-specific error messages
+      if (appConfig.networkErrorMessage)
+        networkErrorMessage = appConfig.networkErrorMessage;
+      if (appConfig.parseErrorMessage)
+        parseErrorMessage = appConfig.parseErrorMessage;
+
       // Grab URL params using the new URL API, save for later
       const urlParams = new URL(window.location).searchParams;
 
@@ -123,14 +93,14 @@ fetch("appConfig.json", fetchOpts)
         fetchMapConfig(),
         // Additionally, we fetch a custom theme that allows site admins to override
         // the default MUI theme without re-compiling the application.
-        fetch("customTheme.json", fetchOpts)
+        fetch("customTheme.json", fetchOpts),
       ])
         .then(
           ([layersConfigResponse, mapConfigResponse, customThemeResponse]) => {
             Promise.all([
               layersConfigResponse.json(),
               mapConfigResponse.json(),
-              customThemeResponse.json()
+              customThemeResponse.json(),
             ])
               .then(([layersConfig, mapConfig, customTheme]) => {
                 // The fetched files are decoded to Objects and placed in
@@ -140,12 +110,12 @@ fetch("appConfig.json", fetchOpts)
                   appConfig: appConfig,
                   layersConfig: layersConfig,
                   mapConfig: mapConfig,
-                  urlParams
+                  urlParams,
                 };
 
                 // Make sure that the current user is allowed to display the current map
                 const layerSwitcherConfig = config.mapConfig.tools.find(
-                  tool => tool.type === "layerswitcher"
+                  (tool) => tool.type === "layerswitcher"
                 );
                 if (layerSwitcherConfig === undefined) {
                   throw new Error(
@@ -156,21 +126,17 @@ fetch("appConfig.json", fetchOpts)
                   );
                 }
 
-                // Invoke React's renderer
+                // Invoke React's renderer. Render Theme. Theme will render App.
                 ReactDOM.render(
-                  // Wrap it all in a MUI Theme object
-                  <ThemeProvider theme={getTheme(config, customTheme)}>
-                    <CssBaseline />
-                    {/* See App.js's constructor() and render() to further investigate the App's flow */}
-                    <App
-                      activeTools={buildConfig.activeTools}
-                      config={config}
-                    />
-                  </ThemeProvider>,
+                  <HajkThemeProvider
+                    activeTools={buildConfig.activeTools}
+                    config={config}
+                    customTheme={customTheme}
+                  />,
                   document.getElementById("root")
                 );
               })
-              .catch(err => {
+              .catch((err) => {
                 console.error("Parse error: ", err.message);
                 let errMsg = parseErrorMessage;
                 if (err.message.startsWith("noLayerSwitcher:")) {
@@ -189,7 +155,7 @@ fetch("appConfig.json", fetchOpts)
               });
           }
         )
-        .catch(err => {
+        .catch((err) => {
           console.error("Network error: ", err);
           ReactDOM.render(
             <div className="start-error">
@@ -203,7 +169,7 @@ fetch("appConfig.json", fetchOpts)
         });
     });
   })
-  .catch(err => {
+  .catch((err) => {
     console.error("Network error: ", err);
     ReactDOM.render(
       <div className="start-error">

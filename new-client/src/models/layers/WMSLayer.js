@@ -25,7 +25,7 @@ class WMSLayer {
       imageFormat: config.imageFormat,
       attributions: config.attribution,
       cacheSize: this.subLayers.length > 1 ? 32 : 2048,
-      transition: this.subLayers.length > 1 ? 0 : 100
+      transition: this.subLayers.length > 1 ? 0 : 100,
     };
 
     if (
@@ -36,7 +36,7 @@ class WMSLayer {
     ) {
       source.tileGrid = new TileGrid({
         resolutions: config.resolutions,
-        origin: config.origin
+        origin: config.origin,
       });
       source.extent = config.extent;
     }
@@ -49,7 +49,7 @@ class WMSLayer {
         opacity: config.opacity,
         source: new ImageWMS(source),
         layerInfo: this.layerInfo,
-        url: config.url
+        url: config.url,
       });
     } else {
       this.layer = new TileLayer({
@@ -59,22 +59,16 @@ class WMSLayer {
         opacity: config.opacity,
         source: new TileWMS(source),
         layerInfo: this.layerInfo,
-        url: config.url
+        url: config.url,
       });
     }
 
-    this.layer.getSource().on("tileloaderror", e => {
+    this.layer.getSource().on("tileloaderror", (e) => {
       this.tileLoadError();
     });
 
-    this.layer.getSource().on("tileloadend", e => {
+    this.layer.getSource().on("tileloadend", (e) => {
       this.tileLoadOk();
-    });
-
-    this.layer.on("change:visible", e => {
-      if (this.layer.get("visible")) {
-        this.tileLoadOk();
-      }
     });
 
     this.layer.layersInfo = config.layersInfo;
@@ -106,7 +100,7 @@ class WMSLayer {
               this.get("serverType") === "arcgis"
                 ? "application/geojson"
                 : "application/json",
-            feature_count: 100
+            feature_count: 100,
           }
         );
 
@@ -116,13 +110,13 @@ class WMSLayer {
         }
 
         fetch(this.proxyUrl + url)
-          .then(response => {
-            response.json().then(data => {
-              const features = new GeoJSON().readFeatures(data);
+          .then((response) => {
+            response.json().then((data) => {
+              var features = new GeoJSON().readFeatures(data);
               this.featureInformationCallback(features, this.getLayer());
             });
           })
-          .catch(err => {
+          .catch((err) => {
             params.error(err);
           });
       }
@@ -150,7 +144,7 @@ class WMSLayer {
   tileLoadError() {
     this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
       id: this.layer.get("name"),
-      status: "loaderror"
+      status: "loaderror",
     });
   }
 
@@ -161,22 +155,8 @@ class WMSLayer {
   tileLoadOk() {
     this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
       id: this.layer.get("name"),
-      status: "ok"
+      status: "ok",
     });
-  }
-
-  /**
-   * Parse response and trigger registred feature information callback.
-   * @param {XMLDocument} respose
-   * @instance
-   */
-  getFeatureInformationReponse(response) {
-    try {
-      const features = new GeoJSON().readFeatures(response);
-      this.featureInformationCallback(features, this.getLayer());
-    } catch (e) {
-      console.error(e);
-    }
   }
 }
 

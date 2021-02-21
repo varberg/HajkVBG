@@ -48,6 +48,7 @@ class VectorLayerForm extends React.Component {
     layer: "",
     layerType: "Vector",
     legend: "",
+    legendIcon: "",
     load: false,
     maxZoom: -1,
     minZoom: -1,
@@ -59,37 +60,46 @@ class VectorLayerForm extends React.Component {
     sldUrl: "",
     url: "",
     validationErrors: [],
-    version: "1.1.0"
+    version: "1.1.0",
   };
 
   componentDidMount() {
-    this.props.model.on("change:legend", () => {
+    this.props.model.on("change:select-image", () => {
       this.setState(
         {
-          legend: this.props.model.get("legend")
+          legend: this.props.model.get("select-image"),
         },
-        () => this.validateField("legend")
+        () => this.validateField("select-image")
+      );
+    });
+    this.props.model.on("change:select-legend-icon", () => {
+      this.setState(
+        {
+          legendIcon: this.props.model.get("select-legend-icon"),
+        },
+        () => this.validateField("select-legend-icon")
       );
     });
   }
 
   componentWillUnmount() {
     this.props.model.off("change:legend");
+    this.props.model.off("change:legendIcon");
   }
 
   describeLayer(layer) {
     this.props.model.getWFSLayerDescription(
       this.state.url,
       layer.name,
-      layerDescription => {
+      (layerDescription) => {
         if (Array.isArray(layerDescription)) {
           this.props.parent.setState({
-            layerProperties: layerDescription.map(d => {
+            layerProperties: layerDescription.map((d) => {
               return {
                 name: d.name,
-                type: d.localType
+                type: d.localType,
               };
-            })
+            }),
           });
         }
       }
@@ -117,6 +127,7 @@ class VectorLayerForm extends React.Component {
       infobox: this.getValue("infobox"),
       layer: this.state.addedLayers[0],
       legend: this.getValue("legend"),
+      legendIcon: this.getValue("legendIcon"),
       maxZoom: this.getValue("maxZoom"),
       minZoom: this.getValue("minZoom"),
       opacity: this.getValue("opacity"),
@@ -127,7 +138,7 @@ class VectorLayerForm extends React.Component {
       sldUrl: this.getValue("sldUrl"),
       url: this.getValue("url"),
       type: this.state.layerType,
-      version: this.getValue("version")
+      version: this.getValue("version"),
     };
   }
 
@@ -139,8 +150,9 @@ class VectorLayerForm extends React.Component {
     const input = this.refs["input_" + fieldName];
     let value = input ? input.value : "";
 
-    if (fieldName === "sldUrl") {
-      console.log(fieldName, input, value);
+    // We must cast the following to Number, as String won't be accepted for those:
+    if (["maxZoom", "minZoom", "opacity"].includes(fieldName)) {
+      value = Number(value);
     }
 
     if (fieldName === "date") value = create_date();
@@ -159,7 +171,7 @@ class VectorLayerForm extends React.Component {
 
     var errors = [];
 
-    validationFields.forEach(field => {
+    validationFields.forEach((field) => {
       var valid = this.validateField(field, false, false);
       if (!valid) {
         errors.push(field);
@@ -167,7 +179,7 @@ class VectorLayerForm extends React.Component {
     });
 
     this.setState({
-      validationErrors: errors
+      validationErrors: errors,
     });
 
     return errors.length === 0;
@@ -221,13 +233,13 @@ class VectorLayerForm extends React.Component {
     if (updateState !== false) {
       if (!valid) {
         this.setState({
-          validationErrors: [...this.state.validationErrors, fieldName]
+          validationErrors: [...this.state.validationErrors, fieldName],
         });
       } else {
         this.setState({
           validationErrors: this.state.validationErrors.filter(
-            v => v !== fieldName
-          )
+            (v) => v !== fieldName
+          ),
         });
       }
     }
@@ -236,7 +248,7 @@ class VectorLayerForm extends React.Component {
   }
 
   getValidationClass(inputName) {
-    return this.state.validationErrors.find(v => v === inputName)
+    return this.state.validationErrors.find((v) => v === inputName)
       ? "validation-error"
       : "";
   }
@@ -251,7 +263,7 @@ class VectorLayerForm extends React.Component {
       addedLayers: [],
       capabilities: false,
       layerProperties: undefined,
-      layerPropertiesName: undefined
+      layerPropertiesName: undefined,
     });
 
     if (this.state.capabilities) {
@@ -260,7 +272,7 @@ class VectorLayerForm extends React.Component {
       });
     }
 
-    this.props.model.getWFSCapabilities(this.state.url, capabilities => {
+    this.props.model.getWFSCapabilities(this.state.url, (capabilities) => {
       var projection = "";
       if (Array.isArray(capabilities) && capabilities.length > 0) {
         projection = capabilities[0].projection;
@@ -269,7 +281,8 @@ class VectorLayerForm extends React.Component {
         capabilities: capabilities,
         projection: this.state.projection || projection || "",
         legend: this.state.legend || capabilities.legend || "",
-        load: false
+        legendIcon: this.state.legendIcon || "",
+        load: false,
       });
 
       this.validate();
@@ -277,7 +290,7 @@ class VectorLayerForm extends React.Component {
       if (capabilities === false) {
         this.props.parent.setState({
           alert: true,
-          alertMessage: "Servern svarar inte. Försök med en annan URL."
+          alertMessage: "Servern svarar inte. Försök med en annan URL.",
         });
       }
       if (callback) {
@@ -286,31 +299,37 @@ class VectorLayerForm extends React.Component {
     });
   }
 
-  loadLegendImage(e) {
+  loadLegend(e) {
+    $("#select-image").attr("caller", "select-image");
     $("#select-image").trigger("click");
+  }
+
+  loadLegendIcon(e) {
+    $("#select-legend-icon").attr("caller", "select-legend-icon");
+    $("#select-legend-icon").trigger("click");
   }
 
   setLineWidth(e) {
     this.setState({
-      lineWidth: e.target.value
+      lineWidth: e.target.value,
     });
   }
 
   setFilterAttribute(e) {
     this.setState({
-      filterAttribute: e.target.value
+      filterAttribute: e.target.value,
     });
   }
 
   setFilterValue(e) {
     this.setState({
-      filterValue: e.target.value
+      filterValue: e.target.value,
     });
   }
 
   setFilterComparer(e) {
     this.setState({
-      filterComparer: e.target.value
+      filterComparer: e.target.value,
     });
   }
 
@@ -318,7 +337,7 @@ class VectorLayerForm extends React.Component {
     if (e.target.checked === true) {
       this.setState(
         {
-          addedLayers: [checkedLayer]
+          addedLayers: [checkedLayer],
         },
         () => this.validate()
       );
@@ -326,8 +345,8 @@ class VectorLayerForm extends React.Component {
       this.setState(
         {
           addedLayers: this.state.addedLayers.filter(
-            layer => layer !== checkedLayer
-          )
+            (layer) => layer !== checkedLayer
+          ),
         },
         () => this.validate()
       );
@@ -338,9 +357,9 @@ class VectorLayerForm extends React.Component {
     if (this.state.dataFormat === "WFS") {
       this.loadWFSCapabilities(undefined, () => {
         this.setState({
-          addedLayers: [layer.layer]
+          addedLayers: [layer.layer],
         });
-        Object.keys(this.refs).forEach(element => {
+        Object.keys(this.refs).forEach((element) => {
           if (this.refs[element].dataset.type === "wms-layer") {
             this.refs[element].checked = false;
           }
@@ -368,7 +387,7 @@ class VectorLayerForm extends React.Component {
               type="radio"
               name="featureType"
               data-type="wms-layer"
-              onChange={e => {
+              onChange={(e) => {
                 this.appendLayer(e, layer.name);
               }}
             />
@@ -376,7 +395,7 @@ class VectorLayerForm extends React.Component {
             <label htmlFor={"layer" + i}>{layer.title}</label>
             <i
               className={classNames}
-              onClick={e => this.describeLayer(layer)}
+              onClick={(e) => this.describeLayer(layer)}
             />
           </li>
         );
@@ -393,8 +412,8 @@ class VectorLayerForm extends React.Component {
       this.appendLayer(
         {
           target: {
-            checked: false
-          }
+            checked: false,
+          },
         },
         layer
       );
@@ -444,9 +463,9 @@ class VectorLayerForm extends React.Component {
             ref="input_dataFormat"
             value={this.state.dataFormat}
             className="control-fixed-width"
-            onChange={e => {
+            onChange={(e) => {
               this.setState({
-                dataFormat: e.target.value
+                dataFormat: e.target.value,
               });
             }}
           >
@@ -466,9 +485,9 @@ class VectorLayerForm extends React.Component {
             ref="input_version"
             value={this.state.version}
             className="control-fixed-width"
-            onChange={e => {
+            onChange={(e) => {
               this.setState({
-                version: e.target.value
+                version: e.target.value,
               });
             }}
           >
@@ -493,13 +512,13 @@ class VectorLayerForm extends React.Component {
             ref="input_url"
             value={this.state.url}
             className={this.getValidationClass("url")}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ url: v }, () => this.validateField("url"));
             }}
           />
           <span
-            onClick={e => {
+            onClick={(e) => {
               this.loadWFSCapabilities(e);
             }}
             className="btn btn-default"
@@ -529,7 +548,7 @@ class VectorLayerForm extends React.Component {
             ref="input_caption"
             value={this.state.caption}
             className={this.getValidationClass("caption")}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ caption: v }, () =>
                 this.validateField("caption")
@@ -544,7 +563,7 @@ class VectorLayerForm extends React.Component {
             ref="input_projection"
             value={this.state.projection}
             className={this.getValidationClass("projection")}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ projection: v }, () =>
                 this.validateField("projection")
@@ -564,7 +583,7 @@ class VectorLayerForm extends React.Component {
             className={
               (this.getValidationClass("opacity"), "control-fixed-width")
             }
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ opacity: v }, () =>
                 this.validateField("opacity")
@@ -587,7 +606,7 @@ class VectorLayerForm extends React.Component {
             ref="input_minZoom"
             value={this.state.minZoom}
             className={this.getValidationClass("minZoom")}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ minZoom: v });
             }}
@@ -608,7 +627,7 @@ class VectorLayerForm extends React.Component {
             ref="input_maxZoom"
             value={this.state.maxZoom}
             className={this.getValidationClass("maxZoom")}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ maxZoom: v }, () =>
                 this.validateField("maxZoom")
@@ -627,7 +646,7 @@ class VectorLayerForm extends React.Component {
             type="text"
             ref="input_sldUrl"
             value={this.state.sldUrl}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ sldUrl: v });
             }}
@@ -643,7 +662,7 @@ class VectorLayerForm extends React.Component {
           <textarea
             ref="input_sldText"
             value={this.state.sldText}
-            onChange={e => this.setState({ sldText: e.target.value })}
+            onChange={(e) => this.setState({ sldText: e.target.value })}
           />
         </div>
         <div>
@@ -657,7 +676,7 @@ class VectorLayerForm extends React.Component {
             type="text"
             ref="input_sldStyle"
             value={this.state.sldStyle}
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ sldStyle: v });
             }}
@@ -674,7 +693,7 @@ class VectorLayerForm extends React.Component {
           <input
             type="text"
             ref="input_attribution"
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ attribution: e.target.value });
               this.validateField("attribution", e);
             }}
@@ -687,7 +706,7 @@ class VectorLayerForm extends React.Component {
             type="checkbox"
             ref="input_queryable"
             id="queryable"
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ queryable: e.target.checked });
             }}
             checked={this.state.queryable}
@@ -700,7 +719,7 @@ class VectorLayerForm extends React.Component {
           <textarea
             ref="input_infobox"
             value={this.state.infobox}
-            onChange={e => this.setState({ infobox: e.target.value })}
+            onChange={(e) => this.setState({ infobox: e.target.value })}
           />
         </div>
         <div className="separator">Filtrering</div>
@@ -709,7 +728,7 @@ class VectorLayerForm extends React.Component {
             type="checkbox"
             ref="input_filterable"
             id="filterable"
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ filterable: e.target.checked });
             }}
             checked={this.state.filterable}
@@ -728,7 +747,7 @@ class VectorLayerForm extends React.Component {
             type="text"
             ref="input_filterAttribute"
             value={this.state.filterAttribute}
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ filterAttribute: e.target.value });
             }}
           />
@@ -739,9 +758,9 @@ class VectorLayerForm extends React.Component {
             ref="input_filterComparer"
             value={this.state.filterComparer}
             className="control-fixed-width"
-            onChange={e => {
+            onChange={(e) => {
               this.setState({
-                filterComparer: e.target.value
+                filterComparer: e.target.value,
               });
             }}
           >
@@ -757,7 +776,7 @@ class VectorLayerForm extends React.Component {
             type="text"
             ref="input_filterValue"
             value={this.state.filterValue}
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ filterValue: e.target.value });
             }}
           />
@@ -770,20 +789,40 @@ class VectorLayerForm extends React.Component {
             ref="input_legend"
             value={this.state.legend}
             className={this.getValidationClass("legend")}
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ legend: e.target.value });
             }}
           />
           <span
-            onClick={e => {
-              this.loadLegendImage(e);
+            onClick={(e) => {
+              this.loadLegend(e);
             }}
             className="btn btn-default"
           >
             Välj fil {imageLoader}
           </span>
         </div>
-
+        <div>
+          <label>
+            Teckenförklar
+            <br />
+            ingsikon
+          </label>
+          <input
+            type="text"
+            ref="input_legendIcon"
+            value={this.state.legendIcon}
+            onChange={(e) => this.setState({ legendIcon: e.target.value })}
+          />
+          <span
+            onClick={(e) => {
+              this.loadLegendIcon(e);
+            }}
+            className="btn btn-default"
+          >
+            Välj fil {imageLoader}
+          </span>
+        </div>
         <div className="separator">Metadata</div>
         <div>
           <label>Innehåll</label>
@@ -791,7 +830,7 @@ class VectorLayerForm extends React.Component {
             type="text"
             ref="input_content"
             value={this.state.content}
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ content: e.target.value });
             }}
           />
@@ -809,7 +848,7 @@ class VectorLayerForm extends React.Component {
               type="checkbox"
               ref="input_infoVisible"
               id="info-document"
-              onChange={e => {
+              onChange={(e) => {
                 this.setState({ infoVisible: e.target.checked });
               }}
               checked={this.state.infoVisible}
@@ -822,7 +861,7 @@ class VectorLayerForm extends React.Component {
             <input
               type="text"
               ref="input_infoTitle"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoTitle: v }, () =>
                   this.validateField("infoTitle", v)
@@ -837,7 +876,7 @@ class VectorLayerForm extends React.Component {
             <textarea
               type="text"
               ref="input_infoText"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoText: v }, () =>
                   this.validateField("infoText", v)
@@ -852,7 +891,7 @@ class VectorLayerForm extends React.Component {
             <input
               type="text"
               ref="input_infoUrl"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoUrl: v }, () =>
                   this.validateField("infoUrl", v)
@@ -867,7 +906,7 @@ class VectorLayerForm extends React.Component {
             <input
               type="text"
               ref="input_infoUrlText"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoUrlText: v }, () =>
                   this.validateField("infoUrlText", v)
@@ -882,7 +921,7 @@ class VectorLayerForm extends React.Component {
             <input
               type="text"
               ref="input_infoOwner"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoOwner: v }, () =>
                   this.validateField("infoOwner", v)
