@@ -360,7 +360,7 @@ class Page extends Component {
             model={this.props.model}
             onChangeTool={() => {
               if (window.innerWidth < 600) {
-                this.props.model.observer.publish("minimizeWindow", true);
+                this.props.model.globalObserver.publish("core.minimizeWindow");
                 this.props.enqueueSnackbar(
                   "Klicka i kartan för att rita objekt"
                 );
@@ -577,12 +577,38 @@ class Page extends Component {
           this.props.model.observer.publish("abort");
         }}
       >
+        {this.props.options.collectAgain ? "Tyck till igen" : "Stäng"}
+      </Button>
+    );
+
+    const closeButton = (
+      <Button
+        variant="outlined"
+        color="primary"
+        className={classes.buttonRight}
+        onClick={() => {
+          this.props.model.app.windows.forEach(window => {
+            if (window.type === "collector") {
+              window.closeWindow();
+            }
+          });
+        }}
+      >
         Stäng
       </Button>
     );
 
     if (this.state.displayThankYou) {
-      return <div>{okButton}</div>;
+      if (this.props.options.collectAgain) {
+        return (
+          <div>
+            {okButton}
+            {closeButton}
+          </div>
+        );
+      } else {
+        return <div>{okButton}</div>;
+      }
     }
 
     if (numPages === 1) {

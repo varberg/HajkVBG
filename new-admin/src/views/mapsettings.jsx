@@ -181,13 +181,13 @@ $.fn.editable = function(component) {
       reset();
     });
 
-    if (node.parent().attr("data-expanded") === "true") {
+    if (node.parent().attr("data-expanded")) {
       checkbox.attr("checked", "checked");
     }
-    if (node.parent().attr("data-toggled") === "true") {
+    if (node.parent().attr("data-toggled")) {
       checkbox2.attr("checked", "checked");
     }
-    if (node.parent().attr("data-visibleatstart") === "true") {
+    if (node.parent().attr("data-visibleatstart")) {
       checkbox3.attr("checked", "checked");
     }
     if (node.parent().attr("data-visibleforgroups")) {
@@ -354,7 +354,7 @@ class Menu extends Component {
             .backgroundSwitcherBlack,
           backgroundSwitcherWhite: this.props.model.get("layerMenuConfig")
             .backgroundSwitcherWhite,
-          enableOSM: this.props.model.get("layerMenuConfig").enableOSM || false,
+          enableOSM: this.props.model.get("layerMenuConfig").enableOSM,
           showBreadcrumbs: this.props.model.get("layerMenuConfig")
             .showBreadcrumbs,
           instruction: this.props.model.get("layerMenuConfig").instruction,
@@ -602,20 +602,28 @@ class Menu extends Component {
             }
             return {
               id: node.dataset.id,
-              drawOrder: node.dataset.draworder ? node.dataset.draworder : 1000,
-              visibleAtStart: node.dataset.visibleatstart,
+              drawOrder: node.dataset.draworder
+                ? parseInt(node.dataset.draworder)
+                : 1000,
+              visibleAtStart: checkIfTrue(node.dataset.visibleatstart),
               visibleForGroups: visibleForGroups || [],
               infobox: infobox || ""
             };
           } else {
             return {
               id: node.dataset.id,
-              drawOrder: node.dataset.draworder ? node.dataset.draworder : 1000,
-              visibleAtStart: node.dataset.visibleatstart,
+              drawOrder: node.dataset.draworder
+                ? parseInt(node.dataset.draworder)
+                : 1000,
+              visibleAtStart: checkIfTrue(node.dataset.visibleatstart),
               infobox: infobox || ""
             };
           }
         });
+    }
+
+    function checkIfTrue(value) {
+      return value === "true";
     }
 
     function groups(node) {
@@ -643,8 +651,8 @@ class Menu extends Component {
         id: node.dataset.id,
         type: node.dataset.type,
         name: node.dataset.name,
-        toggled: node.dataset.toggled,
-        expanded: node.dataset.expanded,
+        toggled: checkIfTrue(node.dataset.toggled),
+        expanded: checkIfTrue(node.dataset.expanded),
         parent: getParent(node),
         layers: layers(node),
         groups: groups(node)
@@ -668,7 +676,7 @@ class Menu extends Component {
         root.dataset.type === "layer"
           ? settings.baselayers.push({
               id: root.dataset.id,
-              visibleAtStart: root.dataset.visibleatstart,
+              visibleAtStart: checkIfTrue(root.dataset.visibleatstart),
               drawOrder: 0,
               visibleForGroups: visibleForGroups || [],
               infobox: ""
@@ -678,7 +686,7 @@ class Menu extends Component {
         root.dataset.type === "layer"
           ? settings.baselayers.push({
               id: root.dataset.id,
-              visibleAtStart: root.dataset.visibleatstart,
+              visibleAtStart: checkIfTrue(root.dataset.visibleatstart),
               drawOrder: 0,
               infobox: ""
             })
@@ -703,6 +711,7 @@ class Menu extends Component {
       });
       j--;
     });
+    console.log("result: ", result);
     return result;
   }
 
@@ -1690,13 +1699,21 @@ class Menu extends Component {
   createMap() {
     var name = this.refs.mapName.value;
     if (!/[^0-9a-zA-Z_]/.test(name) && name.trim().length > 0) {
-      this.props.model.createMap(name, () => {
-        this.setState({
-          content: "mapsettings",
-          alert: true,
-          alertMessage: "En ny karta skapades utan problem."
-        });
-        this.load("maps");
+      this.props.model.createMap(name, (d, s) => {
+        if (s === "success") {
+          this.setState({
+            content: "mapsettings",
+            alert: true,
+            alertMessage: "En ny karta skapades utan problem."
+          });
+          this.load("maps");
+        } else {
+          this.setState({
+            alert: true,
+            alertMessage: "Karta kunde INTE skapas."
+          });
+          console.error(d);
+        }
       });
     } else {
       this.setState({

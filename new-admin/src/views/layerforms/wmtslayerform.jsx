@@ -125,7 +125,7 @@ class WMTSLayerForm extends Component {
 
   getValue(fieldName) {
     function create_date() {
-      return new Date().getTime();
+      return new Date().getTime().toString();
     }
 
     function format_layers(layers) {

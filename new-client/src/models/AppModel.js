@@ -29,8 +29,7 @@ import { register } from "ol/proj/proj4";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { Icon, Fill, Stroke, Style } from "ol/style.js";
-
-var map;
+import SnapHelper from "./SnapHelper";
 
 class AppModel {
   registerWindowPlugin(windowComponent) {
@@ -59,6 +58,7 @@ class AppModel {
    * @param Observer observer
    */
   constructor(config, globalObserver) {
+    this.map = undefined;
     this.windows = [];
     this.plugins = {};
     this.activeTool = undefined;
@@ -110,7 +110,7 @@ class AppModel {
   getBothDrawerAndWidgetPlugins() {
     const r = this.getPlugins()
       .filter(plugin => {
-        return ["toolbar", "left", "right", "control"].includes(
+        return ["toolbar", "left", "right", "control", "hidden"].includes(
           plugin.options.target
         );
       })
@@ -151,7 +151,7 @@ class AppModel {
           if (Object.keys(toolConfig).length > 0) {
             this.addPlugin(
               new Plugin({
-                map: map,
+                map: this.map,
                 app: this,
                 type: plugin,
                 sortOrder: sortOrder,
@@ -174,8 +174,8 @@ class AppModel {
    * @return {ol.Map} map
    */
   createMap() {
-    var config = this.translateConfig();
-    map = new Map({
+    const config = this.translateConfig();
+    this.map = new Map({
       controls: [
         // new FullScreen({ target: document.getElementById("controls-column") }),
         // new Rotate({ target: document.getElementById("controls-column") }),
@@ -207,11 +207,14 @@ class AppModel {
       })
     });
     setTimeout(() => {
-      map.updateSize();
+      this.map.updateSize();
     }, 0);
 
+    // Add Snap Helper to the Map
+    this.map.snapHelper = new SnapHelper(this);
+
     if (config.tools.some(tool => tool.type === "infoclick")) {
-      bindMapClickEvent(map, mapClickDataResult => {
+      bindMapClickEvent(this.map, mapClickDataResult => {
         this.globalObserver.publish("core.mapClick", mapClickDataResult);
       });
     }
@@ -219,13 +222,13 @@ class AppModel {
   }
 
   getMap() {
-    return map;
+    return this.map;
   }
 
   clear() {
     this.clearing = true;
     this.highlight(false);
-    map
+    this.map
       .getLayers()
       .getArray()
       .forEach(layer => {
@@ -257,34 +260,34 @@ class AppModel {
           this.config.appConfig.proxy,
           this.globalObserver
         );
-        map.addLayer(layerItem.layer);
+        this.map.addLayer(layerItem.layer);
         break;
       case "wmts":
         layerConfig = configMapper.mapWMTSConfig(layer, this.config);
         layerItem = new WMTSLayer(
           layerConfig.options,
           this.config.appConfig.proxy,
-          map
+          this.map
         );
-        map.addLayer(layerItem.layer);
+        this.map.addLayer(layerItem.layer);
         break;
       case "vector":
         layerConfig = configMapper.mapVectorConfig(layer);
         layerItem = new WFSVectorLayer(
           layerConfig.options,
           this.config.appConfig.proxy,
-          map
+          this.map
         );
-        map.addLayer(layerItem.layer);
+        this.map.addLayer(layerItem.layer);
         break;
       case "wfs":
         layerConfig = configMapper.mapWFSConfig(layer);
         layerItem = new WFSLayer(
           layerConfig.options,
           this.config.appConfig.proxy,
-          map
+          this.map
         );
-        map.addLayer(layerItem.layer);
+        this.map.addLayer(layerItem.layer);
         break;
       // case "arcgis":
       //   layerConfig = configMapper.mapArcGISConfig(layer);
@@ -402,7 +405,7 @@ class AppModel {
         })
       })
     });
-    map.addLayer(this.highlightLayer);
+    this.map.addLayer(this.highlightLayer);
   }
 
   getCenter(e) {
@@ -416,12 +419,16 @@ class AppModel {
         this.highlightSource.addFeature(feature);
         if (window.innerWidth < 600) {
           let geom = feature.getGeometry();
-          map.getView().setCenter(this.getCenter(geom.getExtent()));
+          this.map.getView().setCenter(this.getCenter(geom.getExtent()));
         }
       }
     }
   }
 
+  /**
+   * TODO: Obsolete, replaced by new app-wide solution using URL APIs, see #568.
+   * Ensure that this gets removed too.
+   */
   parseQueryParams() {
     var o = {};
     document.location.search
@@ -482,15 +489,6 @@ class AppModel {
     if (f) {
       // Filters come as a URI encoded JSON object, so we must parse it first
       this.cqlFiltersFromParams = JSON.parse(decodeURIComponent(f));
-    }
-
-    // If 'v' query param is specified, it looks like we will want to search on load
-    if (b.v !== undefined && b.v.length > 0) {
-      a.map.searchOnStart = {
-        v: this.returnStringOrUndefined(b.v), // Search Value (will NOT search on start if null)
-        s: this.returnStringOrUndefined(b.s), // Search Service (will search in all, if null)
-        t: this.returnStringOrUndefined(b.t) // Search Type (controls which search plugin is used, default search if null)
-      };
     }
 
     return a;

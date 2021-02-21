@@ -223,6 +223,7 @@ class ToolOptions extends Component {
     var elements = this.refs.transformationForm.elements,
       transformation = {
         code: elements["code"].value,
+        precision: elements["precision"].value,
         default: elements["default"].checked,
         hint: elements["hint"].value,
         title: elements["title"].value,
@@ -272,6 +273,9 @@ class ToolOptions extends Component {
         </div>
         <div>
           <span>Y-ettikett</span>: <span>{t.ytitle}</span>
+        </div>
+        <div>
+          <span>Precision</span>: <span>{t.precision}</span>
         </div>
         <div>
           <span>Inverterad</span>: <span>{t.inverseAxis ? "Ja" : "Nej"}</span>
@@ -515,6 +519,16 @@ class ToolOptions extends Component {
               <div>
                 <label>Y-etikett*</label>
                 <input name="ytitle" type="text" />
+              </div>
+              <div>
+                <label>Precision (antal decimaler)</label>
+                <input
+                  name="precision"
+                  type="number"
+                  min="0"
+                  max="7"
+                  step="1"
+                />
               </div>
               <div>
                 <input name="inverseAxis" type="checkbox" />

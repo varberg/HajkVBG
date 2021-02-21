@@ -63,8 +63,8 @@ var menu = Model.extend({
       url: this.get("config").url_map_create + "/" + name,
       method: "GET",
       contentType: "application/json",
-      success: data => {
-        callback(data);
+      success: (data, s) => {
+        callback(data, s);
       },
       error: message => {
         callback(message);

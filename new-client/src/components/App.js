@@ -7,9 +7,11 @@ import { SnackbarProvider } from "notistack";
 import Observer from "react-event-observer";
 
 import AppModel from "./../models/AppModel.js";
+
 import Window from "./Window.js";
 import CookieNotice from "./CookieNotice";
 import Introduction from "./Introduction";
+import Announcement from "./Announcement/Announcement";
 import Alert from "./Alert";
 import PluginWindows from "./PluginWindows";
 
@@ -108,14 +110,12 @@ const styles = theme => {
     },
     rightColumn: {
       paddingLeft: theme.spacing(2),
-      paddingRight: theme.spacing(2),
-      flex: 0
+      paddingRight: theme.spacing(2)
     },
     controlsColumn: {
-      flex: 0,
       display: "flex",
       flexDirection: "column",
-      marginTop: 0,
+      marginTop: theme.spacing(7),
       [theme.breakpoints.down("xs")]: {
         marginTop: theme.spacing(2)
       }
@@ -142,17 +142,20 @@ const styles = theme => {
       backgroundColor: theme.palette.background.paper
     },
     drawerContent: {
-      backgroundColor: theme.palette.background.paper
+      backgroundColor: theme.palette.background.paper,
+      overflow: "auto"
     },
     logoBox: {
-      padding: theme.spacing(1, 2)
+      padding: theme.spacing(1, 2),
+      height: theme.spacing(6)
     },
     logo: {
-      maxHeight: 35
+      height: theme.spacing(4)
     },
     drawerGrid: {
       padding: theme.spacing(0, 2),
-      backgroundColor: "#fff"
+      backgroundColor: "#fff",
+      minHeight: theme.spacing(6)
     },
     backdrop: {
       zIndex: theme.zIndex.drawer - 1 // Carefully selected to be above Window but below Drawer
@@ -247,7 +250,7 @@ class App extends React.PureComponent {
               value: "plugins",
               ButtonIcon: MapIcon,
               caption: "Kartverktyg",
-              order: 2,
+              order: 0,
               renderDrawerContent: function() {
                 return null; // Nothing specific should be rendered - this is a special case!
               }
@@ -264,10 +267,10 @@ class App extends React.PureComponent {
   componentDidCatch(error) {}
 
   bindHandlers() {
-    this.globalObserver.subscribe("core.mapClick", mapClickDataResult => {
+    this.globalObserver.subscribe("core.mapClick", results => {
       this.appModel.highlight(false);
       this.setState({
-        mapClickDataResult: mapClickDataResult
+        mapClickDataResult: results
       });
     });
 
@@ -322,72 +325,94 @@ class App extends React.PureComponent {
       this.setState({ drawerButtons: newState });
     });
 
+    /**
+     * TODO: Implement correctly a way to remove features from map click
+     * results when layer visibility is changed. The current implementation
+     * has problems with group layers: if we have a group layer and toggle
+     * its visibility, the features are not removed from infoclick window.
+     */
+    // this.appModel
+    //   .getMap()
+    //   .getLayers()
+    //   .getArray()
+    //   .forEach((layer) => {
+    //     layer.on("change:visible", (e) => {
+    //       const layer = e.target;
+    //       if (Array.isArray(this.state.mapClickDataResult.features)) {
+    //         this.state.mapClickDataResult.features.forEach((feature) => {
+    //           if (feature.layer === layer) {
+    //             const o = { ...this.state.mapClickDataResult };
+    //             o.features = o.features.filter((f) => f !== feature);
+    //             this.setState({
+    //               mapClickDataResult: o,
+    //             });
+    //           }
+    //         });
+    //       }
+    //     });
+    //   });
+
+    // TODO: More plugins could use this - currently only SNap helper registers though
     this.appModel
       .getMap()
       .getLayers()
       .getArray()
       .forEach(layer => {
-        layer.on("change:visible", evt => {
-          let layer = evt.target;
-          if (
-            this.state.mapClickDataResult &&
-            Array.isArray(this.state.mapClickDataResult.features)
-          ) {
-            this.state.mapClickDataResult.features.forEach(feature => {
-              if (feature.layer === layer) {
-                let o = { ...this.state.mapClickDataResult };
-                o.features = o.features.filter(f => f !== feature);
-                this.setState({
-                  mapClickDataResult: o
-                });
-              }
-            });
-          }
+        layer.on("change:visible", e => {
+          this.globalObserver.publish("core.layerVisibilityChanged", e);
         });
       });
   }
 
   renderInfoclickWindow() {
-    const infoclickConfig = this.props.config.mapConfig.tools.find(
+    // Check if admin wants Infoclick to be active
+    const infoclickOptions = this.props.config.mapConfig.tools.find(
       t => t.type === "infoclick"
-    );
+    )?.options;
 
-    if (infoclickConfig === undefined) {
-      return null;
-    }
-
-    const open =
-      this.state.mapClickDataResult &&
-      this.state.mapClickDataResult.features &&
-      this.state.mapClickDataResult.features.length > 0
-        ? true
-        : false;
-    const features =
-      this.state.mapClickDataResult && this.state.mapClickDataResult.features;
-
-    const { title, position, width, height } = infoclickConfig.options;
+    // The 'open' prop, below, will control whether the Window is
+    // currently visible or not. The 'open' property itself
+    // depends on whether there are Features to display or not.
+    //
+    // That, in turn, depends on what's in the current state of 'mapClickDataResult'.
+    //
+    // It will be changed each time user clicks on map (as we have it registered
+    // like that in Click.js), so we can be confident that __after each user
+    // click we do have the most current results in our state__.
+    //
+    // Note however that which layers are included is controlled by
+    // __layer visibility at the time the click event happens!__
+    //
+    // As soon as user starts to show/hide layers __after__ the click, our
+    // 'mapClickDataResult' may contain results from hidden layers (or not
+    // contain results from layers activated after the click occurred).
+    //
+    // This may or may not be a bug (depending on how we see it), and may
+    // be fixed in the future.
 
     return (
-      <Window
-        globalObserver={this.globalObserver}
-        title={title || "Infoclick"}
-        open={open}
-        position={position || "right"}
-        mode="window"
-        width={width || 400}
-        height={height || 300}
-        features={features}
-        map={this.appModel.getMap()}
-        onDisplay={feature => {
-          this.appModel.highlight(feature);
-        }}
-        onClose={() => {
-          this.appModel.highlight(false);
-          this.setState({
-            mapClickDataResult: undefined
-          });
-        }}
-      />
+      infoclickOptions !== undefined && (
+        <Window
+          open={this.state.mapClickDataResult?.features?.length > 0} // Will show window only if there are any features to show
+          globalObserver={this.globalObserver}
+          title={infoclickOptions.title || "Infoclick"}
+          position={infoclickOptions.position || "right"}
+          mode="window"
+          width={infoclickOptions.width || 400}
+          height={infoclickOptions.height || 300}
+          features={this.state.mapClickDataResult?.features}
+          map={this.appModel.getMap()}
+          onDisplay={feature => {
+            this.appModel.highlight(feature);
+          }}
+          onClose={() => {
+            this.appModel.highlight(false);
+            this.setState({
+              mapClickDataResult: undefined
+            });
+          }}
+        />
+      )
     );
   }
 
@@ -435,17 +460,14 @@ class App extends React.PureComponent {
 
   renderSearchPlugin() {
     const searchPlugin = this.appModel.plugins.search;
-    if (searchPlugin) {
-      return (
-        <searchPlugin.component
-          map={searchPlugin.map}
-          app={searchPlugin.app}
-          options={searchPlugin.options}
-        />
-      );
-    } else {
-      return null;
-    }
+    // Renders the configured search plugin (if one is configured)
+    return searchPlugin ? (
+      <searchPlugin.component
+        map={searchPlugin.map}
+        app={searchPlugin.app}
+        options={searchPlugin.options}
+      />
+    ) : null;
   }
 
   renderInformationPlugin() {
@@ -559,6 +581,10 @@ class App extends React.PureComponent {
 
     // If clean===true, some components won't be rendered below
     const clean = config.mapConfig.map.clean;
+    const showCookieNotice =
+      config.mapConfig.map.showCookieNotice !== undefined
+        ? config.mapConfig.map.showCookieNotice
+        : true;
 
     const defaultCookieNoticeMessage = this.isString(
       this.props.config.mapConfig.map.defaultCookieNoticeMessage
@@ -581,11 +607,21 @@ class App extends React.PureComponent {
         }}
       >
         <>
-          <CookieNotice
-            globalObserver={this.globalObserver}
-            defaultCookieNoticeMessage={defaultCookieNoticeMessage}
-            defaultCookieNoticeUrl={defaultCookieNoticeUrl}
-          />
+          {this.props.config.appConfig?.announcements &&
+            Array.isArray(this.props.config.appConfig.announcements) &&
+            this.props.config.appConfig.announcements.length > 0 && (
+              <Announcement
+                announcements={this.props.config.appConfig.announcements}
+                currentMap={this.props.config.activeMap}
+              />
+            )}
+          {clean === false && showCookieNotice && (
+            <CookieNotice
+              globalObserver={this.globalObserver}
+              defaultCookieNoticeMessage={defaultCookieNoticeMessage}
+              defaultCookieNoticeUrl={defaultCookieNoticeUrl}
+            />
+          )}
           <Alert
             open={this.state.alert}
             message={this.state.alertMessage}
@@ -595,7 +631,8 @@ class App extends React.PureComponent {
           <div
             id="appBox"
             className={cslx(classes.flexBox, {
-              [classes.shiftedLeft]: this.state.drawerPermanent
+              [classes.shiftedLeft]:
+                this.state.drawerPermanent && clean === false
             })}
           >
             <header
@@ -605,11 +642,10 @@ class App extends React.PureComponent {
               {clean === false && (
                 <DrawerToggleButtons
                   drawerButtons={this.state.drawerButtons}
-                  // drawerPermanent={this.state.drawerPermanent}
                   globalObserver={this.globalObserver}
                 />
               )}
-              {clean === false && this.renderSearchPlugin()}
+              {this.renderSearchPlugin()}
             </header>
             <main className={classes.main}>
               <div
@@ -659,7 +695,8 @@ class App extends React.PureComponent {
           <div
             id="map"
             className={cslx(classes.map, {
-              [classes.shiftedLeft]: this.state.drawerPermanent
+              [classes.shiftedLeft]:
+                this.state.drawerPermanent && clean === false
             })}
           ></div>
           <div
@@ -668,7 +705,8 @@ class App extends React.PureComponent {
               classes.pointerEventsOnChildren,
               classes.windowsContainer,
               {
-                [classes.shiftedLeft]: this.state.drawerPermanent
+                [classes.shiftedLeft]:
+                  this.state.drawerPermanent && clean === false
               }
             )}
           >
@@ -677,37 +715,43 @@ class App extends React.PureComponent {
               plugins={this.appModel.getBothDrawerAndWidgetPlugins()}
             />
           </div>
-          <Drawer
-            open={this.state.drawerVisible}
-            // NB: we can't simply toggle between permanent|temporary,
-            // as the temporary mode unmounts element from DOM and
-            // re-mounts it the next time, so we would re-rendering
-            // our plugins all the time.
-            variant="persistent"
-            classes={{
-              paper: classes.drawerBackground
-            }}
-          >
-            {this.renderDrawerHeader()}
-            <Divider />
-            {this.renderAllDrawerContent()}
-          </Drawer>
-          <Backdrop
-            open={this.state.drawerVisible && !this.state.drawerPermanent}
-            className={classes.backdrop}
-            onClick={e => {
-              this.globalObserver.publish("core.hideDrawer");
-            }}
-          />
-          <Introduction
-            experimentalIntroductionEnabled={
-              this.appModel.config.appConfig.experimentalIntroductionEnabled
-            }
-            experimentalIntroductionSteps={
-              this.appModel.config.appConfig.experimentalIntroductionSteps
-            }
-            globalObserver={this.globalObserver}
-          />
+          {clean !== true && ( // NB: Special case here, important with !== true, because there is an edge-case where clean===undefined, and we don't want to match on that!
+            <Drawer
+              open={this.state.drawerVisible}
+              // NB: we can't simply toggle between permanent|temporary,
+              // as the temporary mode unmounts element from DOM and
+              // re-mounts it the next time, so we would re-rendering
+              // our plugins all the time.
+              variant="persistent"
+              classes={{
+                paper: classes.drawerBackground
+              }}
+            >
+              {this.renderDrawerHeader()}
+              <Divider />
+              {this.renderAllDrawerContent()}
+            </Drawer>
+          )}
+          {clean === false && (
+            <Backdrop
+              open={this.state.drawerVisible && !this.state.drawerPermanent}
+              className={classes.backdrop}
+              onClick={e => {
+                this.globalObserver.publish("core.hideDrawer");
+              }}
+            />
+          )}
+          {clean === false && (
+            <Introduction
+              experimentalIntroductionEnabled={
+                this.appModel.config.appConfig.experimentalIntroductionEnabled
+              }
+              experimentalIntroductionSteps={
+                this.appModel.config.appConfig.experimentalIntroductionSteps
+              }
+              globalObserver={this.globalObserver}
+            />
+          )}
         </>
       </SnackbarProvider>
     );

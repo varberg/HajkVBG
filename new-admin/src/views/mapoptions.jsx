@@ -67,6 +67,7 @@ class MapOptions extends Component {
         origin: config.origin,
         constrainOnlyCenter: config.constrainOnlyCenter,
         constrainResolution: config.constrainResolution,
+        enableDownloadLink: config.enableDownloadLink,
         mapselector: config.mapselector,
         mapcleaner: config.mapcleaner,
         drawerVisible: config.drawerVisible,
@@ -76,7 +77,10 @@ class MapOptions extends Component {
           ? config.geoserverLegendOptions
           : "",
         defaultCookieNoticeMessage: config.defaultCookieNoticeMessage,
-        defaultCookieNoticeUrl: config.defaultCookieNoticeUrl
+        defaultCookieNoticeUrl: config.defaultCookieNoticeUrl,
+        crossOrigin: config.crossOrigin,
+        showCookieNotice:
+          config.showCookieNotice !== undefined ? config.showCookieNotice : true
       });
       this.validate();
     });
@@ -109,6 +113,7 @@ class MapOptions extends Component {
       origin: mapConfig.origin,
       constrainOnlyCenter: mapConfig.constrainOnlyCenter,
       constrainResolution: mapConfig.constrainResolution,
+      enableDownloadLink: mapConfig.enableDownloadLink,
       mapselector: mapConfig.mapselector,
       mapcleaner: mapConfig.mapcleaner,
       drawerVisible: mapConfig.drawerVisible,
@@ -119,7 +124,12 @@ class MapOptions extends Component {
         : "Vi använder cookies för att följa upp användandet och ge en bra upplevelse av kartan. Du kan blockera cookies i webbläsaren men då visas detta meddelande igen.",
       defaultCookieNoticeUrl: mapConfig.defaultCookieNoticeUrl
         ? mapConfig.defaultCookieNoticeUrl
-        : "https://pts.se/sv/bransch/regler/lagar/lag-om-elektronisk-kommunikation/kakor-cookies/"
+        : "https://pts.se/sv/bransch/regler/lagar/lag-om-elektronisk-kommunikation/kakor-cookies/",
+      crossOrigin: mapConfig.crossOrigin ? mapConfig.crossOrigin : "anonymous",
+      showCookieNotice:
+        mapConfig.showCookieNotice !== undefined
+          ? mapConfig.showCookieNotice
+          : true
     });
   }
 
@@ -131,10 +141,11 @@ class MapOptions extends Component {
       value = input.checked;
     }
 
-    if (fieldName === "center") value = value.split(",");
-    if (fieldName === "resolutions") value = value.split(",");
-    if (fieldName === "extent") value = value.split(",");
-    if (fieldName === "origin") value = value.split(",");
+    if (["zoom", "maxZoom", "minZoom"].includes(fieldName))
+      value = parseInt(value);
+    if (["origin", "extent", "center", "resolutions"].includes(fieldName))
+      value = value.split(",").map(v => parseFloat(v));
+
     if (fieldName === "title") {
       if (value === "") {
         value = this.props.model.get("mapFile");
@@ -238,6 +249,7 @@ class MapOptions extends Component {
         break;
       case "constrainOnlyCenter":
       case "constrainResolution":
+      case "enableDownloadLink":
       case "mapselector":
       case "mapcleaner":
       case "drawerVisible":
@@ -283,6 +295,7 @@ class MapOptions extends Component {
         config.origin = this.getValue("origin");
         config.constrainOnlyCenter = this.getValue("constrainOnlyCenter");
         config.constrainResolution = this.getValue("constrainResolution");
+        config.enableDownloadLink = this.getValue("enableDownloadLink");
         config.mapselector = this.getValue("mapselector");
         config.mapcleaner = this.getValue("mapcleaner");
         config.drawerVisible = this.getValue("drawerVisible");
@@ -292,6 +305,8 @@ class MapOptions extends Component {
           "defaultCookieNoticeMessage"
         );
         config.defaultCookieNoticeUrl = this.getValue("defaultCookieNoticeUrl");
+        config.crossOrigin = this.getValue("crossOrigin");
+        config.showCookieNotice = this.getValue("showCookieNotice");
         this.props.model.updateMapConfig(config, success => {
           var msg = success
             ? "Uppdateringen lyckades."
@@ -588,6 +603,26 @@ class MapOptions extends Component {
                 />
               </label>
             </div>
+            <div>
+              <input
+                id="input_enableDownloadLink"
+                type="checkbox"
+                ref="input_enableDownloadLink"
+                onChange={e => {
+                  this.setState({ enableDownloadLink: e.target.checked });
+                }}
+                checked={this.state.enableDownloadLink}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_enableDownloadLink">
+                Tillåt nedladdning av WMS-lager{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktivt kommer en nedladdningsknapp att visas brevid varje lager i Lagerhanteraren."
+                />
+              </label>
+            </div>
             <div className="separator">Extra inställningar</div>
             <div>
               <label>
@@ -636,6 +671,26 @@ class MapOptions extends Component {
               />
             </div>
             <div>
+              <input
+                id="input_showCookieNotice"
+                type="checkbox"
+                ref="input_showCookieNotice"
+                onChange={e => {
+                  this.setState({ showCookieNotice: e.target.checked });
+                }}
+                checked={this.state.showCookieNotice}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_showCookieNotice">
+                Visa cookies-meddelande{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktiv kommer ett meddelande angående hantering av cookies visas för nya användare."
+                />
+              </label>
+            </div>
+            <div>
               <label>
                 Cookies-meddelande{" "}
                 <i
@@ -646,6 +701,7 @@ class MapOptions extends Component {
               </label>
               <textarea
                 type="text"
+                disabled={!this.state.showCookieNotice}
                 ref="input_defaultCookieNoticeMessage"
                 value={this.state.defaultCookieNoticeMessage}
                 className={this.getValidationClass(
@@ -671,10 +727,31 @@ class MapOptions extends Component {
               <input
                 type="text"
                 ref="input_defaultCookieNoticeUrl"
+                disabled={!this.state.showCookieNotice}
                 value={this.state.defaultCookieNoticeUrl}
                 className={this.getValidationClass("defaultCookieNoticeUrl")}
                 onChange={e => {
                   this.setState({ defaultCookieNoticeUrl: e.target.value });
+                }}
+              />
+            </div>
+            <div>
+              <label>
+                Cross origin-parameter{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Ställer in vilket värde som används för 'crossOrigin'. Om osäker, används 'anonymous'. "
+                />
+              </label>
+              <input
+                type="text"
+                ref="input_crossOrigin"
+                disabled={!this.state.showCookieNotice}
+                value={this.state.crossOrigin}
+                className={this.getValidationClass("crossOrigin")}
+                onChange={e => {
+                  this.setState({ crossOrigin: e.target.value });
                 }}
               />
             </div>

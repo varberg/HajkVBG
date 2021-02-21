@@ -42,12 +42,8 @@ var defaultState = {
   active: false,
   index: 0,
   target: "toolbar",
-  exportUrl: "/mapservice/export/kml",
-  importUrl: "/mapservice/import/kml",
   icons: "",
-  proxyUrl: "",
   base64Encode: false,
-  useClientHost: false,
   instruction: "",
   visibleAtStart: false,
   visibleForGroups: []
@@ -73,12 +69,8 @@ class ToolOptions extends Component {
         position: tool.options.position,
         width: tool.options.width,
         height: tool.options.height,
-        exportUrl: tool.options.exportUrl,
-        importUrl: tool.options.importUrl,
         icons: tool.options.icons,
-        proxyUrl: tool.options.proxyUrl,
         base64Encode: tool.options.base64Encode,
-        useClientHost: tool.options.useClientHost,
         instruction: tool.options.instruction,
         visibleAtStart: tool.options.visibleAtStart,
         visibleForGroups: tool.options.visibleForGroups
@@ -151,13 +143,9 @@ class ToolOptions extends Component {
         position: this.state.position,
         width: this.state.width,
         height: this.state.height,
-        exportUrl: this.state.exportUrl,
-        importUrl: this.state.importUrl,
         base64Encode: this.state.base64Encode,
-        useClientHost: this.state.useClientHost,
         instruction: this.state.instruction,
         icons: this.state.icons,
-        proxyUrl: this.state.proxyUrl,
         visibleAtStart: this.state.visibleAtStart,
         visibleForGroups: this.state.visibleForGroups.map(
           Function.prototype.call,
@@ -388,43 +376,6 @@ class ToolOptions extends Component {
           </div>
           <div>
             <input
-              id="useClientHost"
-              name="useClientHost"
-              type="checkbox"
-              onChange={e => {
-                this.handleInputChange(e);
-              }}
-              checked={this.state.useClientHost}
-            />
-            &nbsp;
-            <label className="long-label" htmlFor="useClientHost">
-              Använd klientens host
-            </label>
-          </div>
-          <div>
-            <label htmlFor="exportUrl">URL till export-tjänst</label>
-            <input
-              value={this.state.exportUrl}
-              type="text"
-              name="exportUrl"
-              onChange={e => {
-                this.handleInputChange(e);
-              }}
-            />
-          </div>
-          <div>
-            <label htmlFor="importUrl">URL till import-tjänst</label>
-            <input
-              value={this.state.importUrl}
-              type="text"
-              name="importUrl"
-              onChange={e => {
-                this.handleInputChange(e);
-              }}
-            />
-          </div>
-          <div>
-            <input
               id="Base64-active"
               name="base64Encode"
               type="checkbox"
@@ -469,17 +420,6 @@ class ToolOptions extends Component {
             />
           </div>
           {this.renderVisibleForGroups()}
-          <div>
-            <label htmlFor="proxyUrl">Proxy URL till utskrift och export</label>
-            <input
-              value={this.state.proxyUrl}
-              type="text"
-              name="proxyUrl"
-              onChange={e => {
-                this.handleInputChange(e);
-              }}
-            />
-          </div>
         </form>
       </div>
     );

@@ -25,6 +25,7 @@ import Button from "@material-ui/core/Button";
 import SaveIcon from "@material-ui/icons/SaveSharp";
 import { withStyles } from "@material-ui/core/styles";
 import { blue } from "@material-ui/core/colors";
+import { MenuItem, Select } from "@material-ui/core";
 
 const ColorButtonBlue = withStyles(theme => ({
   root: {
@@ -44,8 +45,15 @@ var defaultState = {
   instruction: "",
   scales: "200, 400, 1000, 2000, 5000, 10000, 25000, 50000, 100000, 200000",
   logo: "https://github.com/hajkmap/Hajk/raw/master/design/logo_small.png",
+  northArrow: "",
+  visibleForGroups: [],
   visibleAtStart: false,
-  visibleForGroups: []
+  includeLogo: true,
+  logoPlacement: "topRight",
+  includeScaleBar: true,
+  scaleBarPlacement: "bottomLeft",
+  includeNorthArrow: true,
+  northArrowPlacement: "topLeft"
 };
 
 class ToolOptions extends Component {
@@ -71,10 +79,28 @@ class ToolOptions extends Component {
         instruction: tool.options.instruction,
         scales: tool.options.scales || this.state.scales,
         logo: tool.options.logo,
+        northArrow: tool.options.northArrow || this.state.northArrow,
         visibleAtStart: tool.options.visibleAtStart,
         visibleForGroups: tool.options.visibleForGroups
           ? tool.options.visibleForGroups
-          : []
+          : [],
+        includeLogo:
+          tool.options.includeLogo === "boolean"
+            ? tool.options.includeLogo
+            : this.state.includeLogo,
+        logoPlacement: tool.options.logoPlacement || this.state.logoPlacement,
+        includeScaleBar:
+          tool.options.includeScaleBar === "boolean"
+            ? tool.options.includeScaleBar
+            : this.state.includeScaleBar,
+        scaleBarPlacement:
+          tool.options.scaleBarPlacement || this.state.scaleBarPlacement,
+        includeNorthArrow:
+          tool.options.includeNorthArrow === "boolean"
+            ? tool.options.includeNorthArrow
+            : this.state.includeNorthArrow,
+        northArrowPlacement:
+          tool.options.northArrowPlacement || this.state.northArrowPlacement
       });
     } else {
       this.setState({
@@ -143,12 +169,19 @@ class ToolOptions extends Component {
         height: this.state.height,
         scales: this.state.scales,
         logo: this.state.logo,
+        northArrow: this.state.northArrow,
         instruction: this.state.instruction,
         visibleAtStart: this.state.visibleAtStart,
         visibleForGroups: this.state.visibleForGroups.map(
           Function.prototype.call,
           String.prototype.trim
-        )
+        ),
+        includeLogo: this.state.includeLogo,
+        logoPlacement: this.state.logoPlacement,
+        includeScaleBar: this.state.includeScaleBar,
+        scaleBarPlacement: this.state.scaleBarPlacement,
+        includeNorthArrow: this.state.includeNorthArrow,
+        northArrowPlacement: this.state.northArrowPlacement
       }
     };
 
@@ -229,6 +262,42 @@ class ToolOptions extends Component {
       return null;
     }
   }
+
+  renderPlacementSelect = (currentValue, name) => {
+    return (
+      <Select
+        id={name}
+        name={name}
+        className="control-fixed-width"
+        value={currentValue}
+        onChange={e => {
+          this.handleInputChange(e);
+        }}
+      >
+        <MenuItem value={"topLeft"}>Uppe till vänster</MenuItem>
+        <MenuItem value={"topRight"}>Uppe till höger</MenuItem>
+        <MenuItem value={"bottomRight"}>Nere till höger</MenuItem>
+        <MenuItem value={"bottomLeft"}>Nere till vänster</MenuItem>
+      </Select>
+    );
+  };
+
+  renderIncludeSelect = (currentValue, name) => {
+    return (
+      <Select
+        id={name}
+        name={name}
+        value={currentValue}
+        className="control-fixed-width"
+        onChange={e => {
+          this.handleInputChange(e);
+        }}
+      >
+        <MenuItem value={true}>Ja</MenuItem>
+        <MenuItem value={false}>Nej</MenuItem>
+      </Select>
+    );
+  };
 
   /**
    *
@@ -398,6 +467,105 @@ class ToolOptions extends Component {
                 this.handleInputChange(e);
               }}
             />
+          </div>
+          <div>
+            <label htmlFor="includeLogo">
+              Inkludera logga{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för om loggan skall inkluderas som standard. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderIncludeSelect(this.state.includeLogo, "includeLogo")}
+          </div>
+          <div>
+            <label htmlFor="logoPlacement">
+              Logoplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för loggans standardplacering. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderPlacementSelect(
+              this.state.logoPlacement,
+              "logoPlacement"
+            )}
+          </div>
+          <div>
+            <label htmlFor="logo">
+              Norrpil{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Sökväg till norrpil att använda i utskrifterna. Kan vara relativ Hajk-root eller absolut."
+              />
+            </label>
+            <input
+              type="text"
+              name="northArrow"
+              value={this.state.northArrow}
+              onChange={e => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="includeNorthArrow">
+              Inkludera norrpil{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för om norrpilen skall inkluderas som standard. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderIncludeSelect(
+              this.state.includeNorthArrow,
+              "includeNorthArrow"
+            )}
+          </div>
+          <div>
+            <label htmlFor="logoPlacement">
+              Norrpilsplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för norrpilens standardplacering. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderPlacementSelect(
+              this.state.northArrowPlacement,
+              "northArrowPlacement"
+            )}
+          </div>
+          <div>
+            <label htmlFor="includeScaleBar">
+              Inkludera skalstock{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för om skalstocken skall inkluderas som standard. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderIncludeSelect(
+              this.state.includeScaleBar,
+              "includeScaleBar"
+            )}
+          </div>
+          <div>
+            <label htmlFor="logoPlacement">
+              Skalstocksplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för skalstockens standardplacering. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderPlacementSelect(
+              this.state.scaleBarPlacement,
+              "scaleBarPlacement"
+            )}
           </div>
           <div className="separator">Övriga inställningar</div>
           <div>
