@@ -24,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
 const Dashboard = () => {
   const classes = useStyles();
   const config = React.useContext(ConfigContext);
-  console.log("config: ", config);
+  console.log("Dashboard has access to config: ", config);
 
   return (
     <Page className={classes.root} title="Dashboard">

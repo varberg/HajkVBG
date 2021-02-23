@@ -13,30 +13,33 @@ const App = () => {
   const routing = useRoutes(routes);
   const [layers, setLayers] = useState(null);
   const [mapConfig, setMapConfig] = useState(null);
+  const [maps, setMaps] = useState(null);
 
   useEffect(() => {
     async function fetchConfig() {
-      const appConfigResponse = await fetch(
-        "http://localhost:3001/appConfig.json"
-      );
+      const appConfigResponse = await fetch("/appConfig.json");
       const appConfig = await appConfigResponse.json();
       console.log("appConfig: ", appConfig);
 
       const { api } = appConfig;
 
-      const layersResponse = await fetch(`${api}/config/layers`);
+      const layersResponse = await fetch(`${api}/mapconfig/layers`);
       const l = await layersResponse.json();
       setLayers(l);
 
-      const mapResponse = await fetch(`${api}/config/ext`);
+      const mapResponse = await fetch(`${api}/mapconfig/ext`);
       const m = await mapResponse.json();
       setMapConfig(m);
+
+      const mapsResponse = await fetch(`${api}/mapconfig/list`);
+      const list = await mapsResponse.json();
+      setMaps(list);
     }
     fetchConfig();
   }, []);
 
   return (
-    <ConfigContext.Provider value={{ layers, mapConfig }}>
+    <ConfigContext.Provider value={{ layers, mapConfig, maps }}>
       <ThemeProvider theme={theme}>
         <GlobalStyles />
         {routing}
