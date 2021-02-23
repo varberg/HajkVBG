@@ -50,7 +50,7 @@
           {
             "id": "e97c5493-a9c9-6b2e-ecac-6d738f49c8c5",
             "parent": "-1",
-            "name": "Havs- och vattenmyndigheten",
+            "name": "Begravning",
             "toggled": true,
             "expanded": true,
             "layers": [
@@ -87,6 +87,44 @@
               },
               {
                 "id": "4",
+                "visibleAtStart": false,
+                "drawOrder": 1,
+                "visibleForGroups": null,
+                "infobox": null
+              }
+            ],
+            "groups": []
+          },
+          {
+            "id": "8838c969-590c-8683-435c-1ecaca271096",
+            "parent": "-1",
+            "name": "Områden",
+            "toggled": true,
+            "expanded": true,
+            "layers": [
+              {
+                "id": "8",
+                "visibleAtStart": false,
+                "drawOrder": 3,
+                "visibleForGroups": null,
+                "infobox": null
+              },
+              {
+                "id": "9",
+                "visibleAtStart": false,
+                "drawOrder": 1,
+                "visibleForGroups": null,
+                "infobox": null
+              },
+              {
+                "id": "10",
+                "visibleAtStart": false,
+                "drawOrder": 1,
+                "visibleForGroups": null,
+                "infobox": null
+              },
+              {
+                "id": "11",
                 "visibleAtStart": false,
                 "drawOrder": 1,
                 "visibleForGroups": null,
@@ -309,6 +347,7 @@
         "position": "left",
         "scales": "200, 400, 1000, 2000, 5000, 10000, 25000, 50000, 100000, 200000",
         "logo": "logoLight.png",
+        "northArrow": "north_arrow.png",
         "instruction": "",
         "visibleAtStart": false,
         "visibleForGroups": []
