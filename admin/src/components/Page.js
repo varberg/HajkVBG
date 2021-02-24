@@ -1,15 +1,18 @@
 import React, { forwardRef } from "react";
-import { Helmet } from "react-helmet";
+import { Helmet, HelmetProvider } from "react-helmet-async";
 import PropTypes from "prop-types";
 
 const Page = forwardRef(({ children, title = "", ...rest }, ref) => {
+  // TODO: Move Helmet provider so it encapsulates the entire App?
   return (
-    <div ref={ref} {...rest}>
-      <Helmet>
-        <title>{title}</title>
-      </Helmet>
-      {children}
-    </div>
+    <HelmetProvider>
+      <div ref={ref} {...rest}>
+        <Helmet>
+          <title>{title}</title>
+        </Helmet>
+        {children}
+      </div>
+    </HelmetProvider>
   );
 });
 

@@ -11,11 +11,14 @@ import ProductListView from "src/views/product/ProductListView";
 import RegisterView from "src/views/auth/RegisterView";
 import SettingsView from "src/views/settings/SettingsView";
 
+import LayersListView from "src/views/layers/LayersListView";
+
 const routes = [
   {
     path: "app",
     element: <DashboardLayout />,
     children: [
+      { path: "layers", element: <LayersListView /> },
       { path: "account", element: <AccountView /> },
       { path: "customers", element: <CustomerListView /> },
       { path: "dashboard", element: <DashboardView /> },

@@ -35,11 +35,12 @@ const App = () => {
       const list = await mapsResponse.json();
       setMaps(list);
     }
+
     fetchConfig();
   }, []);
 
   return (
-    <ConfigContext.Provider value={{ layers, mapConfig, maps }}>
+    <ConfigContext.Provider value={{ layers, mapConfig, maps, setMaps }}>
       <ThemeProvider theme={theme}>
         <GlobalStyles />
         {routing}
