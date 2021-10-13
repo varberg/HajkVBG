@@ -1,9 +1,8 @@
 import React from "react";
 import PropTypes from "prop-types";
-import withStyles from "@mui/styles/withStyles";
-import { Typography, Divider } from "@mui/material";
+import { styled } from "@mui/material/styles";
+import { Typography, Divider, TextField } from "@mui/material";
 import Grid from "@mui/material/Grid";
-import DateFnsUtils from "@date-io/date-fns";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import EventIcon from "@mui/icons-material/Event";
 import InactivePolygon from "../img/polygonmarkering.png";
@@ -11,27 +10,14 @@ import InactiveRectangle from "../img/rektangelmarkering.png";
 import ActivePolygon from "../img/polygonmarkering-blue.png";
 import ActiveRectangle from "../img/rektangelmarkering-blue.png";
 
-import {
-  MuiPickersUtilsProvider,
-  KeyboardTimePicker,
-  KeyboardDatePicker,
-} from "@material-ui/pickers";
+import { TimePicker, DatePicker } from "@mui/lab";
+import AdapterDateFns from "@mui/lab/AdapterDateFns";
+import LocalizationProvider from "@mui/lab/LocalizationProvider";
 
-// Define JSS styles that will be used in this component.
-// Examle below utilizes the very powerful "theme" object
-// that gives access to some constants, see: https://material-ui.com/customization/default-theme/
-const styles = (theme) => ({
-  journeysForm: { marginTop: 10 },
-  dateForm: {
-    marginTop: 0,
-    marginBottom: -4,
-    width: "100%",
-    color: theme.palette.primary.main,
-  },
-  spaceToFromDate: { marginBottom: 40, width: "100%" },
-  divider: { marginTop: theme.spacing(3), marginBottom: theme.spacing(3) },
-  errorMessage: { color: theme.palette.error.main },
-});
+const StyledDivider = styled(Divider)(({ theme }) => ({
+  marginTop: theme.spacing(3),
+  marginBottom: theme.spacing(3),
+}));
 
 class Journeys extends React.PureComponent {
   // Initialize state - this is the correct way of doing it nowadays.
@@ -63,7 +49,6 @@ class Journeys extends React.PureComponent {
     model: PropTypes.object.isRequired,
     app: PropTypes.object.isRequired,
     localObserver: PropTypes.object.isRequired,
-    classes: PropTypes.object.isRequired,
   };
 
   static defaultProps = {};
@@ -384,17 +369,17 @@ class Journeys extends React.PureComponent {
   };
 
   renderFromDateSection = () => {
-    const { classes } = this.props;
     return (
-      <>
+      <Grid container>
         <Grid item xs={12}>
           <Typography variant="caption">FRÅN OCH MED</Typography>
-          <KeyboardTimePicker
+        </Grid>
+        <Grid item xs={12}>
+          <TimePicker
             format="HH:mm"
             margin="normal"
             id="time-picker"
             ampm={false}
-            className={classes.dateForm}
             invalidDateMessage="FEL VÄRDE PÅ TID"
             keyboardIcon={<AccessTimeIcon></AccessTimeIcon>}
             value={this.state.selectedFromTime}
@@ -404,61 +389,96 @@ class Journeys extends React.PureComponent {
             }}
             onOpen={this.disableDrag}
             onClose={this.enableDrag}
+            renderInput={(props) => (
+              <TextField
+                sx={{
+                  width: "100%",
+                  marginBottom: 1,
+                  color: (theme) => theme.palette.primary.main,
+                }}
+                {...props}
+              />
+            )}
           />
+          <Grid item xs={12}>
+            <DatePicker
+              format="yyyy-MM-dd"
+              margin="normal"
+              keyboardIcon={<EventIcon></EventIcon>}
+              invalidDateMessage="FEL VÄRDE PÅ DATUM"
+              value={this.state.selectedFromDate}
+              onChange={this.handleFromDateChange}
+              KeyboardButtonProps={{
+                "aria-label": "change date",
+              }}
+              onOpen={this.disableDrag}
+              onClose={this.enableDrag}
+              renderInput={(props) => (
+                <TextField
+                  sx={{ width: "100%", marginBottom: "40px" }}
+                  {...props}
+                />
+              )}
+            />
+          </Grid>
         </Grid>
-        <KeyboardDatePicker
-          className={classes.spaceToFromDate}
-          format="yyyy-MM-dd"
-          margin="normal"
-          keyboardIcon={<EventIcon></EventIcon>}
-          invalidDateMessage="FEL VÄRDE PÅ DATUM"
-          value={this.state.selectedFromDate}
-          onChange={this.handleFromDateChange}
-          KeyboardButtonProps={{
-            "aria-label": "change date",
-          }}
-          onOpen={this.disableDrag}
-          onClose={this.enableDrag}
-        />
-      </>
+      </Grid>
     );
   };
 
   renderEndDateSection = () => {
-    const { classes } = this.props;
     return (
       <>
+        <Grid container>
+          <Grid item xs={12}>
+            <Typography variant="caption">TILL OCH MED</Typography>
+          </Grid>
+          <Grid item xs={12}>
+            <TimePicker
+              format="HH:mm"
+              margin="normal"
+              ampm={false}
+              invalidDateMessage="FEL VÄRDE PÅ TID"
+              keyboardIcon={<AccessTimeIcon></AccessTimeIcon>}
+              value={this.state.selectedEndTime}
+              onChange={this.handleEndTimeChange}
+              KeyboardButtonProps={{
+                "aria-label": "change time",
+              }}
+              onOpen={this.disableDrag}
+              onClose={this.enableDrag}
+              renderInput={(props) => (
+                <TextField
+                  sx={{
+                    width: "100%",
+                    marginBottom: 1,
+                    color: (theme) => theme.palette.primary.main,
+                  }}
+                  {...props}
+                />
+              )}
+            />
+          </Grid>
+        </Grid>
         <Grid item xs={12}>
-          <Typography variant="caption">TILL OCH MED</Typography>
-          <KeyboardTimePicker
-            format="HH:mm"
+          <DatePicker
+            format="yyyy-MM-dd"
             margin="normal"
-            ampm={false}
-            className={classes.dateForm}
-            invalidDateMessage="FEL VÄRDE PÅ TID"
-            keyboardIcon={<AccessTimeIcon></AccessTimeIcon>}
-            value={this.state.selectedEndTime}
-            onChange={this.handleEndTimeChange}
+            invalidDateMessage="FEL VÄRDE PÅ DATUM"
+            onChange={this.handleEndDateChange}
             KeyboardButtonProps={{
-              "aria-label": "change time",
+              "aria-label": "change date",
             }}
             onOpen={this.disableDrag}
             onClose={this.enableDrag}
+            renderInput={(props) => (
+              <TextField
+                sx={{ width: "100%", marginBottom: "40px" }}
+                {...props}
+              />
+            )}
           />
         </Grid>
-        <KeyboardDatePicker
-          className={classes.spaceToFromDate}
-          format="yyyy-MM-dd"
-          margin="normal"
-          invalidDateMessage="FEL VÄRDE PÅ DATUM"
-          value={this.state.selectedEndDate}
-          onChange={this.handleEndDateChange}
-          KeyboardButtonProps={{
-            "aria-label": "change date",
-          }}
-          onOpen={this.disableDrag}
-          onClose={this.enableDrag}
-        />
         {this.showErrorMessage()}
       </>
     );
@@ -474,10 +494,12 @@ class Journeys extends React.PureComponent {
   };
 
   renderErrorMessageInvalidDate = () => {
-    const { classes } = this.props;
     return (
       <Grid item xs={12}>
-        <Typography variant="body2" className={classes.errorMessage}>
+        <Typography
+          sx={{ color: (theme) => theme.palette.error.main }}
+          variant="body2"
+        >
           DATUM MÅSTE ANGES
         </Typography>
       </Grid>
@@ -485,10 +507,12 @@ class Journeys extends React.PureComponent {
   };
 
   renderErrorMessageInvalidTime = () => {
-    const { classes } = this.props;
     return (
       <Grid item xs={12}>
-        <Typography variant="body2" className={classes.errorMessage}>
+        <Typography
+          variant="body2"
+          sx={{ color: (theme) => theme.palette.error.main }}
+        >
           KLOCKSLAG MÅSTE ANGES
         </Typography>
       </Grid>
@@ -496,10 +520,12 @@ class Journeys extends React.PureComponent {
   };
 
   renderErrorMessageStartTimeBiggerThanEndTime = () => {
-    const { classes } = this.props;
     return (
       <Grid item xs={12}>
-        <Typography variant="body2" className={classes.errorMessage}>
+        <Typography
+          variant="body2"
+          sx={{ color: (theme) => theme.palette.error.main }}
+        >
           TILL OCH MED FÅR INTE VARA MINDRE ÄN FRÅN OCH MED
         </Typography>
       </Grid>
@@ -511,11 +537,10 @@ class Journeys extends React.PureComponent {
   };
 
   renderSpatialSearchSection = () => {
-    const { classes } = this.props;
     return (
       <>
         <Grid item xs={12}>
-          <Divider className={classes.divider} />
+          <StyledDivider />
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">AVGRÄNSA SÖKOMRÅDE I KARTAN</Typography>
@@ -559,25 +584,16 @@ class Journeys extends React.PureComponent {
   };
 
   render() {
-    const { classes } = this.props;
-
     return (
       <div>
-        <MuiPickersUtilsProvider
-          className={classes.journeysForm}
-          utils={DateFnsUtils}
-        >
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
           {this.renderFromDateSection()}
           {this.renderEndDateSection()}
-        </MuiPickersUtilsProvider>
+        </LocalizationProvider>
         {this.renderSpatialSearchSection()}
       </div>
     );
   }
 }
 
-// Exporting like this adds some props to DummyView.
-// withStyles will add a 'classes' prop, while withSnackbar
-// adds to functions (enqueueSnackbar() and closeSnackbar())
-// that can be used throughout the Component.
-export default withStyles(styles)(Journeys);
+export default Journeys;
