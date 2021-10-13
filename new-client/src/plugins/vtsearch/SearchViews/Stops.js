@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import withStyles from "@mui/styles/withStyles";
+import { styled } from "@mui/material/styles";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -20,15 +20,10 @@ import InactiveRectangle from "../img/rektangelmarkering.png";
 import ActivePolygon from "../img/polygonmarkering-blue.png";
 import ActiveRectangle from "../img/rektangelmarkering-blue.png";
 
-// Define JSS styles that will be used in this component.
-// Examle below utilizes the very powerful "theme" object
-// that gives access to some constants, see: https://material-ui.com/customization/default-theme/
-const styles = (theme) => ({
-  divider: { marginTop: theme.spacing(2), marginBottom: theme.spacing(2) },
-  firstMenuItem: { minHeight: 36 },
-  searchButtonColor: { borderColor: theme.palette.primary.main },
-  searchButtonText: { color: theme.palette.primary.main },
-});
+const StyledDivider = styled(FormControl)(({ theme }) => ({
+  marginTop: theme.spacing(2),
+  marginBottom: theme.spacing(2),
+}));
 
 class Stops extends React.PureComponent {
   // Initialize state - this is the correct way of doing it nowadays.
@@ -49,7 +44,6 @@ class Stops extends React.PureComponent {
     model: PropTypes.object.isRequired,
     app: PropTypes.object.isRequired,
     localObserver: PropTypes.object.isRequired,
-    classes: PropTypes.object.isRequired,
   };
 
   static defaultProps = {};
@@ -225,7 +219,6 @@ class Stops extends React.PureComponent {
 
   renderTextParameterSection = () => {
     const { municipalities } = this.state;
-    const { classes } = this.props;
     return (
       <>
         <Grid item xs={12}>
@@ -260,7 +253,7 @@ class Stops extends React.PureComponent {
                 if (municipality.name === "") {
                   return (
                     <MenuItem
-                      className={classes.firstMenuItem}
+                      sx={{ minHeight: "36px" }}
                       key={index}
                       value={municipality}
                     >
@@ -283,16 +276,19 @@ class Stops extends React.PureComponent {
   };
 
   renderSearchButton = () => {
-    const { classes } = this.props;
     return (
       <Grid item xs={12}>
-        <ButtonGroup className={classes.searchButtonColor}>
+        <ButtonGroup
+          sx={{ borderColor: (theme) => theme.palette.primary.main }}
+        >
           <Button
-            className={classes.searchButtonColor}
+            sx={{ borderColor: (theme) => theme.palette.primary.main }}
             onClick={this.doSearch}
             variant="outlined"
           >
-            <Typography className={classes.searchButtonText}>SÖK</Typography>
+            <Typography sx={{ color: (theme) => theme.palette.primary.main }}>
+              SÖK
+            </Typography>
           </Button>
         </ButtonGroup>
       </Grid>
@@ -300,11 +296,10 @@ class Stops extends React.PureComponent {
   };
 
   renderSpatialSearchSection = () => {
-    const { classes } = this.props;
     return (
       <>
         <Grid item xs={12}>
-          <Divider className={classes.divider} />
+          <StyledDivider />
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">AVGRÄNSA SÖKOMRÅDE I KARTAN</Typography>
@@ -366,8 +361,4 @@ class Stops extends React.PureComponent {
   }
 }
 
-// Exporting like this adds some props to DummyView.
-// withStyles will add a 'classes' prop, while withSnackbar
-// adds to functions (enqueueSnackbar() and closeSnackbar())
-// that can be used throughout the Component.
-export default withStyles(styles)(Stops);
+export default Stops;

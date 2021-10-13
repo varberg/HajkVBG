@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import withStyles from "@mui/styles/withStyles";
+import { styled } from "@mui/material/styles";
 import {
   TextField,
   Button,
@@ -16,21 +16,15 @@ import InactiveRectangle from "../img/rektangelmarkering.png";
 import ActivePolygon from "../img/polygonmarkering-blue.png";
 import ActiveRectangle from "../img/rektangelmarkering-blue.png";
 
-// Define JSS styles that will be used in this component.
-// Example below utilizes the very powerful "theme" object
-// that gives access to some constants, see: https://material-ui.com/customization/default-theme/
+const SearchButton = styled(Button)(({ theme }) => ({
+  marginTop: 8,
+  borderColor: theme.palette.primary.main,
+}));
 
-const styles = (theme) => ({
-  searchButton: { marginTop: 8, borderColor: theme.palette.primary.main },
-  divider: { marginTop: theme.spacing(3), marginBottom: theme.spacing(3) },
-  textFields: { marginLeft: 10 },
-  fontSize: { fontSize: 12 },
-  polygonAndRectangle: {
-    marginLeft: 10,
-  },
-  firstMenuItem: { minHeight: 36 },
-  searchButtonText: { color: theme.palette.primary.main },
-});
+const StyledDivider = styled(Divider)(({ theme }) => ({
+  marginTop: theme.spacing(3),
+  marginBottom: theme.spacing(3),
+}));
 
 //TODO - Only mockup //Tobias
 
@@ -54,7 +48,6 @@ class Lines extends React.PureComponent {
     model: PropTypes.object.isRequired,
     app: PropTypes.object.isRequired,
     localObserver: PropTypes.object.isRequired,
-    classes: PropTypes.object.isRequired,
   };
 
   static defaultProps = {};
@@ -264,7 +257,6 @@ class Lines extends React.PureComponent {
 
   renderTrafficTypeSection = () => {
     const { trafficTransports } = this.state;
-    const { classes } = this.props;
     return (
       <Grid item xs={12}>
         <FormControl fullWidth>
@@ -276,11 +268,7 @@ class Lines extends React.PureComponent {
             {trafficTransports.map((name, index) => {
               if (name === "") {
                 return (
-                  <MenuItem
-                    key={index}
-                    value={name}
-                    className={classes.firstMenuItem}
-                  >
+                  <MenuItem key={index} value={name} sx={{ minHeight: "36px" }}>
                     {name}
                   </MenuItem>
                 );
@@ -298,7 +286,6 @@ class Lines extends React.PureComponent {
     );
   };
   renderMunicipalitySection = () => {
-    const { classes } = this.props;
     const { municipalities } = this.state;
     return (
       <Grid item xs={12}>
@@ -312,7 +299,7 @@ class Lines extends React.PureComponent {
               if (municipality.name === "") {
                 return (
                   <MenuItem
-                    className={classes.firstMenuItem}
+                    sx={{ minHeight: "36px" }}
                     key={index}
                     value={municipality}
                   >
@@ -334,26 +321,22 @@ class Lines extends React.PureComponent {
   };
 
   renderSearchButtonSection = () => {
-    const { classes } = this.props;
     return (
       <Grid item xs={12}>
-        <Button
-          className={classes.searchButton}
-          onClick={this.doSearch}
-          variant="outlined"
-        >
-          <Typography className={classes.searchButtonText}>SÖK</Typography>
-        </Button>
+        <SearchButton onClick={this.doSearch} variant="outlined">
+          <Typography sx={{ color: (theme) => theme.palette.primary.main }}>
+            SÖK
+          </Typography>
+        </SearchButton>
       </Grid>
     );
   };
 
   renderSpatialSearchSection = () => {
-    const { classes } = this.props;
     return (
       <>
         <Grid item xs={12}>
-          <Divider className={classes.divider} />
+          <StyledDivider />
         </Grid>
         <Grid item xs={12}>
           <Typography variant="body2">AVGRÄNSA SÖKOMRÅDE I KARTAN</Typography>
@@ -416,8 +399,4 @@ class Lines extends React.PureComponent {
   }
 }
 
-// Exporting like this adds some props to DummyView.
-// withStyles will add a 'classes' prop, while withSnackbar
-// adds to functions (enqueueSnackbar() and closeSnackbar())
-// that can be used throughout the Component.
-export default withStyles(styles)(Lines);
+export default Lines;
