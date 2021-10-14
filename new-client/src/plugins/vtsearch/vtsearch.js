@@ -28,10 +28,9 @@ import SearchIcon from "@mui/icons-material/Search";
 import Search from "./../../components/Search/Search";
 
 const StyledFormControl = styled(FormControl)(({ theme }) => ({
-  margin: theme.spacing(1),
-  marginLeft: "0px",
+  marginTop: theme.spacing(1),
+  marginLeft: 0,
   marginBottom: "24px",
-  width: "100%",
   minWidth: 200,
 }));
 
@@ -224,10 +223,16 @@ class VTSearch extends React.PureComponent {
   };
 
   renderDropDown() {
+    // TODO: The sx={{ left: "-14px" }} hack is there since the inputlabel was shifted
+    // to the right slightly. Probably an easy fix, but i was to tired to find it.
     return (
-      <StyledFormControl>
-        <InputLabel id="search-type">SÖKALTERNATIV</InputLabel>
+      <StyledFormControl fullWidth>
+        <InputLabel sx={{ left: "-14px" }} id="search-type-label">
+          SÖKALTERNATIV
+        </InputLabel>
         <Select
+          variant="standard"
+          labelId="search-type-label"
           onChange={this.handleChange}
           native
           inputProps={{
