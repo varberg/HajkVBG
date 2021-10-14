@@ -4,7 +4,6 @@ import PropTypes from "prop-types";
 import NormalIcon from "@mui/icons-material/FlipToFront";
 
 import CloseIcon from "@mui/icons-material/Close";
-import withStyles from "@mui/styles/withStyles";
 import IconButton from "@mui/material/IconButton";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
@@ -16,17 +15,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
  * @extends {React.PureComponent}
  */
 
-const styles = (theme) => {
-  return {
-    iconButtonRoot: {
-      color: theme.palette.common.white,
-      padding: 0,
-    },
-    expandOpen: {
-      transform: "rotate(180deg)",
-    },
-  };
-};
 class PanelToolbox extends React.PureComponent {
   state = {
     minimizeVisible: true,
@@ -83,17 +71,16 @@ class PanelToolbox extends React.PureComponent {
   };
 
   renderButton = (onClickCallback, iconElement) => {
-    const { classes } = this.props;
     return (
       <IconButton
-        classes={{ root: classes.iconButtonRoot }}
+        sx={{ color: (theme) => theme.palette.common.white, padding: 0 }}
         onClick={onClickCallback}
         size="large"
       >
         {iconElement === "minimize" ? (
           <ExpandMoreIcon />
         ) : iconElement === "maximize" ? (
-          <ExpandMoreIcon className={classes.expandOpen} />
+          <ExpandMoreIcon sx={{ transform: "rotate(180deg)" }} />
         ) : iconElement === "normalize" ? (
           <NormalIcon />
         ) : iconElement === "close" ? (
@@ -119,4 +106,4 @@ class PanelToolbox extends React.PureComponent {
   }
 }
 
-export default withStyles(styles)(PanelToolbox);
+export default PanelToolbox;

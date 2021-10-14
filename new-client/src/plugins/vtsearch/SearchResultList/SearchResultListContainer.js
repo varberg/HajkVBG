@@ -1,8 +1,8 @@
-// Generic imports â€“ all plugins need these
+// Generic imports all plugins need these
 import React from "react";
 import PropTypes from "prop-types";
 import { Rnd } from "react-rnd";
-import withStyles from "@mui/styles/withStyles";
+import { styled } from "@mui/material/styles";
 import AppBar from "@mui/material/AppBar";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -14,6 +14,31 @@ import ClearIcon from "@mui/icons-material/Clear";
 import GeoJSON from "ol/format/GeoJSON";
 import { Typography } from "@mui/material";
 
+const StyledRnd = styled(Rnd)(({ theme }) => ({
+  zIndex: theme.zIndex.appBar,
+  background: theme.palette.common.white,
+  boxShadow: theme.shadows[24],
+  overflow: "hidden",
+  pointerEvents: "all",
+}));
+
+const StyledTabs = styled(Tabs)(({ theme }) => ({
+  minHeight: 0,
+}));
+
+const StyledTab = styled(Tab)(({ theme }) => ({
+  minHeight: 0,
+  height: theme.spacing(4),
+  padding: theme.spacing(0),
+  marginLeft: theme.spacing(0.5),
+  backgroundColor: theme.palette.primary.light,
+}));
+
+const StyledToolbar = styled(Toolbar)(({ theme }) => ({
+  minHeight: 0,
+  backgroundColor: theme.palette.primary.dark,
+}));
+
 /**
  * @summary Base in the search result list
  * @description This component is the base in the search result list in vtsearch.
@@ -22,32 +47,6 @@ import { Typography } from "@mui/material";
  * @class SearchResultListContainer
  * @extends {React.PureComponent}
  */
-
-const styles = (theme) => {
-  return {
-    window: {
-      zIndex: theme.zIndex.appBar,
-      background: theme.palette.common.white,
-      boxShadow: theme.shadows[24],
-      overflow: "hidden",
-      pointerEvents: "all",
-    },
-    tabsRoot: {
-      minHeight: 0,
-    },
-    tabRoot: {
-      minHeight: 0,
-      height: theme.spacing(4),
-      padding: theme.spacing(0),
-      marginLeft: theme.spacing(0.5),
-      backgroundColor: theme.palette.primary.light,
-    },
-    toolbar: {
-      minHeight: 0,
-      backgroundColor: theme.palette.primary.dark,
-    },
-  };
-};
 
 const windowsContainer = document.getElementById("windows-container");
 
@@ -305,7 +304,7 @@ class SearchResultListContainer extends React.Component {
   };
 
   renderTabs = (searchResult) => {
-    const { classes, toolConfig } = this.props;
+    const { toolConfig } = this.props;
     var searchResultId = searchResult.id;
 
     if (
@@ -315,8 +314,7 @@ class SearchResultListContainer extends React.Component {
       searchResult.label = toolConfig.geoServer[searchResult.type].searchLabel;
 
     return (
-      <Tab
-        classes={{ root: classes.tabRoot }}
+      <StyledTab
         label={
           <Grid container>
             <Grid item xs={10}>
@@ -336,17 +334,14 @@ class SearchResultListContainer extends React.Component {
         value={searchResultId}
         key={`simple-tabpanel-${searchResultId}`}
         aria-controls={`simple-tabpanel-${searchResultId}`}
-      ></Tab>
+      ></StyledTab>
     );
   };
 
   renderTabsController = (searchResults) => {
-    const { classes, windowVisible } = this.props;
+    const { windowVisible } = this.props;
     return (
-      <Tabs
-        classes={{
-          root: classes.tabsRoot,
-        }}
+      <StyledTabs
         value={windowVisible ? this.state.activeTabId : false} // If the window is not visible,
         // we cannot send a proper value to the tabs-component. If we do, mui will throw an error.
         // false is OK though, apparently.
@@ -356,12 +351,12 @@ class SearchResultListContainer extends React.Component {
         {searchResults.map((searchResult) => {
           return this.renderTabs(searchResult);
         })}
-      </Tabs>
+      </StyledTabs>
     );
   };
 
   renderTabsHeader = (searchResults) => {
-    const { classes, localObserver } = this.props;
+    const { localObserver } = this.props;
     return (
       <AppBar
         ref={(appbar) => {
@@ -371,7 +366,7 @@ class SearchResultListContainer extends React.Component {
         }}
         position="static"
       >
-        <Toolbar classes={{ regular: classes.toolbar }}>
+        <StyledToolbar>
           <Grid justifyContent="space-between" alignItems="center" container>
             <Grid style={{ paddingLeft: 10 }} item>
               {searchResults.length > 0 &&
@@ -382,7 +377,7 @@ class SearchResultListContainer extends React.Component {
               <PanelToolbox localObserver={localObserver}></PanelToolbox>
             </Grid>
           </Grid>
-        </Toolbar>
+        </StyledToolbar>
       </AppBar>
     );
   };
@@ -423,16 +418,15 @@ class SearchResultListContainer extends React.Component {
   };
 
   renderSearchResultContainer = () => {
-    const { classes, windowContainerId } = this.props;
+    const { windowContainerId } = this.props;
     let searchResults = this.getSearchResults();
     this.handleMapResizeWhenRendering();
     return (
-      <Rnd
+      <StyledRnd
         style={{
           zIndex: this.state.zIndex,
         }}
         onClick={this.onClickSearchResultContainer}
-        className={classes.window}
         size={{
           width: this.state.windowWidth,
           height: this.state.maximized
@@ -483,7 +477,7 @@ class SearchResultListContainer extends React.Component {
             return this.renderSearchResultAsTabContent(searchResult);
           })}
         </section>
-      </Rnd>
+      </StyledRnd>
     );
   };
 
@@ -494,4 +488,4 @@ class SearchResultListContainer extends React.Component {
   }
 }
 
-export default withStyles(styles)(SearchResultListContainer);
+export default SearchResultListContainer;

@@ -1,4 +1,4 @@
-// Generic imports â€“ all plugins need these
+// Generic imports all plugins need these
 import React from "react";
 import PropTypes from "prop-types";
 import AttributeTable from "./AttributeTable";
