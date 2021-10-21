@@ -19,7 +19,8 @@
     "Search",
     "StreetView",
     "Suggest",
-    "TimeSlider"
+    "TimeSlider",
+    "mfintegration"
   ],
   "allTools": [
     "Anchor",
@@ -43,6 +44,7 @@
     "StreetView",
     "Suggest",
     "TimeSlider",
-    "vtsearch"
+    "vtsearch",
+    "mfintegration"
   ]
 }

@@ -520,6 +520,15 @@
         }
       },
       "index": 0
+    },
+    {
+      "type": "mfintegration",
+      "options": {
+        "target": "control",
+        "position": "right",
+        "visibleAtStart": false
+      },
+      "index": 6 
     }
   ],
   "map": {
