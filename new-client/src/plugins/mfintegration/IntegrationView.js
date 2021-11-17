@@ -49,6 +49,15 @@ class IntegrationView extends React.PureComponent {
         >
           Test koppla EDP
         </Button>
+        <Button
+          onClick={() => {
+            this.props.model.drawPolygon();
+          }}
+          color="primary"
+          variant="contained"
+        >
+          Test rita polygon
+        </Button>
       </>
     );
   }
