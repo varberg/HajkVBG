@@ -53,22 +53,22 @@ class IntegrationModel {
   };
 
   addDrawPolygonLayer = () => {
-    const stylePolygon = this.getDrawPolygonStyle();
-    this.drawSourcePolygon = this.createNewVectorSource(stylePolygon);
+    const stylePointPolygon = this.getDrawPointPolygonStyle();
+    this.drawSourcePointPolygon = this.createNewVectorSource(stylePointPolygon);
 
-    const drawPolygonLayer = this.createNewVectorLayer(
-      this.drawSourcePolygon,
-      stylePolygon
+    const drawPointPolygonLayer = this.createNewVectorLayer(
+      this.drawSourcePointPolygon,
+      stylePointPolygon
     );
-    this.map.addLayer(drawPolygonLayer);
+    this.map.addLayer(drawPointPolygonLayer);
   };
 
-  getDrawPolygonStyle = () => {
-    const drawPolygonStyleSettings = this.getDrawPolygonStyleSettings();
+  getDrawPointPolygonStyle = () => {
+    const drawPolygonStyleSettings = this.getDrawPointPolygonStyleSettings();
     return this.createNewVectorCircleStyle(drawPolygonStyleSettings);
   };
 
-  getDrawPolygonStyleSettings = () => {
+  getDrawPointPolygonStyleSettings = () => {
     // Lägg till inställningar här!
     const strokeColor = "rgba(74,74,74,0.5)";
     const strokeWidth = 4;
@@ -125,24 +125,50 @@ class IntegrationModel {
   drawPolygon = () => {
     console.log("Test draw polygon");
 
-    debugger;
-    this.draw = new Draw({
-      source: this.drawSourcePolygon,
+    const drawFunctionProps = {
+      listenerText: "addfeature",
+      requestText: "search",
+      style: this.getDrawPointPolygonStyle(),
+      source: this.drawSourcePointPolygon,
       type: "Polygon",
+    };
+    this.createDrawFunction(drawFunctionProps);
+  };
+
+  drawPoint = () => {
+    console.log("Test draw point");
+
+    const drawFunctionProps = {
+      listenerText: "addfeature",
+      requestText: "search",
+      style: this.getDrawPointPolygonStyle(),
+      source: this.drawSourcePointPolygon,
+      type: "Point",
+    };
+    this.createDrawFunction(drawFunctionProps);
+  };
+
+  createDrawFunction = (props) => {
+    this.draw = new Draw({
+      source: props.source,
+      type: props.type,
       freehand: false,
       stopClick: true,
-      style: this.getDrawPolygonStyle(),
+      style: props.style,
     });
-    this.map.clickLock.add("search");
+    this.map.clickLock.add(props.requestText);
     this.map.addInteraction(this.draw);
-    this.drawSourcePolygon.clear();
-    this.drawSourcePolygon.on("addfeature", this.handleDrawFeatureAdded);
+    this.drawSourcePointPolygon.clear();
+    this.drawSourcePointPolygon.on(
+      props.listenerText,
+      this.handleDrawFeatureAdded
+    );
   };
 
   handleDrawFeatureAdded = (e) => {
     this.map.removeInteraction(this.draw);
     this.map.clickLock.delete("search");
-    console.log("Polgyon", e.feature);
+    console.log("Geometry", e.feature);
   };
 
   handleWindowOpen = () => {
