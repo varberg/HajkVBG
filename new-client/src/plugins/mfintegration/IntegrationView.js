@@ -58,6 +58,15 @@ class IntegrationView extends React.PureComponent {
         >
           Test rita polygon
         </Button>
+        <Button
+          onClick={() => {
+            this.props.model.drawPoint();
+          }}
+          color="primary"
+          variant="contained"
+        >
+          Test rita punkt
+        </Button>
       </>
     );
   }
