@@ -16,6 +16,7 @@ const styles = (theme) => ({
   listItem: {
     display: "flex",
     justifyContent: "space-between",
+    padding: "5px",
   },
   listItemText: {
     display: "flex",
@@ -47,6 +48,7 @@ class ItemList extends React.PureComponent {
 
   static propTypes = {
     item: PropTypes.object.isRequired,
+    handleRemoveItem: PropTypes.func.isRequired,
   };
 
   toggleInfo = () => {
@@ -59,28 +61,24 @@ class ItemList extends React.PureComponent {
     console.log("toggleVisibility");
   };
 
-  removeItem = () => {
-    console.log("removeFromSelection");
-  };
-
   editItem = () => {
     console.log("editItem");
   };
 
-  renderInfo = () => {
+  renderInfo = (item) => {
     if (this.state.infoVisible) {
       return (
         <div>
-          <Typography>Item info</Typography>
+          <Typography>{item.information}</Typography>
         </div>
       );
     } else return null;
   };
 
   render() {
-    const { classes, item } = this.props;
+    const { classes, item, listMode, handleRemoveItem } = this.props;
     return (
-      <div>
+      <div className={classes.itemList}>
         <div key={item.id} className={classes.listItemContainer}>
           <div className={classes.listItem}>
             <div id="itemText" className={classes.listItemText}>
@@ -109,8 +107,8 @@ class ItemList extends React.PureComponent {
               </div>
               <div className={classes.itemButton}>
                 <StyledIconButton
-                  onClick={() => {
-                    this.removeItem();
+                  onClick={(e) => {
+                    handleRemoveItem(item.id);
                   }}
                   aria-label="välj bort"
                 >
@@ -123,13 +121,14 @@ class ItemList extends React.PureComponent {
                     this.editItem();
                   }}
                   aria-label="redigera"
+                  disabled={listMode === "realEstate"}
                 >
                   <EditIcon />
                 </StyledIconButton>
               </div>
             </div>
           </div>
-          {this.renderInfo()}
+          {this.renderInfo(item)}
         </div>
       </div>
     );

@@ -9,7 +9,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  ListItem,
 } from "@material-ui/core";
+import TouchAppIcon from "@material-ui/icons/TouchApp";
+import Crop32Icon from "@material-ui/icons/Crop32";
+import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ItemList from "./components/ItemList";
 import { getMockData } from "./mockdata/mockdata";
 
@@ -20,6 +24,11 @@ const styles = (theme) => {
     },
     listHeading: {
       fontWeight: theme.typography.fontWeightMedium,
+    },
+    itemList: {
+      maxHeight: 250,
+      overflowY: "scroll",
+      overflowX: "hidden",
     },
   };
 };
@@ -76,15 +85,27 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  removeFromResults = (itemId) => {
+    const updatedResults = this.state.currentData.filter(
+      (item) => item.id !== itemId
+    );
+    this.setState({ currentData: updatedResults });
+  };
+
+  clearResults = () => {
+    this.setState({ currentData: [] });
+    //this.props.model.clearResults - do anything that needs doing on the model - e.g. clear from the visible layer.
+  };
+
   render() {
     const { classes } = this.props;
     return (
       <>
         <Typography>{informationText}</Typography>
         <br />
-        <div>
+        <div style={{ marginBottom: 20 }}>
           <FormControl className={classes.dropdown}>
-            <InputLabel htmlFor="modeSelection">Välj objekt</InputLabel>
+            <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
             <Select
               id="modeSelection"
               value={this.state.mode}
@@ -99,52 +120,68 @@ class IntegrationView extends React.PureComponent {
             </Select>
           </FormControl>
         </div>
-        <br />
-        <br />
-        <div>
-          <Typography
-            variant="subtitle1"
-            className={classes.listHeading}
-          >{`Markerade ${
-            modeDisplay[this.state.mode]["displayNamePlural"]
-          }`}</Typography>
-          {this.state.currentData.length > 0
-            ? this.state.currentData.map((item) => (
-                <ItemList key={item.id} item={item} />
-              ))
-            : `Inga ${
-                modeDisplay[this.state.mode]["displayNamePlural"]
-              } valda.`}
+        <div style={{ marginBottom: 20 }}>
+          <Typography variant="subtitle1" className={classes.listHeading}>
+            {`Markerade ${modeDisplay[this.state.mode]["displayNamePlural"]}`}
+            {this.state.currentData.length > 0
+              ? ` (${this.state.currentData.length})`
+              : null}
+          </Typography>
+          <div>
+            {this.state.currentData.length > 0 ? (
+              <div className={classes.itemList}>
+                {this.state.currentData.map((item) => (
+                  <ItemList
+                    key={item.id}
+                    item={item}
+                    listMode={this.state.mode}
+                    handleRemoveItem={this.removeFromResults}
+                  />
+                ))}
+              </div>
+            ) : (
+              `Inga ${modeDisplay[this.state.mode]["displayNamePlural"]} valda.`
+            )}
+          </div>
         </div>
-        <br />
-        <br />
-        <Button
-          onClick={() => {
-            this.props.model.testEdpConnection();
-          }}
-          color="primary"
-          variant="contained"
-        >
-          Test koppla EDP
-        </Button>
-        <Button
-          onClick={() => {
-            this.props.model.drawPolygon();
-          }}
-          color="primary"
-          variant="contained"
-        >
-          Test rita polygon
-        </Button>
-        <Button
-          onClick={() => {
-            this.props.model.drawPoint();
-          }}
-          color="primary"
-          variant="contained"
-        >
-          Test rita punkt
-        </Button>
+        <div>
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<TouchAppIcon />}
+              onClick={() => {
+                this.props.model.drawPoint();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Markera/Avmarkera
+            </Button>
+          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<Crop32Icon />}
+              onClick={() => {
+                this.props.model.drawPolygon();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Markera med polygon
+            </Button>
+          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.clearResults();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Ta bort alla markeringar
+            </Button>
+          </ListItem>
+        </div>
       </>
     );
   }
