@@ -9,12 +9,17 @@ class IntegrationModel {
     this.app = settings.app;
     this.options = settings.options;
     this.localObserver = settings.localObserver;
+    this.searchModel = settings.searchModel;
 
     this.initMapLayers();
     this.bindSubscriptions();
   }
 
-  bindSubscriptions = () => {};
+  bindSubscriptions = () => {
+    this.localObserver.subscribe("mf-wfs-search", (featureCollection) => {
+      this.drawResponseFromWfs(featureCollection);
+    });
+  };
 
   initMapLayers = () => {
     this.handleWindowOpen();
@@ -85,13 +90,13 @@ class IntegrationModel {
 
   addRealEstateLayer = () => {
     const stylePolygon = this.getRealEstateStyle();
-    const sourcePolygon = this.createNewVectorSource(stylePolygon);
+    this.realEstateSource = this.createNewVectorSource(stylePolygon);
 
-    const realEstateLayer = this.createNewVectorLayer(
-      sourcePolygon,
+    this.realEstateLayer = this.createNewVectorLayer(
+      this.realEstateSource,
       stylePolygon
     );
-    this.map.addLayer(realEstateLayer);
+    this.map.addLayer(this.realEstateLayer);
   };
 
   getRealEstateStyle = () => {
@@ -168,7 +173,11 @@ class IntegrationModel {
   handleDrawFeatureAdded = (e) => {
     this.map.removeInteraction(this.draw);
     this.map.clickLock.delete("search");
-    console.log("Geometry", e.feature);
+    this.searchModel.findRealEstates(e.feature);
+  };
+
+  drawResponseFromWfs = (featureCollection) => {
+    console.log(featureCollection);
   };
 
   handleWindowOpen = () => {
