@@ -1,7 +1,9 @@
+import { Fill, Stroke, Style, Circle } from "ol/style";
 import Draw from "ol/interaction/Draw";
+import Feature from "ol/Feature";
+import Transform from "./Transformation/Transform";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import { Fill, Stroke, Style, Circle } from "ol/style";
 
 class IntegrationModel {
   constructor(settings) {
@@ -16,14 +18,14 @@ class IntegrationModel {
   }
 
   bindSubscriptions = () => {
-    this.localObserver.subscribe("mf-wfs-search", (featureCollection) => {
-      this.drawResponseFromWfs(featureCollection);
+    this.localObserver.subscribe("mf-wfs-search-realEstates", (realEstates) => {
+      this.drawRealEstateResponseFromWfs(realEstates);
     });
   };
 
   initMapLayers = () => {
     this.handleWindowOpen();
-    this.addDrawPolygonLayer();
+    this.addDrawPointPolygonLayer();
     this.addRealEstateLayer();
   };
 
@@ -57,7 +59,7 @@ class IntegrationModel {
     });
   };
 
-  addDrawPolygonLayer = () => {
+  addDrawPointPolygonLayer = () => {
     const stylePointPolygon = this.getDrawPointPolygonStyle();
     this.drawSourcePointPolygon = this.createNewVectorSource(stylePointPolygon);
 
@@ -128,8 +130,6 @@ class IntegrationModel {
   };
 
   drawPolygon = () => {
-    console.log("Test draw polygon");
-
     const drawFunctionProps = {
       listenerText: "addfeature",
       requestText: "search",
@@ -141,8 +141,6 @@ class IntegrationModel {
   };
 
   drawPoint = () => {
-    console.log("Test draw point");
-
     const drawFunctionProps = {
       listenerText: "addfeature",
       requestText: "search",
@@ -163,7 +161,6 @@ class IntegrationModel {
     });
     this.map.clickLock.add(props.requestText);
     this.map.addInteraction(this.draw);
-    this.drawSourcePointPolygon.clear();
     this.drawSourcePointPolygon.on(
       props.listenerText,
       this.handleDrawFeatureAdded
@@ -174,10 +171,96 @@ class IntegrationModel {
     this.map.removeInteraction(this.draw);
     this.map.clickLock.delete("search");
     this.searchModel.findRealEstates(e.feature);
+    this.clearSource(this.drawSourcePointPolygon);
   };
 
-  drawResponseFromWfs = (featureCollection) => {
-    console.log(featureCollection);
+  drawRealEstateResponseFromWfs = (realEstates) => {
+    this.addFeatureCollectionToSource(this.realEstateSource, realEstates);
+  };
+
+  addFeatureCollectionToSource = (source, realEstates) => {
+    const realEstateFeatures = this.createFeaturesFromFeatureCollection(
+      realEstates.selectionGeometry.getGeometry().getType(),
+      realEstates.featureCollection,
+      realEstates.transformation
+    );
+    if (realEstateFeatures.noFeaturesFound) return;
+    if (realEstateFeatures.addOrRemoveFeature) {
+      this.handlePointClickOnRealEstateLayer(source, realEstateFeatures);
+      return;
+    }
+    this.addNoDuplicatesToSource(realEstateFeatures, source);
+  };
+
+  handlePointClickOnRealEstateLayer = (source, realEstateFeatures) => {
+    const foundFeatureInSource = this.getRealEstateInSource(
+      source.getFeatures(),
+      realEstateFeatures.features[0]
+    );
+    if (foundFeatureInSource) source.removeFeature(foundFeatureInSource);
+    else source.addFeature(foundFeatureInSource);
+  };
+
+  addNoDuplicatesToSource = (featureSet, source) => {
+    const featuresInSource = source.getFeatures();
+    if (featuresInSource.length === 0) {
+      source.addFeatures(featureSet.features);
+      return;
+    }
+
+    const featuresToAddToSource = featureSet.features.filter((feature) => {
+      if (!this.getRealEstateInSource(featuresInSource, feature))
+        return feature;
+      return false;
+    });
+
+    source.addFeatures(featuresToAddToSource);
+  };
+
+  getRealEstateInSource = (featuresInSource, clickedFeature) => {
+    const featuresFoundInSource = featuresInSource.filter((feature) => {
+      if (
+        feature.getProperties().fnr_fr === clickedFeature.getProperties().fnr_fr
+      )
+        return feature;
+      return false;
+    });
+
+    if (featuresFoundInSource.length === 0) return null;
+    return featuresFoundInSource[0];
+  };
+
+  clearSource = (source) => {
+    source.clear();
+  };
+
+  createFeaturesFromFeatureCollection = (
+    selectionGeometryType,
+    featureCollection,
+    transformation
+  ) => {
+    if (featureCollection.features === 0) return { noFeaturesFound: true };
+
+    const features = featureCollection.features.map((feature) => {
+      let geometry = new Transform().createGeometry(
+        feature.geometry.type,
+        feature.geometry.coordinates
+      );
+      if (transformation)
+        geometry = new Transform().transformGeometry(
+          geometry.clone(),
+          transformation.fromSrs,
+          transformation.toSrs
+        );
+      let realEstateFeature = new Feature({
+        geometry: geometry,
+      });
+      realEstateFeature.setProperties(feature.properties);
+      return realEstateFeature;
+    });
+
+    const pointClick = selectionGeometryType === "Point";
+    return { features: features, addOrRemoveFeature: pointClick };
   };
 
   handleWindowOpen = () => {

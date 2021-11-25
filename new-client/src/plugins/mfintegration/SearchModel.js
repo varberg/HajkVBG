@@ -1,6 +1,7 @@
 import { intersects } from "ol/format/filter";
 import { hfetch } from "utils/FetchWrapper";
 import { WFS } from "ol/format";
+import Transform from "./Transformation/Transform";
 
 export default class SearchModel {
   /**
@@ -18,8 +19,6 @@ export default class SearchModel {
 
   getWfsConfig = () => {
     const wfsConfig = {
-      featureNS: "featureNS",
-      featurePrefix: "featurePrefix",
       featureTypes: ["fastighet.wfs.v1:fastighet"],
       geometryName: "geom",
       srsName: "EPSG:3007",
@@ -29,11 +28,15 @@ export default class SearchModel {
   };
 
   createFilterGeometry = (selectionGeometry, wfsConfig) => {
-    const crs = this.getMapCRS();
-    const srs = wfsConfig.srsName;
-    if (crs !== srs)
-      return selectionGeometry.values_.geometry.clone().transform(crs, srs);
-    return selectionGeometry.values_.geometry;
+    this.crs = this.getMapCRS();
+    this.srs = wfsConfig.srsName;
+    if (this.crs !== this.srs)
+      return new Transform().transformGeometry(
+        selectionGeometry.getGeometry().clone(),
+        this.crs,
+        this.srs
+      );
+    return selectionGeometry.getGeometry();
   };
 
   getMapCRS = () => {
@@ -45,7 +48,7 @@ export default class SearchModel {
     return new intersects(geometryName, geometry);
   };
 
-  getWfsGetFeatureOtions = (filterGeometry, wfsConfig) => {
+  getWfsGetFeatureOptions = (filterGeometry, wfsConfig) => {
     return {
       srsName: wfsConfig.srsName,
       featureNS: "", // Must be blank for IE GML parsing
@@ -68,11 +71,11 @@ export default class SearchModel {
       selectionGeometry,
       wfsConfig
     );
-    const wfsGetFeatureOtions = this.getWfsGetFeatureOtions(
+    const wfsFeatureOptions = this.getWfsGetFeatureOptions(
       filterGeometry,
       wfsConfig
     );
-    const wfsBodyXml = this.getWfsBodyXml(wfsGetFeatureOtions);
+    const wfsBodyXml = this.getWfsBodyXml(wfsFeatureOptions);
 
     return {
       credentials: "same-origin",
@@ -89,7 +92,15 @@ export default class SearchModel {
     const wfsRequest = this.getWfsRequest(selectionGeometry, this.wfsConfig);
     hfetch(this.wfsConfig.url, wfsRequest).then((response) => {
       response.json().then((featureCollection) => {
-        this.localObserver.publish("mf-wfs-search", featureCollection);
+        const realEstates = {
+          selectionGeometry: selectionGeometry,
+          featureCollection: featureCollection,
+          transformation: new Transform().createTransformationRelationships(
+            this.srs,
+            this.crs
+          ),
+        };
+        this.localObserver.publish("mf-wfs-search-realEstates", realEstates);
       });
     });
   };
