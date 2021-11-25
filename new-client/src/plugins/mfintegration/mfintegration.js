@@ -5,6 +5,7 @@ import Observer from "react-event-observer";
 import RepeatIcon from "@material-ui/icons/Repeat";
 import IntegrationModel from "./IntegrationModel";
 import IntegrationView from "./IntegrationView";
+import SearchModel from "./SearchModel";
 
 class MFIntegration extends React.PureComponent {
   state = {
@@ -23,10 +24,18 @@ class MFIntegration extends React.PureComponent {
     super(props);
     this.localObserver = Observer();
     this.globalObserver = props.app.globalObserver;
+
+    this.searchModel = new SearchModel({
+      localObserver: this.localObserver,
+      app: props.app,
+      map: props.map,
+    });
+
     this.model = new IntegrationModel({
       localObserver: this.localObserver,
       app: props.app,
       map: props.map,
+      searchModel: this.searchModel,
     });
   }
 
