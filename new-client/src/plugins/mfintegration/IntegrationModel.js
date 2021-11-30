@@ -193,12 +193,13 @@ class IntegrationModel {
   };
 
   handlePointClickOnRealEstateLayer = (source, realEstateFeatures) => {
+    const clickedFeature = realEstateFeatures.features[0];
     const foundFeatureInSource = this.getRealEstateInSource(
       source.getFeatures(),
-      realEstateFeatures.features[0]
+      clickedFeature
     );
     if (foundFeatureInSource) source.removeFeature(foundFeatureInSource);
-    else source.addFeature(foundFeatureInSource);
+    else source.addFeature(clickedFeature);
   };
 
   addNoDuplicatesToSource = (featureSet, source) => {
@@ -239,7 +240,8 @@ class IntegrationModel {
     featureCollection,
     transformation
   ) => {
-    if (featureCollection.features === 0) return { noFeaturesFound: true };
+    if (featureCollection.features.length === 0)
+      return { noFeaturesFound: true };
 
     const features = featureCollection.features.map((feature) => {
       let geometry = new Transform().createGeometry(
