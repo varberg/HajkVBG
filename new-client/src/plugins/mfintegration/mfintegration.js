@@ -9,7 +9,7 @@ import SearchModel from "./SearchModel";
 
 class MFIntegration extends React.PureComponent {
   state = {
-    title: this.props.options.title ?? "Integration",
+    title: this.props.options.title ?? "Integration Miljö",
     description: this.props.options.description ?? "Integration med EDP",
     color: null,
   };
@@ -53,7 +53,7 @@ class MFIntegration extends React.PureComponent {
           title: this.state.title,
           color: this.state.color,
           description: this.state.description,
-          height: 600,
+          height: 800,
           width: 400,
           onWindowShow: this.onWindowShow,
         }}
