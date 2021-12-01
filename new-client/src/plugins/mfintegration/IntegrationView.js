@@ -76,6 +76,25 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("window-opened", () => {
       console.log("IntegrationView - window-opened");
     });
+    this.localObserver.subscribe("mf-wfs-map-updated-features", (features) => {
+      this.updateRealEstateList(features);
+    });
+  };
+
+  updateRealEstateList = (features) => {
+    let id = -1;
+    const realEstateData = features.map((feature) => {
+      const properties = feature.getProperties();
+      return {
+        id: ++id,
+        fnr: properties.fnr_fr,
+        name: properties.fastighet,
+        municipality: properties.trakt,
+        information: `Information om fastighet ${id}`,
+      };
+    });
+    this.clearResults();
+    this.setState({ currentData: realEstateData });
   };
 
   toggleMode = (mode) => {
