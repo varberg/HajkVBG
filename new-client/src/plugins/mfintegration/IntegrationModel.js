@@ -176,6 +176,14 @@ class IntegrationModel {
 
   drawRealEstateResponseFromWfs = (realEstates) => {
     this.addFeatureCollectionToSource(this.realEstateSource, realEstates);
+    this.updateRealEstateList(this.realEstateSource);
+  };
+
+  updateRealEstateList = (source) => {
+    this.localObserver.publish(
+      "mf-wfs-map-updated-features",
+      source.getFeatures()
+    );
   };
 
   addFeatureCollectionToSource = (source, realEstates) => {
