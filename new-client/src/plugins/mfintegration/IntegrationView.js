@@ -79,9 +79,18 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("window-opened", () => {
       console.log("IntegrationView - window-opened");
     });
-    this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
+    this.localObserver.subscribe(
+      "mf-wfs-map-updated-features-real-estates",
+      (props) => {
       this.#updateRealEstateList(props);
-    });
+      }
+    );
+    this.localObserver.subscribe(
+      "mf-wfs-map-updated-features-coordinates",
+      (props) => {
+        this.#updateCoordinateList(props);
+      }
+    );
   };
 
   #updateRealEstateList = (props) => {
@@ -107,6 +116,26 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #updateCoordinateList = (coordinates) => {
+    let id = -1;
+    const coordinateData = [...coordinates].map((coordinate) => {
+      coordinate.id = ++id;
+      if (coordinate.Label.length > 0) {
+        coordinate.name = coordinate.Label;
+        return coordinate;
+      }
+      coordinate.name =
+        "(" + coordinate.Northing + "; " + coordinate.Easting + ")";
+      return coordinate;
+    });
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        coordinate: coordinateData,
+      },
+    });
+  };
+
   toggleMode = (mode) => {
     this.setState({
       mode: mode,
@@ -126,6 +155,11 @@ class IntegrationView extends React.PureComponent {
     this.props.model.removeRealEstateItemFromSource(item);
   };
 
+  #clearResults = () => {
+    if (this.state.mode === "realEstate") this.#clearResultsRealEstate();
+    if (this.state.mode === "coordinate") this.#clearResultsCoordinates();
+  };
+
   #clearResultsRealEstate = () => {
     this.setState({
       currentListResults: {
@@ -133,7 +167,17 @@ class IntegrationView extends React.PureComponent {
         realEstate: [],
       },
     });
-    this.props.model.clearResults();
+    this.props.model.clearResultsRealEstate();
+  };
+
+  #clearResultsCoordinates = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        coordinate: [],
+      },
+    });
+    this.props.model.clearResultsCoordinate();
   };
 
   #clearRealEstateList = () => {
