@@ -126,9 +126,13 @@ class IntegrationView extends React.PureComponent {
     this.props.model.removeRealEstateItemFromSource(item);
   };
 
-  clearResults = () => {
-    //FIXME - don't clear everything, only one of the mode states. 
-    //this.setState({ currentListResults: defaultState.currentListResults });
+  #clearResultsRealEstate = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        realEstate: [],
+      },
+    });
     this.props.model.clearResults();
   };
 
@@ -215,12 +219,24 @@ class IntegrationView extends React.PureComponent {
             <Button
               startIcon={<CancelOutlinedIcon />}
               onClick={() => {
-                this.clearResults();
+                this.#clearResultsRealEstate();
               }}
               color="primary"
               variant="contained"
             >
               Ta bort alla markeringar
+            </Button>
+          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testWfsList();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Testa wfs-anrop med lista
             </Button>
           </ListItem>
         </div>
