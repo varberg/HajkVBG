@@ -51,8 +51,13 @@ class IntegrationModel {
     this.createDrawFunction(drawFunctionProps);
   };
 
-  clearResults = () => {
+  clearResultsRealEstate = () => {
     this.#clearSource(this.realEstateSource);
+  };
+
+  clearResultsCoordinate = () => {
+    // TODO Aktiveras när en källa för koordinaterna finns
+    //this.#clearSource(this.coordinateSource);
   };
 
   #clearSource = (source) => {
@@ -186,7 +191,10 @@ class IntegrationModel {
       features: source.getFeatures(),
       propertyName: realEstates.geometryField,
     };
-    this.localObserver.publish("mf-wfs-map-updated-features", props);
+    this.localObserver.publish(
+      "mf-wfs-map-updated-features-real-estates",
+      props
+    );
   };
 
   removeRealEstateItemFromSource = (listItem) => {
