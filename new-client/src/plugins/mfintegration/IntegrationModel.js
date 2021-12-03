@@ -195,8 +195,8 @@ class IntegrationModel {
   };
 
   #addFeatureCollectionToSource = (source, realEstates) => {
-    const realEstateFeatures = this.createFeaturesFromFeatureCollection(
-      realEstates.selectionGeometry.getGeometry().getType(),
+    const realEstateFeatures = this.#createFeaturesFromFeatureCollection(
+      realEstates.searchType,
       realEstates.featureCollection,
       realEstates.transformation
     );
