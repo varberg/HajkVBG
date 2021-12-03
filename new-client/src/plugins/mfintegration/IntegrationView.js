@@ -15,7 +15,6 @@ import TouchAppIcon from "@material-ui/icons/TouchApp";
 import Crop32Icon from "@material-ui/icons/Crop32";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ItemList from "./components/ItemList";
-import { getMockData } from "./mockdata/mockdata";
 
 const styles = (theme) => {
   return {
@@ -35,7 +34,11 @@ const styles = (theme) => {
 
 const defaultState = {
   mode: "realEstate",
-  currentData: getMockData("realEstate"),
+  currentListResults: {
+    realEstate: [],
+    coordinate: [],
+    geometry: [],
+  },
 };
 
 //TODO - Move this out to config.
@@ -88,40 +91,54 @@ class IntegrationView extends React.PureComponent {
       return {
         id: ++id,
         fnr: properties[props.propertyName],
+        mapId: feature.ol_uid,
+        fnr: properties.fnr_fr,
         name: properties.fastighet,
         municipality: properties.trakt,
         information: `Information om fastighet ${id}`,
       };
     });
     this.#clearRealEstateList();
-    this.setState({ currentData: realEstateData });
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        realEstate: realEstateData,
+      },
+    });
   };
 
   toggleMode = (mode) => {
     this.setState({
       mode: mode,
-      currentData: getMockData(mode),
     });
   };
 
-  removeFromResults = (itemId) => {
-    const updatedResults = this.state.currentData.filter(
-      (item) => item.id !== itemId
+  removeFromResults = (item, mode) => {
+    let updateList = { ...this.state.currentListResults };
+    const updatedResults = updateList[mode].filter(
+      (listItem) => listItem.id !== item.id
     );
-    this.setState({ currentData: updatedResults });
+
+    updateList[mode] = updatedResults;
+    this.setState({ currentListResults: updateList });
+
+    //also need to move from results list.
+    this.props.model.removeRealEstateItemFromSource(item);
   };
 
   clearResults = () => {
-    this.setState({ currentData: [] });
+    //FIXME - don't clear everything, only one of the mode states. 
+    //this.setState({ currentListResults: defaultState.currentListResults });
     this.props.model.clearResults();
   };
 
   #clearRealEstateList = () => {
-    this.setState({ currentData: [] });
+    this.setState({ currentListResults: defaultState.currentListResults });
   };
 
   render() {
     const { classes } = this.props;
+    const { mode } = this.state;
     return (
       <>
         <Typography>{informationText}</Typography>
@@ -131,7 +148,7 @@ class IntegrationView extends React.PureComponent {
             <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
             <Select
               id="modeSelection"
-              value={this.state.mode}
+              value={mode}
               onChange={(e) => {
                 this.toggleMode(e.target.value);
               }}
@@ -145,25 +162,27 @@ class IntegrationView extends React.PureComponent {
         </div>
         <div style={{ marginBottom: 20 }}>
           <Typography variant="subtitle1" className={classes.listHeading}>
-            {`Markerade ${modeDisplay[this.state.mode]["displayNamePlural"]}`}
-            {this.state.currentData.length > 0
-              ? ` (${this.state.currentData.length})`
+            {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
+            {this.state.currentListResults[mode].length > 0
+              ? ` (${this.state.currentListResults[mode].length})`
               : null}
           </Typography>
           <div>
-            {this.state.currentData.length > 0 ? (
+            {this.state.currentListResults[mode].length > 0 ? (
               <div className={classes.itemList}>
-                {this.state.currentData.map((item) => (
+                {this.state.currentListResults[mode].map((item) => (
                   <ItemList
                     key={item.id}
                     item={item}
-                    listMode={this.state.mode}
-                    handleRemoveItem={this.removeFromResults}
+                    listMode={mode}
+                    handleRemoveItem={(item, mode) => {
+                      this.removeFromResults(item, mode);
+                    }}
                   />
                 ))}
               </div>
             ) : (
-              `Inga ${modeDisplay[this.state.mode]["displayNamePlural"]} valda.`
+              `Inga ${modeDisplay[mode]["displayNamePlural"]} valda.`
             )}
           </div>
         </div>

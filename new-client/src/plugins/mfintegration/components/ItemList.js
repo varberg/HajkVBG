@@ -108,7 +108,7 @@ class ItemList extends React.PureComponent {
               <div className={classes.itemButton}>
                 <StyledIconButton
                   onClick={(e) => {
-                    handleRemoveItem(item.id);
+                    handleRemoveItem(item, listMode);
                   }}
                   aria-label="välj bort"
                 >

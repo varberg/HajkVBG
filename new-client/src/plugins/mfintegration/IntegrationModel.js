@@ -189,9 +189,14 @@ class IntegrationModel {
     this.localObserver.publish("mf-wfs-map-updated-features", props);
   };
 
+  removeRealEstateItemFromSource = (listItem) => {
+    const mapFeature = this.realEstateSource.getFeatureByUid(listItem.mapId);
+    this.realEstateSource.removeFeature(mapFeature);
+  };
+
   #addFeatureCollectionToSource = (source, realEstates) => {
-    const realEstateFeatures = this.#createFeaturesFromFeatureCollection(
-      realEstates.searchType,
+    const realEstateFeatures = this.createFeaturesFromFeatureCollection(
+      realEstates.selectionGeometry.getGeometry().getType(),
       realEstates.featureCollection,
       realEstates.transformation
     );
