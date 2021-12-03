@@ -186,6 +186,11 @@ class IntegrationModel {
     );
   };
 
+  removeRealEstateItemFromSource = (listItem) => {
+    const mapFeature = this.realEstateSource.getFeatureByUid(listItem.mapId);
+    this.realEstateSource.removeFeature(mapFeature);
+  };
+
   addFeatureCollectionToSource = (source, realEstates) => {
     const realEstateFeatures = this.createFeaturesFromFeatureCollection(
       realEstates.selectionGeometry.getGeometry().getType(),
