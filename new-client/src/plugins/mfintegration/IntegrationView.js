@@ -69,31 +69,31 @@ class IntegrationView extends React.PureComponent {
 
     this.globalObserver = props.globalObserver;
     this.localObserver = props.localObserver;
-    this.bindSubscriptions();
+    this.#bindSubscriptions();
   }
 
-  bindSubscriptions = () => {
+  #bindSubscriptions = () => {
     this.localObserver.subscribe("window-opened", () => {
       console.log("IntegrationView - window-opened");
     });
-    this.localObserver.subscribe("mf-wfs-map-updated-features", (features) => {
-      this.updateRealEstateList(features);
+    this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
+      this.#updateRealEstateList(props);
     });
   };
 
-  updateRealEstateList = (features) => {
+  #updateRealEstateList = (props) => {
     let id = -1;
-    const realEstateData = features.map((feature) => {
+    const realEstateData = props.features.map((feature) => {
       const properties = feature.getProperties();
       return {
         id: ++id,
-        fnr: properties.fnr_fr,
+        fnr: properties[props.propertyName],
         name: properties.fastighet,
         municipality: properties.trakt,
         information: `Information om fastighet ${id}`,
       };
     });
-    this.clearResults();
+    this.#clearRealEstateList();
     this.setState({ currentData: realEstateData });
   };
 
@@ -113,7 +113,11 @@ class IntegrationView extends React.PureComponent {
 
   clearResults = () => {
     this.setState({ currentData: [] });
-    //this.props.model.clearResults - do anything that needs doing on the model - e.g. clear from the visible layer.
+    this.props.model.clearResults();
+  };
+
+  #clearRealEstateList = () => {
+    this.setState({ currentData: [] });
   };
 
   render() {

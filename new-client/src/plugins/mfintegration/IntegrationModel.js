@@ -13,34 +13,64 @@ class IntegrationModel {
     this.localObserver = settings.localObserver;
     this.searchModel = settings.searchModel;
 
-    this.initMapLayers();
-    this.bindSubscriptions();
+    this.#initMapLayers();
+    this.#bindSubscriptions();
   }
 
-  bindSubscriptions = () => {
+  #bindSubscriptions = () => {
     this.localObserver.subscribe("mf-wfs-search-realEstates", (realEstates) => {
-      this.drawRealEstateResponseFromWfs(realEstates);
+      this.#drawRealEstateResponseFromWfs(realEstates);
     });
   };
 
-  initMapLayers = () => {
+  #initMapLayers = () => {
     this.handleWindowOpen();
-    this.addDrawPointPolygonLayer();
-    this.addRealEstateLayer();
+    this.#addDrawPointPolygonLayer();
+    this.#addRealEstateLayer();
   };
 
-  createNewVectorSource = () => {
+  drawPolygon = () => {
+    const drawFunctionProps = {
+      listenerText: "addfeature",
+      requestText: "search",
+      style: this.#getDrawPointPolygonStyle(),
+      source: this.drawSourcePointPolygon,
+      type: "Polygon",
+    };
+    this.#createDrawFunction(drawFunctionProps);
+  };
+
+  drawPoint = () => {
+    const drawFunctionProps = {
+      listenerText: "addfeature",
+      requestText: "search",
+      style: this.#getDrawPointPolygonStyle(),
+      source: this.drawSourcePointPolygon,
+      type: "Point",
+    };
+    this.createDrawFunction(drawFunctionProps);
+  };
+
+  clearResults = () => {
+    this.#clearSource(this.realEstateSource);
+  };
+
+  #clearSource = (source) => {
+    source.clear();
+  };
+
+  #createNewVectorSource = () => {
     return new VectorSource({ wrapX: false });
   };
 
-  createNewVectorLayer = (source, style) => {
+  #createNewVectorLayer = (source, style) => {
     return new VectorLayer({
       source: source,
       style: style,
     });
   };
 
-  createNewVectorCircleStyle = (style) => {
+  #createNewVectorCircleStyle = (style) => {
     return new Style({
       stroke: new Stroke({
         color: style.stroke.color,
@@ -59,23 +89,24 @@ class IntegrationModel {
     });
   };
 
-  addDrawPointPolygonLayer = () => {
-    const stylePointPolygon = this.getDrawPointPolygonStyle();
-    this.drawSourcePointPolygon = this.createNewVectorSource(stylePointPolygon);
+  #addDrawPointPolygonLayer = () => {
+    const stylePointPolygon = this.#getDrawPointPolygonStyle();
+    this.drawSourcePointPolygon =
+      this.#createNewVectorSource(stylePointPolygon);
 
-    const drawPointPolygonLayer = this.createNewVectorLayer(
+    const drawPointPolygonLayer = this.#createNewVectorLayer(
       this.drawSourcePointPolygon,
       stylePointPolygon
     );
     this.map.addLayer(drawPointPolygonLayer);
   };
 
-  getDrawPointPolygonStyle = () => {
-    const drawPolygonStyleSettings = this.getDrawPointPolygonStyleSettings();
-    return this.createNewVectorCircleStyle(drawPolygonStyleSettings);
+  #getDrawPointPolygonStyle = () => {
+    const drawPolygonStyleSettings = this.#getDrawPointPolygonStyleSettings();
+    return this.#createNewVectorCircleStyle(drawPolygonStyleSettings);
   };
 
-  getDrawPointPolygonStyleSettings = () => {
+  #getDrawPointPolygonStyleSettings = () => {
     // Lägg till inställningar här!
     const strokeColor = "rgba(74,74,74,0.5)";
     const strokeWidth = 4;
@@ -90,24 +121,24 @@ class IntegrationModel {
     };
   };
 
-  addRealEstateLayer = () => {
-    const stylePolygon = this.getRealEstateStyle();
-    this.realEstateSource = this.createNewVectorSource(stylePolygon);
+  #addRealEstateLayer = () => {
+    const stylePolygon = this.#getRealEstateStyle();
+    this.realEstateSource = this.#createNewVectorSource(stylePolygon);
 
-    this.realEstateLayer = this.createNewVectorLayer(
+    this.realEstateLayer = this.#createNewVectorLayer(
       this.realEstateSource,
       stylePolygon
     );
     this.map.addLayer(this.realEstateLayer);
   };
 
-  getRealEstateStyle = () => {
-    const drawRealEstateStyleSettings = this.getRealEstateStyleSettings();
+  #getRealEstateStyle = () => {
+    const drawRealEstateStyleSettings = this.#getRealEstateStyleSettings();
 
-    return this.createNewVectorCircleStyle(drawRealEstateStyleSettings);
+    return this.#createNewVectorCircleStyle(drawRealEstateStyleSettings);
   };
 
-  getRealEstateStyleSettings = () => {
+  #getRealEstateStyleSettings = () => {
     // Lägg till inställningar här!
     const strokeColor = "rgba(255,0,0,0.5)";
     const strokeWidth = 4;
@@ -122,36 +153,7 @@ class IntegrationModel {
     };
   };
 
-  createNewVectorLayer = (source, style) => {
-    return new VectorLayer({
-      source: source,
-      style: style,
-    });
-  };
-
-  drawPolygon = () => {
-    const drawFunctionProps = {
-      listenerText: "addfeature",
-      requestText: "search",
-      style: this.getDrawPointPolygonStyle(),
-      source: this.drawSourcePointPolygon,
-      type: "Polygon",
-    };
-    this.createDrawFunction(drawFunctionProps);
-  };
-
-  drawPoint = () => {
-    const drawFunctionProps = {
-      listenerText: "addfeature",
-      requestText: "search",
-      style: this.getDrawPointPolygonStyle(),
-      source: this.drawSourcePointPolygon,
-      type: "Point",
-    };
-    this.createDrawFunction(drawFunctionProps);
-  };
-
-  createDrawFunction = (props) => {
+  #createDrawFunction = (props) => {
     this.draw = new Draw({
       source: props.source,
       type: props.type,
@@ -170,47 +172,61 @@ class IntegrationModel {
   handleDrawFeatureAdded = (e) => {
     this.map.removeInteraction(this.draw);
     this.map.clickLock.delete("search");
-    this.searchModel.findRealEstates(e.feature);
-    this.clearSource(this.drawSourcePointPolygon);
+    this.searchModel.findRealEstatesWithGeometry(e.feature);
+    this.#clearSource(this.drawSourcePointPolygon);
   };
 
-  drawRealEstateResponseFromWfs = (realEstates) => {
-    this.addFeatureCollectionToSource(this.realEstateSource, realEstates);
-    this.updateRealEstateList(this.realEstateSource);
+  #drawRealEstateResponseFromWfs = (realEstates) => {
+    this.#addFeatureCollectionToSource(this.realEstateSource, realEstates);
+    this.#updateRealEstateList(this.realEstateSource, realEstates);
   };
 
-  updateRealEstateList = (source) => {
-    this.localObserver.publish(
-      "mf-wfs-map-updated-features",
-      source.getFeatures()
-    );
+  #updateRealEstateList = (source, realEstates) => {
+    const props = {
+      features: source.getFeatures(),
+      propertyName: realEstates.geometryField,
+    };
+    this.localObserver.publish("mf-wfs-map-updated-features", props);
   };
 
-  addFeatureCollectionToSource = (source, realEstates) => {
-    const realEstateFeatures = this.createFeaturesFromFeatureCollection(
-      realEstates.selectionGeometry.getGeometry().getType(),
+  #addFeatureCollectionToSource = (source, realEstates) => {
+    const realEstateFeatures = this.#createFeaturesFromFeatureCollection(
+      realEstates.searchType,
       realEstates.featureCollection,
       realEstates.transformation
     );
     if (realEstateFeatures.noFeaturesFound) return;
     if (realEstateFeatures.addOrRemoveFeature) {
-      this.handlePointClickOnRealEstateLayer(source, realEstateFeatures);
+      this.#handlePointClickOnRealEstateLayer(
+        source,
+        realEstateFeatures,
+        realEstates.geometryField
+      );
       return;
     }
-    this.addNoDuplicatesToSource(realEstateFeatures, source);
+    this.#addNoDuplicatesToSource(
+      realEstateFeatures,
+      source,
+      realEstates.geometryField
+    );
   };
 
-  handlePointClickOnRealEstateLayer = (source, realEstateFeatures) => {
+  #handlePointClickOnRealEstateLayer = (
+    source,
+    realEstateFeatures,
+    comparePropertyId
+  ) => {
     const clickedFeature = realEstateFeatures.features[0];
-    const foundFeatureInSource = this.getRealEstateInSource(
+    const foundFeatureInSource = this.#getRealEstateInSource(
       source.getFeatures(),
-      clickedFeature
+      clickedFeature,
+      comparePropertyId
     );
     if (foundFeatureInSource) source.removeFeature(foundFeatureInSource);
     else source.addFeature(clickedFeature);
   };
 
-  addNoDuplicatesToSource = (featureSet, source) => {
+  #addNoDuplicatesToSource = (featureSet, source, comparePropertyId) => {
     const featuresInSource = source.getFeatures();
     if (featuresInSource.length === 0) {
       source.addFeatures(featureSet.features);
@@ -218,7 +234,13 @@ class IntegrationModel {
     }
 
     const featuresToAddToSource = featureSet.features.filter((feature) => {
-      if (!this.getRealEstateInSource(featuresInSource, feature))
+      if (
+        !this.getRealEstateInSource(
+          featuresInSource,
+          feature,
+          comparePropertyId
+        )
+      )
         return feature;
       return false;
     });
@@ -226,10 +248,15 @@ class IntegrationModel {
     source.addFeatures(featuresToAddToSource);
   };
 
-  getRealEstateInSource = (featuresInSource, clickedFeature) => {
+  #getRealEstateInSource = (
+    featuresInSource,
+    clickedFeature,
+    comparePropertyId
+  ) => {
     const featuresFoundInSource = featuresInSource.filter((feature) => {
       if (
-        feature.getProperties().fnr_fr === clickedFeature.getProperties().fnr_fr
+        feature.getProperties()[comparePropertyId] ===
+        clickedFeature.getProperties()[comparePropertyId]
       )
         return feature;
       return false;
@@ -239,11 +266,7 @@ class IntegrationModel {
     return featuresFoundInSource[0];
   };
 
-  clearSource = (source) => {
-    source.clear();
-  };
-
-  createFeaturesFromFeatureCollection = (
+  #createFeaturesFromFeatureCollection = (
     selectionGeometryType,
     featureCollection,
     transformation
@@ -279,6 +302,11 @@ class IntegrationModel {
 
   testEdpConnection = () => {
     console.log("Test EDP connection");
+  };
+
+  testWfsList = () => {
+    const FNRs = ["140064566", "140041902"];
+    this.searchModel.findRealEstatesWithNumbers(FNRs);
   };
 }
 
