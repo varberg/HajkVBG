@@ -82,7 +82,7 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe(
       "mf-wfs-map-updated-features-real-estates",
       (props) => {
-      this.#updateRealEstateList(props);
+        this.#updateRealEstateList(props);
       }
     );
     this.localObserver.subscribe(
@@ -101,13 +101,11 @@ class IntegrationView extends React.PureComponent {
         id: ++id,
         fnr: properties[props.propertyName],
         mapId: feature.ol_uid,
-        fnr: properties.fnr_fr,
         name: properties.fastighet,
         municipality: properties.trakt,
         information: `Information om fastighet ${id}`,
       };
     });
-    this.#clearRealEstateList();
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -263,7 +261,7 @@ class IntegrationView extends React.PureComponent {
             <Button
               startIcon={<CancelOutlinedIcon />}
               onClick={() => {
-                this.#clearResultsRealEstate();
+                this.#clearResults();
               }}
               color="primary"
               variant="contained"
@@ -271,18 +269,34 @@ class IntegrationView extends React.PureComponent {
               Ta bort alla markeringar
             </Button>
           </ListItem>
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.testWfsList();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Testa wfs-anrop med lista
-            </Button>
-          </ListItem>
+          {this.state.mode === "realEstate" ? (
+            <ListItem style={{ paddingLeft: "0px" }}>
+              <Button
+                startIcon={<CancelOutlinedIcon />}
+                onClick={() => {
+                  this.props.model.testWfsList();
+                }}
+                color="primary"
+                variant="contained"
+              >
+                Testa wfs-anrop med lista
+              </Button>
+            </ListItem>
+          ) : null}
+          {this.state.mode === "coordinate" ? (
+            <ListItem style={{ paddingLeft: "0px" }}>
+              <Button
+                startIcon={<CancelOutlinedIcon />}
+                onClick={() => {
+                  this.props.model.testCoordinateList();
+                }}
+                color="primary"
+                variant="contained"
+              >
+                Testa koordinater
+              </Button>
+            </ListItem>
+          ) : null}
         </div>
       </>
     );
