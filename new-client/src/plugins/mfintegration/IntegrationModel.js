@@ -208,6 +208,7 @@ class IntegrationModel {
       realEstates.featureCollection,
       realEstates.transformation
     );
+    this.#clearOldRealEstataSearch(source, realEstates);
     if (realEstateFeatures.noFeaturesFound) return;
     if (realEstateFeatures.addOrRemoveFeature) {
       this.#handlePointClickOnRealEstateLayer(
@@ -222,6 +223,10 @@ class IntegrationModel {
       source,
       realEstates.geometryField
     );
+  };
+
+  #clearOldRealEstataSearch = (source, realEstates) => {
+    if (realEstates.searchType === "List") this.clearResultsRealEstate();
   };
 
   #handlePointClickOnRealEstateLayer = (
@@ -320,6 +325,29 @@ class IntegrationModel {
   testWfsList = () => {
     const FNRs = ["140064566", "140041902"];
     this.searchModel.findRealEstatesWithNumbers(FNRs);
+  };
+
+  testCoordinateList = () => {
+    const coordinates = [
+      {
+        Northing: "6396195",
+        Easting: "317554",
+        SpatialReferenceSystemIdentifier: "3006",
+        Label: "Min punkt",
+      },
+      {
+        Northing: "6396200",
+        Easting: "317500",
+        SpatialReferenceSystemIdentifier: "3006",
+        Label: "",
+      },
+    ];
+
+    // Bara för test
+    this.localObserver.publish(
+      "mf-wfs-map-updated-features-coordinates",
+      coordinates
+    );
   };
 }
 
