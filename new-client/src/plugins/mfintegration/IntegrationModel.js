@@ -1,4 +1,5 @@
 import { Fill, Stroke, Style, Circle } from "ol/style";
+import { extend, createEmpty } from "ol/extent";
 import Draw from "ol/interaction/Draw";
 import Feature from "ol/Feature";
 import Transform from "./Transformation/Transform";
@@ -228,6 +229,7 @@ class IntegrationModel {
   #drawRealEstateResponseFromWfs = (realEstates) => {
     this.#addRealEstateToSource(this.realEstateSource, realEstates);
     this.#updateRealEstateList(this.realEstateSource, realEstates);
+    this.#zoomToFeatures(this.realEstateSource);
   };
 
   #updateRealEstateList = (source, realEstates) => {
@@ -244,6 +246,7 @@ class IntegrationModel {
   #drawCoordinateResponseFromWfs = (coordinates) => {
     this.#addCoordinateToSource(this.coordinateSource, coordinates);
     this.#updateCoordinateList(this.coordinateSource, coordinates);
+    this.#zoomToFeatures(this.coordinateSource);
   };
 
   #updateCoordinateList = (source, coordinates) => {
@@ -255,6 +258,19 @@ class IntegrationModel {
       "mf-wfs-map-updated-features-coordinate",
       featuresAndGeometryProperyName
     );
+  };
+
+  #zoomToFeatures = (source) => {
+    let extent = createEmpty();
+    const features = source.getFeatures();
+    features.forEach((feature) => {
+      extend(extent, feature.getGeometry().getExtent());
+    });
+    this.map.getView().fit(extent, {
+      size: this.map.getSize(),
+      padding: [10, 10, 10, 10],
+      maxZoom: 12,
+    });
   };
 
   removeRealEstateItemFromSource = (listItem) => {
