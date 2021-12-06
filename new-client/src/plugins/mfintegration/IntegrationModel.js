@@ -21,15 +21,38 @@ class IntegrationModel {
     this.localObserver.subscribe("mf-wfs-search-realEstates", (realEstates) => {
       this.#drawRealEstateResponseFromWfs(realEstates);
     });
+    this.localObserver.subscribe(
+      "mf-wfs-search-coordinates",
+      (coordindates) => {
+        this.#drawCoordinateResponseFromWfs(coordindates);
+      }
+    );
   };
 
   #initMapLayers = () => {
     this.handleWindowOpen();
     this.#addDrawPointPolygonLayer();
     this.#addRealEstateLayer();
+    this.#addCoordinateLayer();
   };
 
   drawPolygon = () => {
+    this.#drawRealEstatePolygon();
+  };
+
+  drawPoint = () => {
+    this.#drawRealEstatePoint();
+  };
+
+  clearResultsRealEstate = () => {
+    this.#clearSource(this.realEstateSource);
+  };
+
+  clearResultsCoordintes = () => {
+    this.#clearSource(this.coordinateSource);
+  };
+
+  #drawRealEstatePolygon = () => {
     const drawFunctionProps = {
       listenerText: "addfeature",
       requestText: "search",
@@ -40,7 +63,7 @@ class IntegrationModel {
     this.#createDrawFunction(drawFunctionProps);
   };
 
-  drawPoint = () => {
+  #drawRealEstatePoint = () => {
     const drawFunctionProps = {
       listenerText: "addfeature",
       requestText: "search",
@@ -49,15 +72,6 @@ class IntegrationModel {
       type: "Point",
     };
     this.createDrawFunction(drawFunctionProps);
-  };
-
-  clearResultsRealEstate = () => {
-    this.#clearSource(this.realEstateSource);
-  };
-
-  clearResultsCoordinate = () => {
-    // TODO Aktiveras när en källa för koordinaterna finns
-    //this.#clearSource(this.coordinateSource);
   };
 
   #clearSource = (source) => {
@@ -127,23 +141,53 @@ class IntegrationModel {
   };
 
   #addRealEstateLayer = () => {
-    const stylePolygon = this.#getRealEstateStyle();
-    this.realEstateSource = this.#createNewVectorSource(stylePolygon);
+    const styleRealEstatePolygon = this.#getRealEstateStyle();
+    this.realEstateSource = this.#createNewVectorSource(styleRealEstatePolygon);
 
     this.realEstateLayer = this.#createNewVectorLayer(
       this.realEstateSource,
-      stylePolygon
+      styleRealEstatePolygon
     );
     this.map.addLayer(this.realEstateLayer);
   };
 
+  #addCoordinateLayer = () => {
+    const styleCoordinatePoint = this.#getCoordinateStyle();
+    this.coordinateSource = this.#createNewVectorSource(styleCoordinatePoint);
+
+    this.coordinateLayer = this.#createNewVectorLayer(
+      this.coordinateSource,
+      styleCoordinatePoint
+    );
+    this.map.addLayer(this.coordinateLayer);
+  };
+
   #getRealEstateStyle = () => {
     const drawRealEstateStyleSettings = this.#getRealEstateStyleSettings();
-
     return this.#createNewVectorCircleStyle(drawRealEstateStyleSettings);
   };
 
   #getRealEstateStyleSettings = () => {
+    // Lägg till inställningar här!
+    const strokeColor = "rgba(255,0,0,0.5)";
+    const strokeWidth = 4;
+    const fillColor = "rgba(0,255,0,0.07)";
+    const circleRadius = 6;
+    const strokeWithCircle = 2;
+
+    return {
+      stroke: { color: strokeColor, width: strokeWidth },
+      fill: { color: fillColor },
+      circle: { radius: circleRadius, width: strokeWithCircle },
+    };
+  };
+
+  #getCoordinateStyle = () => {
+    const drawCoordinateStyleSettings = this.#getCoordinateStyleSettings();
+    return this.#createNewVectorCircleStyle(drawCoordinateStyleSettings);
+  };
+
+  #getCoordinateStyleSettings = () => {
     // Lägg till inställningar här!
     const strokeColor = "rgba(255,0,0,0.5)";
     const strokeWidth = 4;
@@ -182,18 +226,34 @@ class IntegrationModel {
   };
 
   #drawRealEstateResponseFromWfs = (realEstates) => {
-    this.#addFeatureCollectionToSource(this.realEstateSource, realEstates);
+    this.#addRealEstateToSource(this.realEstateSource, realEstates);
     this.#updateRealEstateList(this.realEstateSource, realEstates);
   };
 
   #updateRealEstateList = (source, realEstates) => {
-    const props = {
+    const featuresAndGeometryProperyName = {
       features: source.getFeatures(),
       propertyName: realEstates.geometryField,
     };
     this.localObserver.publish(
       "mf-wfs-map-updated-features-real-estates",
-      props
+      featuresAndGeometryProperyName
+    );
+  };
+
+  #drawCoordinateResponseFromWfs = (coordinates) => {
+    this.#addCoordinateToSource(this.coordinateSource, coordinates);
+    this.#updateCoordinateList(this.coordinateSource, coordinates);
+  };
+
+  #updateCoordinateList = (source, coordinates) => {
+    const featuresAndGeometryProperyName = {
+      features: source.getFeatures(),
+      propertyName: coordinates.geometryField,
+    };
+    this.localObserver.publish(
+      "mf-wfs-map-updated-features-coordinate",
+      featuresAndGeometryProperyName
     );
   };
 
@@ -202,13 +262,13 @@ class IntegrationModel {
     this.realEstateSource.removeFeature(mapFeature);
   };
 
-  #addFeatureCollectionToSource = (source, realEstates) => {
+  #addRealEstateToSource = (source, realEstates) => {
     const realEstateFeatures = this.#createFeaturesFromFeatureCollection(
       realEstates.searchType,
       realEstates.featureCollection,
       realEstates.transformation
     );
-    this.#clearOldRealEstataSearch(source, realEstates);
+    this.#clearOldSearch(source, realEstates);
     if (realEstateFeatures.noFeaturesFound) return;
     if (realEstateFeatures.addOrRemoveFeature) {
       this.#handlePointClickOnRealEstateLayer(
@@ -225,8 +285,31 @@ class IntegrationModel {
     );
   };
 
-  #clearOldRealEstataSearch = (source, realEstates) => {
-    if (realEstates.searchType === "List") this.clearResultsRealEstate();
+  #addCoordinateToSource = (source, coordinates) => {
+    const coordinateFeatures = this.#createFeaturesFromFeatureCollection(
+      coordinates.searchType,
+      coordinates.featureCollection,
+      coordinates.transformation
+    );
+    this.#clearOldSearch(source, coordinates);
+    if (coordinateFeatures.noFeaturesFound) return;
+    if (coordinateFeatures.addOrRemoveFeature) {
+      this.#handlePointClickOnCoordinateLayer(
+        source,
+        coordinateFeatures,
+        coordinates.geometryField
+      );
+      return;
+    }
+    this.#addNoDuplicatesToSource(
+      coordinateFeatures,
+      source,
+      coordinates.geometryField
+    );
+  };
+
+  #clearOldSearch = (source, featureCollection) => {
+    if (featureCollection.searchType === "List") this.#clearSource(source);
   };
 
   #handlePointClickOnRealEstateLayer = (
@@ -235,6 +318,21 @@ class IntegrationModel {
     comparePropertyId
   ) => {
     const clickedFeature = realEstateFeatures.features[0];
+    const foundFeatureInSource = this.#getRealEstateInSource(
+      source.getFeatures(),
+      clickedFeature,
+      comparePropertyId
+    );
+    if (foundFeatureInSource) source.removeFeature(foundFeatureInSource);
+    else source.addFeature(clickedFeature);
+  };
+
+  #handlePointClickOnCoordinateLayer = (
+    source,
+    coordinateFeatures,
+    comparePropertyId
+  ) => {
+    const clickedFeature = coordinateFeatures.features[0];
     const foundFeatureInSource = this.#getRealEstateInSource(
       source.getFeatures(),
       clickedFeature,
@@ -303,11 +401,11 @@ class IntegrationModel {
           transformation.fromSrs,
           transformation.toSrs
         );
-      let realEstateFeature = new Feature({
+      let newFeature = new Feature({
         geometry: geometry,
       });
-      realEstateFeature.setProperties(feature.properties);
-      return realEstateFeature;
+      newFeature.setProperties(feature.properties);
+      return newFeature;
     });
 
     const pointClick = selectionGeometryType === "Point";
@@ -342,12 +440,7 @@ class IntegrationModel {
         Label: "",
       },
     ];
-
-    // Bara för test
-    this.localObserver.publish(
-      "mf-wfs-map-updated-features-coordinates",
-      coordinates
-    );
+    this.searchModel.findCoordinatesWithCoordinates(coordinates);
   };
 }
 
