@@ -65,13 +65,17 @@ export default class SearchModel {
     // const filter
     // const wfsRequest
     // hfetch ...
+    let id = 0;
     const features = coordinateList.map((coordinate) => {
       return {
         geometry: {
-          coordinates: [coordinate.Easting, coordinate.Northing],
-          properties: { label: coordinate.Label },
           type: "Point",
+          coordinates: [coordinate.Easting, coordinate.Northing],
         },
+        id: "koordinat." + ++id,
+        geometry_name: this.wfsConfigCoordinates.geometryName,
+        properties: { label: coordinate.Label },
+        type: "Feature",
       };
     });
     const simulatedFeatureCollection = { features: features };

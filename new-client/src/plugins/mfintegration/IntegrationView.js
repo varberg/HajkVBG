@@ -114,17 +114,22 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
-  #updateCoordinateList = (coordinates) => {
+  #updateCoordinateList = (props) => {
     let id = -1;
-    const coordinateData = [...coordinates].map((coordinate) => {
-      coordinate.id = ++id;
-      if (coordinate.Label.length > 0) {
-        coordinate.name = coordinate.Label;
-        return coordinate;
-      }
-      coordinate.name =
-        "(" + coordinate.Northing + "; " + coordinate.Easting + ")";
-      return coordinate;
+    const coordinateData = props.features.map((coordinate) => {
+      const properties = coordinate.getProperties();
+      const name =
+        properties.label.length > 0
+          ? properties.label
+          : "(" +
+            coordinate.getGeometry().flatCoordinates[0] +
+            "; " +
+            coordinate.getGeometry().flatCoordinates[1] +
+            ")";
+      return {
+        id: ++id,
+        name: name,
+      };
     });
     this.setState({
       currentListResults: {
@@ -176,10 +181,6 @@ class IntegrationView extends React.PureComponent {
       },
     });
     this.props.model.clearResultsCoordinate();
-  };
-
-  #clearRealEstateList = () => {
-    this.setState({ currentListResults: defaultState.currentListResults });
   };
 
   render() {
@@ -279,7 +280,7 @@ class IntegrationView extends React.PureComponent {
                 color="primary"
                 variant="contained"
               >
-                Testa wfs-anrop med lista
+                Fejk-KUBB: Testa fastigheter
               </Button>
             </ListItem>
           ) : null}
@@ -293,7 +294,7 @@ class IntegrationView extends React.PureComponent {
                 color="primary"
                 variant="contained"
               >
-                Testa koordinater
+                Fejk-KUBB: Testa koordinater
               </Button>
             </ListItem>
           ) : null}
