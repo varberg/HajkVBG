@@ -76,7 +76,7 @@ class IntegrationModel {
       source: this.drawSourcePointPolygon,
       type: "Point",
     };
-    this.createDrawFunction(drawFunctionProps);
+    this.#createDrawFunction(drawFunctionProps);
   };
 
   #clearSource = (source) => {
@@ -371,7 +371,7 @@ class IntegrationModel {
 
     const featuresToAddToSource = featureSet.features.filter((feature) => {
       if (
-        !this.getRealEstateInSource(
+        !this.#getRealEstateInSource(
           featuresInSource,
           feature,
           comparePropertyId
