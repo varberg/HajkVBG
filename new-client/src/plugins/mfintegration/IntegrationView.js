@@ -143,6 +143,7 @@ class IntegrationView extends React.PureComponent {
     this.setState({
       mode: mode,
     });
+    this.localObserver.publish("mf-new-mode", mode);
   };
 
   removeFromResults = (item, mode) => {

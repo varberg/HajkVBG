@@ -28,6 +28,10 @@ class IntegrationModel {
         this.#drawCoordinateResponseFromWfs(coordindates);
       }
     );
+    this.localObserver.subscribe("mf-new-mode", (mode) => {
+      if (mode === "realEstate") this.#modeChanged(true, false);
+      if (mode === "coordinate") this.#modeChanged(false, true);
+    });
   };
 
   #initMapLayers = () => {
@@ -426,6 +430,17 @@ class IntegrationModel {
 
     const pointClick = selectionGeometryType === "Point";
     return { features: features, addOrRemoveFeature: pointClick };
+  };
+
+  #modeChanged = (realEstateLayer, coordinateLayer) => {
+    this.#showHideLayers(realEstateLayer, coordinateLayer);
+    if (realEstateLayer) this.#zoomToFeatures(this.realEstateSource);
+    if (coordinateLayer) this.#zoomToFeatures(this.coordinateSource);
+  };
+
+  #showHideLayers = (realEstateLayer, coordinateLayer) => {
+    this.realEstateLayer.setVisible(realEstateLayer);
+    this.coordinateLayer.setVisible(coordinateLayer);
   };
 
   handleWindowOpen = () => {
