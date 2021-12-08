@@ -2,6 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { withStyles, Typography, IconButton } from "@material-ui/core";
 import VisibilityIcon from "@material-ui/icons/Visibility";
+import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import InfoIcon from "@material-ui/icons/Info";
 import EditIcon from "@material-ui/icons/Edit";
@@ -57,10 +58,6 @@ class ItemList extends React.PureComponent {
     });
   };
 
-  toggleVisibility = () => {
-    console.log("toggleVisibility");
-  };
-
   editItem = () => {
     console.log("editItem");
   };
@@ -76,7 +73,13 @@ class ItemList extends React.PureComponent {
   };
 
   render() {
-    const { classes, item, listMode, handleRemoveItem } = this.props;
+    const {
+      classes,
+      item,
+      listMode,
+      handleRemoveItem,
+      handleToggleItemVisibilty,
+    } = this.props;
     return (
       <div className={classes.itemList}>
         <div key={item.id} className={classes.listItemContainer}>
@@ -98,11 +101,11 @@ class ItemList extends React.PureComponent {
               <div className={classes.itemButton}>
                 <StyledIconButton
                   onClick={() => {
-                    this.toggleVisibility();
+                    handleToggleItemVisibilty(item, listMode);
                   }}
                   aria-label="växla synlighet"
                 >
-                  <VisibilityIcon />
+                  {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </StyledIconButton>
               </div>
               <div className={classes.itemButton}>

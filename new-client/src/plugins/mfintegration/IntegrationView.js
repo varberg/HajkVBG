@@ -104,6 +104,7 @@ class IntegrationView extends React.PureComponent {
         name: properties.fastighet,
         municipality: properties.trakt,
         information: `Information om fastighet ${id}`,
+        visible: true,
       };
     });
     this.setState({
@@ -129,6 +130,8 @@ class IntegrationView extends React.PureComponent {
       return {
         id: ++id,
         name: name,
+        mapId: coordinate.ol_uid,
+        visible: true,
       };
     });
     this.setState({
@@ -162,6 +165,30 @@ class IntegrationView extends React.PureComponent {
   #clearResults = () => {
     if (this.state.mode === "realEstate") this.#clearResultsRealEstate();
     if (this.state.mode === "coordinate") this.#clearResultsCoordinates();
+  };
+
+  toggleResultItemVisibility = (item, mode) => {
+    let updateList = { ...this.state.currentListResults };
+    let shouldBeVisible = !updateList[mode].find(
+      (listItem) => listItem.id === item.id
+    ).visible;
+
+    const updatedResults = updateList[mode].map((listItem) => {
+      if (listItem.id === item.id) {
+        return { ...listItem, visible: shouldBeVisible };
+      } else {
+        return listItem;
+      }
+    });
+
+    updateList[mode] = updatedResults;
+    this.setState({ currentListResults: updateList });
+
+    this.props.model.toggleFeatureStyleVisibility(
+      item.mapId,
+      shouldBeVisible,
+      mode
+    );
   };
 
   #clearResultsRealEstate = () => {
@@ -225,6 +252,9 @@ class IntegrationView extends React.PureComponent {
                     listMode={mode}
                     handleRemoveItem={(item, mode) => {
                       this.removeFromResults(item, mode);
+                    }}
+                    handleToggleItemVisibilty={(item, mode) => {
+                      this.toggleResultItemVisibility(item, mode);
                     }}
                   />
                 ))}

@@ -277,9 +277,35 @@ class IntegrationModel {
     });
   };
 
+  #getModeSource = (mode) => {
+    if (mode === "realEstate") return this.realEstateSource;
+    if (mode === "coordinate") return this.coordinateSource;
+  };
+
+  #getModeStyle = (mode) => {
+    if (mode === "realEstate") return this.#getRealEstateStyle();
+    if (mode === "coordinate") return this.#getCoordinateStyle();
+  };
+
   removeRealEstateItemFromSource = (listItem) => {
     const mapFeature = this.realEstateSource.getFeatureByUid(listItem.mapId);
     this.realEstateSource.removeFeature(mapFeature);
+  };
+
+  toggleFeatureStyleVisibility = (mapId, shouldBeVisible, mode) => {
+    //find the map feature connected to the list item.
+    const source = this.#getModeSource(mode);
+    const standardStyle = this.#getModeStyle(mode);
+    const mapFeature = source.getFeatureByUid(mapId);
+
+    //Either set the feature to be invisible, or restore the original style.
+    if (shouldBeVisible === false) {
+      mapFeature.setStyle(new Style());
+    }
+
+    if (shouldBeVisible === true) {
+      mapFeature.setStyle(standardStyle);
+    }
   };
 
   #addRealEstateToSource = (source, realEstates) => {
