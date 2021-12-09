@@ -48,6 +48,7 @@ class ItemList extends React.PureComponent {
 
   static propTypes = {
     item: PropTypes.object.isRequired,
+    handleClickItem: PropTypes.func.isRequired,
     handleRemoveItem: PropTypes.func.isRequired,
   };
 
@@ -76,12 +77,17 @@ class ItemList extends React.PureComponent {
   };
 
   render() {
-    const { classes, item, listMode, handleRemoveItem } = this.props;
+    const { classes, item, listMode, handleClickItem, handleRemoveItem } =
+      this.props;
     return (
       <div className={classes.itemList}>
         <div key={item.id} className={classes.listItemContainer}>
           <div className={classes.listItem}>
-            <div id="itemText" className={classes.listItemText}>
+            <div
+              id="itemText"
+              className={classes.listItemText}
+              onClick={(e) => handleClickItem(item)}
+            >
               <Typography noWrap>{item.name}</Typography>
             </div>
             <div className={classes.itemButtons}>

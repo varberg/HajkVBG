@@ -15,6 +15,7 @@ class IntegrationModel {
     this.searchModel = settings.searchModel;
 
     this.#initMapLayers();
+    this.#initActiveSource();
     this.#bindSubscriptions();
   }
 
@@ -29,8 +30,17 @@ class IntegrationModel {
       }
     );
     this.localObserver.subscribe("mf-new-mode", (mode) => {
-      if (mode === "realEstate") this.#modeChanged(true, false);
-      if (mode === "coordinate") this.#modeChanged(false, true);
+      if (mode === "realEstate") {
+        this.#modeChanged(true, false);
+        this.activeSource = this.realEstateSource;
+      }
+      if (mode === "coordinate") {
+        this.#modeChanged(false, true);
+        this.activeSource = this.coordinateSource;
+      }
+    });
+    this.localObserver.subscribe("mf-item-list-clicked", (clickedItem) => {
+      this.#highlightItem(clickedItem);
     });
   };
 
@@ -39,6 +49,11 @@ class IntegrationModel {
     this.#addDrawPointPolygonLayer();
     this.#addRealEstateLayer();
     this.#addCoordinateLayer();
+    this.#addHighlightLayer();
+  };
+
+  #initActiveSource = () => {
+    this.activeSource = this.realEstateSource;
   };
 
   drawPolygon = () => {
@@ -55,6 +70,15 @@ class IntegrationModel {
 
   clearResultsCoordintes = () => {
     this.#clearSource(this.coordinateSource);
+  };
+
+  removeItemFromActiveSource = (clicedItem) => {
+    if (this.#isFeatureHighlighted(clicedItem.feature))
+      this.highlightSource.removeFeature(clicedItem.feature);
+
+    this.activeSource.removeFeature(clicedItem.feature);
+    if (this.activeSource.getFeatures().length > 0)
+      this.#zoomToSource(this.activeSource);
   };
 
   #drawRealEstatePolygon = () => {
@@ -147,7 +171,7 @@ class IntegrationModel {
 
   #addRealEstateLayer = () => {
     const styleRealEstatePolygon = this.#getRealEstateStyle();
-    this.realEstateSource = this.#createNewVectorSource(styleRealEstatePolygon);
+    this.realEstateSource = this.#createNewVectorSource();
 
     this.realEstateLayer = this.#createNewVectorLayer(
       this.realEstateSource,
@@ -158,13 +182,24 @@ class IntegrationModel {
 
   #addCoordinateLayer = () => {
     const styleCoordinatePoint = this.#getCoordinateStyle();
-    this.coordinateSource = this.#createNewVectorSource(styleCoordinatePoint);
+    this.coordinateSource = this.#createNewVectorSource();
 
     this.coordinateLayer = this.#createNewVectorLayer(
       this.coordinateSource,
       styleCoordinatePoint
     );
     this.map.addLayer(this.coordinateLayer);
+  };
+
+  #addHighlightLayer = () => {
+    const styleHighlight = this.#getHighlightStyle();
+    this.highlightSource = this.#createNewVectorSource();
+
+    this.highlightLayer = this.#createNewVectorLayer(
+      this.highlightSource,
+      styleHighlight
+    );
+    this.map.addLayer(this.highlightLayer);
   };
 
   #getRealEstateStyle = () => {
@@ -198,7 +233,27 @@ class IntegrationModel {
     const strokeWidth = 4;
     const fillColor = "rgba(0,255,0,0.07)";
     const circleRadius = 6;
-    const strokeWithCircle = 2;
+    const strokeWithCircle = 4;
+
+    return {
+      stroke: { color: strokeColor, width: strokeWidth },
+      fill: { color: fillColor },
+      circle: { radius: circleRadius, width: strokeWithCircle },
+    };
+  };
+
+  #getHighlightStyle = () => {
+    const hightlightStyleSettings = this.#getHighlightStyleSettings();
+    return this.#createNewVectorCircleStyle(hightlightStyleSettings);
+  };
+
+  #getHighlightStyleSettings = () => {
+    // Lägg till inställningar här!
+    const strokeColor = "rgba(255,0,0,0.85)";
+    const strokeWidth = 4;
+    const fillColor = "rgba(0,255,0,0.22)";
+    const circleRadius = 6;
+    const strokeWithCircle = 4;
 
     return {
       stroke: { color: strokeColor, width: strokeWidth },
@@ -233,7 +288,7 @@ class IntegrationModel {
   #drawRealEstateResponseFromWfs = (realEstates) => {
     this.#addRealEstateToSource(this.realEstateSource, realEstates);
     this.#updateRealEstateList(this.realEstateSource, realEstates);
-    this.#zoomToFeatures(this.realEstateSource);
+    this.#zoomToSource(this.realEstateSource);
   };
 
   #updateRealEstateList = (source, realEstates) => {
@@ -250,7 +305,7 @@ class IntegrationModel {
   #drawCoordinateResponseFromWfs = (coordinates) => {
     this.#addCoordinateToSource(this.coordinateSource, coordinates);
     this.#updateCoordinateList(this.coordinateSource, coordinates);
-    this.#zoomToFeatures(this.coordinateSource);
+    this.#zoomToSource(this.coordinateSource);
   };
 
   #updateCoordinateList = (source, coordinates) => {
@@ -264,7 +319,7 @@ class IntegrationModel {
     );
   };
 
-  #zoomToFeatures = (source) => {
+  #zoomToSource = (source) => {
     let extent = createEmpty();
     const features = source.getFeatures();
     features.forEach((feature) => {
@@ -272,14 +327,9 @@ class IntegrationModel {
     });
     this.map.getView().fit(extent, {
       size: this.map.getSize(),
-      padding: [10, 10, 10, 10],
+      padding: [100, 100, 100, 100],
       maxZoom: 12,
     });
-  };
-
-  removeRealEstateItemFromSource = (listItem) => {
-    const mapFeature = this.realEstateSource.getFeatureByUid(listItem.mapId);
-    this.realEstateSource.removeFeature(mapFeature);
   };
 
   #addRealEstateToSource = (source, realEstates) => {
@@ -338,7 +388,7 @@ class IntegrationModel {
     comparePropertyId
   ) => {
     const clickedFeature = realEstateFeatures.features[0];
-    const foundFeatureInSource = this.#getRealEstateInSource(
+    const foundFeatureInSource = this.#getFeatureInSource(
       source.getFeatures(),
       clickedFeature,
       comparePropertyId
@@ -353,7 +403,7 @@ class IntegrationModel {
     comparePropertyId
   ) => {
     const clickedFeature = coordinateFeatures.features[0];
-    const foundFeatureInSource = this.#getRealEstateInSource(
+    const foundFeatureInSource = this.#getFeatureInSource(
       source.getFeatures(),
       clickedFeature,
       comparePropertyId
@@ -371,11 +421,7 @@ class IntegrationModel {
 
     const featuresToAddToSource = featureSet.features.filter((feature) => {
       if (
-        !this.#getRealEstateInSource(
-          featuresInSource,
-          feature,
-          comparePropertyId
-        )
+        !this.#getFeatureInSource(featuresInSource, feature, comparePropertyId)
       )
         return feature;
       return false;
@@ -384,7 +430,7 @@ class IntegrationModel {
     source.addFeatures(featuresToAddToSource);
   };
 
-  #getRealEstateInSource = (
+  #getFeatureInSource = (
     featuresInSource,
     clickedFeature,
     comparePropertyId
@@ -432,15 +478,33 @@ class IntegrationModel {
     return { features: features, addOrRemoveFeature: pointClick };
   };
 
-  #modeChanged = (realEstateLayer, coordinateLayer) => {
-    this.#showHideLayers(realEstateLayer, coordinateLayer);
-    if (realEstateLayer) this.#zoomToFeatures(this.realEstateSource);
-    if (coordinateLayer) this.#zoomToFeatures(this.coordinateSource);
+  #modeChanged = (realEstate, coordinate) => {
+    this.#clearSource(this.highlightSource);
+    this.#showHideLayers(realEstate, coordinate);
+    if (realEstate) this.#zoomToSource(this.realEstateSource);
+    if (coordinate) this.#zoomToSource(this.coordinateSource);
   };
 
   #showHideLayers = (realEstateLayer, coordinateLayer) => {
     this.realEstateLayer.setVisible(realEstateLayer);
     this.coordinateLayer.setVisible(coordinateLayer);
+  };
+
+  #highlightItem = (item) => {
+    const addItem = !this.#isFeatureHighlighted(item.feature);
+    this.#clearSource(this.highlightSource);
+
+    if (addItem) {
+      this.highlightSource.addFeature(item.feature);
+      this.#zoomToSource(this.highlightSource);
+      return;
+    }
+
+    this.#zoomToSource(this.activeSource);
+  };
+
+  #isFeatureHighlighted = (feature) => {
+    return this.highlightSource.getFeatures()[0] === feature;
   };
 
   handleWindowOpen = () => {
@@ -459,15 +523,15 @@ class IntegrationModel {
   testCoordinateList = () => {
     const coordinates = [
       {
-        Northing: "6396195",
-        Easting: "317554",
-        SpatialReferenceSystemIdentifier: "3006",
+        Northing: "6396150",
+        Easting: "145000",
+        SpatialReferenceSystemIdentifier: "3007",
         Label: "Min punkt",
       },
       {
         Northing: "6396200",
-        Easting: "317500",
-        SpatialReferenceSystemIdentifier: "3006",
+        Easting: "145150",
+        SpatialReferenceSystemIdentifier: "3007",
         Label: "",
       },
     ];

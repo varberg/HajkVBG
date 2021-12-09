@@ -87,7 +87,6 @@ export default class SearchModel {
       "List"
     );
     coordinates.selectedCoordinates = coordinateList;
-
     this.localObserver.publish("mf-wfs-search-coordinates", coordinates);
   };
 
@@ -108,7 +107,7 @@ export default class SearchModel {
         transformation.toSrs
       );
     }
-    return geometry.getGeometry();
+    return geometry;
   };
 
   #getListFilter = (realEstatesList, wfsConfig) => {
@@ -201,7 +200,7 @@ export default class SearchModel {
       featureTypes: ["???"],
       geometryField: "geometryField",
       geometryName: "geom",
-      srsName: "EPSG:3006",
+      srsName: "EPSG:3007",
       url: "???",
     };
     return wfsConfig;
