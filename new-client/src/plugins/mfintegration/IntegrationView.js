@@ -210,7 +210,7 @@ class IntegrationView extends React.PureComponent {
       if (listItem.id === clickedItem.id) {
         return { ...listItem, selected: isSelected };
       } else {
-        return listItem;
+        return { ...listItem, selected: false };
       }
     });
 
