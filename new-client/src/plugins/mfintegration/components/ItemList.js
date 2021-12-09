@@ -5,7 +5,6 @@ import VisibilityIcon from "@material-ui/icons/Visibility";
 import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import InfoIcon from "@material-ui/icons/Info";
-import EditIcon from "@material-ui/icons/Edit";
 
 const styles = (theme) => ({
   listItemContainer: {
@@ -57,10 +56,6 @@ class ItemList extends React.PureComponent {
     this.setState({
       infoVisible: !this.state.infoVisible,
     });
-  };
-
-  editItem = () => {
-    console.log("editItem");
   };
 
   renderInfo = (item) => {
@@ -122,17 +117,6 @@ class ItemList extends React.PureComponent {
                   aria-label="välj bort"
                 >
                   <CancelOutlinedIcon />
-                </StyledIconButton>
-              </div>
-              <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={() => {
-                    this.editItem();
-                  }}
-                  aria-label="redigera"
-                  disabled={listMode === "realEstate"}
-                >
-                  <EditIcon />
                 </StyledIconButton>
               </div>
             </div>
