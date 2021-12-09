@@ -105,6 +105,7 @@ class IntegrationView extends React.PureComponent {
         municipality: properties.trakt,
         information: `Information om fastighet ${id}`,
         visible: true,
+        feature: feature,
       };
     });
     this.setState({
@@ -132,6 +133,7 @@ class IntegrationView extends React.PureComponent {
         name: name,
         mapId: coordinate.ol_uid,
         visible: true,
+        feature: coordinate,
       };
     });
     this.setState({
@@ -142,14 +144,18 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
-  toggleMode = (mode) => {
+  #toggleMode = (mode) => {
     this.setState({
       mode: mode,
     });
     this.localObserver.publish("mf-new-mode", mode);
   };
 
-  removeFromResults = (item, mode) => {
+  #clickRow = (clickedItem) => {
+    this.localObserver.publish("mf-item-list-clicked", clickedItem);
+  };
+
+  #removeFromResults = (item, mode) => {
     let updateList = { ...this.state.currentListResults };
     const updatedResults = updateList[mode].filter(
       (listItem) => listItem.id !== item.id
@@ -158,8 +164,7 @@ class IntegrationView extends React.PureComponent {
     updateList[mode] = updatedResults;
     this.setState({ currentListResults: updateList });
 
-    //also need to move from results list.
-    this.props.model.removeRealEstateItemFromSource(item);
+    this.props.model.removeItemFromActiveSource(item);
   };
 
   #clearResults = () => {
@@ -225,7 +230,7 @@ class IntegrationView extends React.PureComponent {
               id="modeSelection"
               value={mode}
               onChange={(e) => {
-                this.toggleMode(e.target.value);
+                this.#toggleMode(e.target.value);
               }}
             >
               <MenuItem value={"realEstate"}>Fastigheter</MenuItem>
@@ -250,8 +255,11 @@ class IntegrationView extends React.PureComponent {
                     key={item.id}
                     item={item}
                     listMode={mode}
+                    handleClickItem={(clickedItem) => {
+                      this.#clickRow(clickedItem);
+                    }}
                     handleRemoveItem={(item, mode) => {
-                      this.removeFromResults(item, mode);
+                      this.#removeFromResults(item, mode);
                     }}
                     handleToggleItemVisibilty={(item, mode) => {
                       this.toggleResultItemVisibility(item, mode);
