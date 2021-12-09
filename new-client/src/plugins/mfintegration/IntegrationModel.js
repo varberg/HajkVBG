@@ -68,15 +68,15 @@ class IntegrationModel {
     this.#clearSource(this.realEstateSource);
   };
 
-  clearResultsCoordintes = () => {
+  clearResultsCoordinate = () => {
     this.#clearSource(this.coordinateSource);
   };
 
-  removeItemFromActiveSource = (clicedItem) => {
-    if (this.#isFeatureHighlighted(clicedItem.feature))
-      this.highlightSource.removeFeature(clicedItem.feature);
+  removeItemFromActiveSource = (clickedItem) => {
+    if (this.#isFeatureHighlighted(clickedItem.feature))
+      this.highlightSource.removeFeature(clickedItem.feature);
 
-    this.activeSource.removeFeature(clicedItem.feature);
+    this.activeSource.removeFeature(clickedItem.feature);
     if (this.activeSource.getFeatures().length > 0)
       this.#zoomToSource(this.activeSource);
   };
@@ -320,9 +320,11 @@ class IntegrationModel {
   };
 
   #zoomToSource = (source) => {
+    const featuresInSource = source.getFeatures();
+    if (featuresInSource.length === 0) return;
+
     let extent = createEmpty();
-    const features = source.getFeatures();
-    features.forEach((feature) => {
+    featuresInSource.forEach((feature) => {
       extend(extent, feature.getGeometry().getExtent());
     });
     this.map.getView().fit(extent, {
