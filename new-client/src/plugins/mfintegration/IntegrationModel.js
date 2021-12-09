@@ -548,6 +548,19 @@ class IntegrationModel {
     console.log("Test EDP connection");
   };
 
+  handleNewKubbMessage = (message) => {
+    //TODO - when Kubb is properly connected, we will do some kind of parsing of the message, to find out the type.
+    //as it is not, the message is a basic mock.
+    if (message === "realEstate") {
+      this.testWfsList();
+    }
+    if (message === "coordinate") {
+      this.testCoordinateList();
+    }
+
+    this.localObserver.publish("mf-kubb-message-received", message);
+  };
+
   testWfsList = () => {
     const FNRs = ["140064566", "140041902"];
     this.searchModel.findRealEstatesWithNumbers(FNRs);

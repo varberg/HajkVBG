@@ -91,6 +91,12 @@ class IntegrationView extends React.PureComponent {
         this.#updateCoordinateList(props);
       }
     );
+    this.localObserver.subscribe("mf-kubb-message-received", (message) => {
+      this.props.enqueueSnackbar("Inläsning från EDP Vision", {
+        variant: "info",
+        persist: false,
+      });
+    });
   };
 
   #updateRealEstateList = (props) => {
@@ -314,7 +320,7 @@ class IntegrationView extends React.PureComponent {
               <Button
                 startIcon={<CancelOutlinedIcon />}
                 onClick={() => {
-                  this.props.model.testWfsList();
+                  this.props.model.handleNewKubbMessage("realEstate");
                 }}
                 color="primary"
                 variant="contained"
@@ -328,7 +334,7 @@ class IntegrationView extends React.PureComponent {
               <Button
                 startIcon={<CancelOutlinedIcon />}
                 onClick={() => {
-                  this.props.model.testCoordinateList();
+                  this.props.model.handleNewKubbMessage("coordinate");
                 }}
                 color="primary"
                 variant="contained"
