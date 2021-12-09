@@ -249,9 +249,9 @@ class IntegrationModel {
 
   #getHighlightStyleSettings = () => {
     // Lägg till inställningar här!
-    const strokeColor = "rgba(255,0,0,0.85)";
+    const strokeColor = "rgba(255,0,0,1)";
     const strokeWidth = 4;
-    const fillColor = "rgba(0,255,0,0.22)";
+    const fillColor = "rgba(0,255,0,0.5)";
     const circleRadius = 6;
     const strokeWithCircle = 4;
 

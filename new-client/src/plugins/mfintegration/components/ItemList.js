@@ -32,7 +32,8 @@ const styles = (theme) => ({
   itemButton: {
     padding: theme.spacing(0.3),
   },
-  itemSelected: { backgroundColor: "#ddd" },
+  itemSelected: { backgroundColor: "#dfd" },
+  itemUnselected: { backgroundColor: "#fff" },
 });
 
 //override the standard MUI <IconButton> element style so we can customize the padding/margin.
@@ -86,7 +87,7 @@ class ItemList extends React.PureComponent {
           className={
             item.selected
               ? clsx(classes.listItemContainer, classes.itemSelected)
-              : classes.listItemContainer
+              : clsx(classes.listItemContainer, classes.itemUnselected)
           }
         >
           <div className={classes.listItem}>
