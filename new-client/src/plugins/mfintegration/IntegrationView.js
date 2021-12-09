@@ -43,7 +43,7 @@ const defaultState = {
 
 //TODO - Move this out to config.
 const informationText =
-  "Lorem, ipsum dolor sit amet consectetur adipisicing elit. Fugiat officiis quam incidunt cupiditate quisquam tempore minima cumque exercitationem omnis ratione!";
+  "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.";
 
 //TODO - move this? where to place constant information on the different modes - the model?
 const modeDisplay = {
@@ -72,12 +72,17 @@ class IntegrationView extends React.PureComponent {
 
     this.globalObserver = props.globalObserver;
     this.localObserver = props.localObserver;
+    this.app = props.app;
+    this.title = props.title;
+
+    this.drawingSupport = this.#getDrawingSupportSettings();
     this.#bindSubscriptions();
   }
 
   #bindSubscriptions = () => {
     this.localObserver.subscribe("window-opened", () => {
       console.log("IntegrationView - window-opened");
+      this.#initDrawingSupport();
     });
     this.localObserver.subscribe(
       "mf-wfs-map-updated-features-real-estates",
@@ -96,6 +101,38 @@ class IntegrationView extends React.PureComponent {
         variant: "info",
         persist: false,
       });
+    });
+    this.globalObserver.subscribe("core.closeWindow", (title) => {
+      if (title === this.title)
+        this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
+    });
+  };
+
+  #initDrawingSupport = () => {
+    this.#showDrawingSupport(this.drawingSupport[defaultState.mode]);
+  };
+
+  #showDrawingSupport = (layerId) => {
+    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
+    if (drawingSupportLayers.length > 0)
+      drawingSupportLayers[0].setVisible(true);
+  };
+
+  #hideDrawingSupport = (layerId) => {
+    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
+    if (drawingSupportLayers.length > 0)
+      drawingSupportLayers[0].setVisible(false);
+  };
+
+  #getDrawingSupportLayer = (layerId) => {
+    if (!layerId) return [];
+    const layers = this.app.map
+      .getLayers()
+      .getArray()
+      .filter((layer) => layer.get("layerInfo"));
+    return layers.filter((layer) => {
+      if (layer.getProperties().name === layerId) return layer;
+      return false;
     });
   };
 
@@ -153,9 +190,11 @@ class IntegrationView extends React.PureComponent {
   };
 
   #toggleMode = (mode) => {
+    this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
     this.setState({
       mode: mode,
     });
+    this.#showDrawingSupport(this.drawingSupport[mode]);
     this.localObserver.publish("mf-new-mode", mode);
   };
 
@@ -238,6 +277,12 @@ class IntegrationView extends React.PureComponent {
       },
     });
     this.props.model.clearResultsCoordinate();
+  };
+
+  #getDrawingSupportSettings = () => {
+    return {
+      realEstate: "o83amu",
+    };
   };
 
   render() {
