@@ -111,6 +111,7 @@ class IntegrationView extends React.PureComponent {
         municipality: properties.trakt,
         information: `Information om fastighet ${id}`,
         visible: true,
+        selected: false,
         feature: feature,
       };
     });
@@ -139,6 +140,7 @@ class IntegrationView extends React.PureComponent {
         name: name,
         mapId: coordinate.ol_uid,
         visible: true,
+        selected: false,
         feature: coordinate,
       };
     });
@@ -157,8 +159,24 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.publish("mf-new-mode", mode);
   };
 
-  #clickRow = (clickedItem) => {
+  #clickRow = (clickedItem, mode) => {
     this.localObserver.publish("mf-item-list-clicked", clickedItem);
+
+    let updateList = { ...this.state.currentListResults };
+    let isSelected = !updateList[mode].find(
+      (listItem) => listItem.id === clickedItem.id
+    ).selected;
+
+    const updatedResults = updateList[mode].map((listItem) => {
+      if (listItem.id === clickedItem.id) {
+        return { ...listItem, selected: isSelected };
+      } else {
+        return listItem;
+      }
+    });
+
+    updateList[mode] = updatedResults;
+    this.setState({ currentListResults: updateList });
   };
 
   #removeFromResults = (item, mode) => {
@@ -261,8 +279,8 @@ class IntegrationView extends React.PureComponent {
                     key={item.id}
                     item={item}
                     listMode={mode}
-                    handleClickItem={(clickedItem) => {
-                      this.#clickRow(clickedItem);
+                    handleClickItem={(clickedItem, mode) => {
+                      this.#clickRow(clickedItem, mode);
                     }}
                     handleRemoveItem={(item, mode) => {
                       this.#removeFromResults(item, mode);

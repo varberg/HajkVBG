@@ -5,6 +5,7 @@ import VisibilityIcon from "@material-ui/icons/Visibility";
 import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import InfoIcon from "@material-ui/icons/Info";
+import clsx from "clsx";
 
 const styles = (theme) => ({
   listItemContainer: {
@@ -31,6 +32,7 @@ const styles = (theme) => ({
   itemButton: {
     padding: theme.spacing(0.3),
   },
+  itemSelected: { backgroundColor: "#ddd" },
 });
 
 //override the standard MUI <IconButton> element style so we can customize the padding/margin.
@@ -79,12 +81,19 @@ class ItemList extends React.PureComponent {
     } = this.props;
     return (
       <div className={classes.itemList}>
-        <div key={item.id} className={classes.listItemContainer}>
+        <div
+          key={item.id}
+          className={
+            item.selected
+              ? clsx(classes.listItemContainer, classes.itemSelected)
+              : classes.listItemContainer
+          }
+        >
           <div className={classes.listItem}>
             <div
               id="itemText"
               className={classes.listItemText}
-              onClick={(e) => handleClickItem(item)}
+              onClick={(e) => handleClickItem(item, listMode)}
             >
               <Typography noWrap>{item.name}</Typography>
             </div>
