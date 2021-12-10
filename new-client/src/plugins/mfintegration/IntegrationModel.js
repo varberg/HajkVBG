@@ -72,6 +72,10 @@ class IntegrationModel {
     this.#clearSource(this.coordinateSource);
   };
 
+  clearHighlight = () => {
+    this.#clearSource(this.highlightSource);
+  };
+
   removeItemFromActiveSource = (clickedItem) => {
     if (this.#isFeatureHighlighted(clickedItem.feature))
       this.highlightSource.removeFeature(clickedItem.feature);
@@ -209,9 +213,9 @@ class IntegrationModel {
 
   #getRealEstateStyleSettings = () => {
     // Lägg till inställningar här!
-    const strokeColor = "rgba(255,0,0,0.5)";
+    const strokeColor = "rgba(0,0,255,0.5)";
     const strokeWidth = 4;
-    const fillColor = "rgba(0,255,0,0.07)";
+    const fillColor = "rgba(0,0,255,0.07)";
     const circleRadius = 6;
     const strokeWithCircle = 2;
 
@@ -229,9 +233,9 @@ class IntegrationModel {
 
   #getCoordinateStyleSettings = () => {
     // Lägg till inställningar här!
-    const strokeColor = "rgba(255,0,0,0.5)";
+    const strokeColor = "rgba(0,0,255,0.7)";
     const strokeWidth = 4;
-    const fillColor = "rgba(0,255,0,0.07)";
+    const fillColor = "rgba(0,0,255,0.07)";
     const circleRadius = 6;
     const strokeWithCircle = 4;
 
@@ -249,9 +253,9 @@ class IntegrationModel {
 
   #getHighlightStyleSettings = () => {
     // Lägg till inställningar här!
-    const strokeColor = "rgba(255,0,0,1)";
+    const strokeColor = "rgba(255,128,40,1)";
     const strokeWidth = 4;
-    const fillColor = "rgba(0,255,0,0.5)";
+    const fillColor = "rgba(255,128,40,0.5)";
     const circleRadius = 6;
     const strokeWithCircle = 4;
 
@@ -334,35 +338,15 @@ class IntegrationModel {
     });
   };
 
-  #getModeSource = (mode) => {
-    if (mode === "realEstate") return this.realEstateSource;
-    if (mode === "coordinate") return this.coordinateSource;
+  toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
+    let featureStyle = new Style();
+    if (shouldBeVisible) featureStyle = null;
+
+    this.#setFeatureStyle(feature, featureStyle);
   };
 
-  #getModeStyle = (mode) => {
-    if (mode === "realEstate") return this.#getRealEstateStyle();
-    if (mode === "coordinate") return this.#getCoordinateStyle();
-  };
-
-  removeRealEstateItemFromSource = (listItem) => {
-    const mapFeature = this.realEstateSource.getFeatureByUid(listItem.mapId);
-    this.realEstateSource.removeFeature(mapFeature);
-  };
-
-  toggleFeatureStyleVisibility = (mapId, shouldBeVisible, mode) => {
-    //find the map feature connected to the list item.
-    const source = this.#getModeSource(mode);
-    const standardStyle = this.#getModeStyle(mode);
-    const mapFeature = source.getFeatureByUid(mapId);
-
-    //Either set the feature to be invisible, or restore the original style.
-    if (shouldBeVisible === false) {
-      mapFeature.setStyle(new Style());
-    }
-
-    if (shouldBeVisible === true) {
-      mapFeature.setStyle(standardStyle);
-    }
+  #setFeatureStyle = (feature, style) => {
+    feature.setStyle(style);
   };
 
   #addRealEstateToSource = (source, realEstates) => {
@@ -548,25 +532,20 @@ class IntegrationModel {
     console.log("Test EDP connection");
   };
 
-  handleNewKubbMessage = (message) => {
+  #sendSnackbarMessage = (nativMessageType) => {
     //TODO - when Kubb is properly connected, we will do some kind of parsing of the message, to find out the type.
     //as it is not, the message is a basic mock.
-    if (message === "realEstate") {
-      this.testWfsList();
-    }
-    if (message === "coordinate") {
-      this.testCoordinateList();
-    }
-
-    this.localObserver.publish("mf-kubb-message-received", message);
+    this.localObserver.publish("mf-kubb-message-received", nativMessageType);
   };
 
-  testWfsList = () => {
+  testRealEstatesFromKUBB = () => {
+    this.#sendSnackbarMessage("fastighter");
     const FNRs = ["140064566", "140041902"];
     this.searchModel.findRealEstatesWithNumbers(FNRs);
   };
 
-  testCoordinateList = () => {
+  testCoordinatesFromKUBB = () => {
+    this.#sendSnackbarMessage("koordinater");
     const coordinates = [
       {
         Northing: "6396150",

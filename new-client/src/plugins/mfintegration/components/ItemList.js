@@ -32,8 +32,10 @@ const styles = (theme) => ({
   itemButton: {
     padding: theme.spacing(0.3),
   },
-  itemSelected: { backgroundColor: "#dfd" },
+  itemSelected: { backgroundColor: "#fc9" },
   itemUnselected: { backgroundColor: "#fff" },
+  infoDescription: { fontWeight: "bold", fontSize: "0.85rem" },
+  infoText: { fontSize: "0.9rem" },
 });
 
 //override the standard MUI <IconButton> element style so we can customize the padding/margin.
@@ -62,11 +64,23 @@ class ItemList extends React.PureComponent {
   };
 
   renderInfo = (item) => {
+    const { classes } = this.props;
     if (this.state.infoVisible) {
       return (
-        <div>
-          <Typography>{item.information}</Typography>
-        </div>
+        <>
+          {item.information.map((property, index) => (
+            <React.Fragment key={index}>
+              <div style={{ cursor: "default" }}>
+                <Typography className={classes.infoDescription}>
+                  {property.description}
+                </Typography>
+                <Typography className={classes.infoText}>
+                  {property.value}
+                </Typography>
+              </div>
+            </React.Fragment>
+          ))}
+        </>
       );
     } else return null;
   };
