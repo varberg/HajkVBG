@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { withSnackbar } from "notistack";
 import { withStyles } from "@material-ui/core/styles";
 import {
+  Container,
   Typography,
   Button,
   FormControl,
@@ -10,11 +11,25 @@ import {
   Select,
   MenuItem,
   ListItem,
+  Grid,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Paper,
+  Tabs,
+  Tab,
+  Box,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
 } from "@material-ui/core";
 import TouchAppIcon from "@material-ui/icons/TouchApp";
 import Crop32Icon from "@material-ui/icons/Crop32";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ItemList from "./components/ItemList";
+import ExpandMore from "@material-ui/icons/ExpandMore";
+import { ToggleButtonGroup, ToggleButton } from "@material-ui/lab";
 
 const styles = (theme) => {
   return {
@@ -29,6 +44,15 @@ const styles = (theme) => {
       overflowY: "scroll",
       overflowX: "hidden",
     },
+    gridContainer: {
+      margin: "0px",
+      paddingLeft: "0px",
+    },
+    accordionSummary: {},
+    accordionDetails: {},
+    paper: {},
+    tabs: {},
+    editContainer: { backgroundColor: "#F3F3F3" },
   };
 };
 
@@ -39,6 +63,8 @@ const defaultState = {
     coordinate: [],
     geometry: [],
   },
+  editTab: "create",
+  editMode: "none",
 };
 
 //TODO - Move this out to config.
@@ -321,7 +347,7 @@ class IntegrationView extends React.PureComponent {
     const { classes } = this.props;
     const { mode } = this.state;
     return (
-      <>
+      <Container disableGutters>
         <Typography>{informationText}</Typography>
         <br />
         <div style={{ marginBottom: 20 }}>
@@ -439,7 +465,72 @@ class IntegrationView extends React.PureComponent {
             </ListItem>
           ) : null}
         </div>
-      </>
+        {/* editing menu */}
+        <div>
+          <Accordion elevation={0}>
+            <AccordionSummary
+              expandIcon={<ExpandMore />}
+              className={classes.accordionSummary}
+            >
+              <Typography>Redigera</Typography>
+            </AccordionSummary>
+            <AccordionDetails className={classes.accordionDetails}>
+              <Grid container className={classes.editContainer}>
+                <Grid item xs={12}>
+                  <Paper className={classes.paper} square elevation={0}>
+                    <Tabs
+                      className={classes.tabs}
+                      value={this.state.editTab}
+                      variant="fullWidth"
+                      indicatorColor="primary"
+                      textColor="primary"
+                      onChange={(e, newValue) => {
+                        this.setState({ editTab: newValue });
+                      }}
+                    >
+                      <Tab value="create" label="Skapa nytt"></Tab>
+                      <Tab value="update" label="Ändra"></Tab>
+                    </Tabs>
+                  </Paper>
+                </Grid>
+                <Grid item xs={12}>
+                  <Stepper orientation="vertical" style={{ padding: 8 }}>
+                    <Step key="changeObject">
+                      <StepLabel>Ändra objekt</StepLabel>
+                      <StepContent>
+                        <Grid container item>
+                          <Grid item xs={12}></Grid>
+                          <ToggleButtonGroup
+                            value={this.state.editMode}
+                            exclusive
+                            onChange={(e, newValue) => {
+                              this.setState({ editMode: newValue });
+                            }}
+                          >
+                            <ToggleButton value="draw">Rita</ToggleButton>
+                            <ToggleButton value="copy">Kopiera</ToggleButton>
+                            <ToggleButton value="combine">
+                              Kombinera
+                            </ToggleButton>
+                          </ToggleButtonGroup>
+                        </Grid>
+                      </StepContent>
+                    </Step>
+                    <Step key="changeAttributes">
+                      <StepLabel>Ange attribut</StepLabel>
+                      <StepContent></StepContent>
+                    </Step>
+                    <Step key="confirm">
+                      <StepLabel>Klart</StepLabel>
+                      <StepContent></StepContent>
+                    </Step>
+                  </Stepper>
+                </Grid>
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+        </div>
+      </Container>
     );
   }
 }
