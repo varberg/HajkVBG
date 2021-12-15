@@ -60,8 +60,18 @@ class IntegrationModel {
     this.#drawRealEstatePolygon();
   };
 
+  endDrawPolygon = () => {
+    this.map.removeInteraction(this.draw);
+    this.map.clickLock.delete("search");
+  };
+
   drawPoint = () => {
     this.#drawRealEstatePoint();
+  };
+
+  endDrawPoint = () => {
+    this.map.removeInteraction(this.draw);
+    this.map.clickLock.delete("search");
   };
 
   clearResultsRealEstate = () => {
@@ -283,8 +293,6 @@ class IntegrationModel {
   };
 
   handleDrawFeatureAdded = (e) => {
-    this.map.removeInteraction(this.draw);
-    this.map.clickLock.delete("search");
     this.searchModel.findRealEstatesWithGeometry(e.feature);
     this.#clearSource(this.drawSourcePointPolygon);
   };

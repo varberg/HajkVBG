@@ -18,18 +18,17 @@ import {
   Paper,
   Tabs,
   Tab,
-  Box,
   Stepper,
   Step,
   StepLabel,
   StepContent,
+  Divider,
 } from "@material-ui/core";
-import TouchAppIcon from "@material-ui/icons/TouchApp";
-import Crop32Icon from "@material-ui/icons/Crop32";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ItemList from "./components/ItemList";
 import ExpandMore from "@material-ui/icons/ExpandMore";
 import { ToggleButtonGroup, ToggleButton } from "@material-ui/lab";
+import ListToolbar from "./components/ListToolbar";
 
 const styles = (theme) => {
   return {
@@ -65,6 +64,7 @@ const defaultState = {
   },
   editTab: "create",
   editMode: "none",
+  listToolsMode: "none",
 };
 
 //TODO - Move this out to config.
@@ -343,6 +343,49 @@ class IntegrationView extends React.PureComponent {
     };
   };
 
+  #endListToolsMode = (listToolsMode) => {
+    if (listToolsMode === "pointselect") {
+      this.props.model.endDrawPoint();
+    }
+
+    if (listToolsMode === "polygonselect") {
+      this.props.model.endDrawPolygon();
+    }
+  };
+
+  #startListToolsMode = (listToolsMode) => {
+    if (listToolsMode === "pointselect") {
+      this.props.model.drawPoint();
+    }
+
+    if (listToolsMode === "polygonselect") {
+      this.props.model.drawPolygon();
+    }
+  };
+
+  renderListTools = () => {
+    return (
+      <ListToolbar
+        listToolsMode={this.state.listToolsMode}
+        handleClearResults={() => {
+          this.#clearResults();
+        }}
+        handleUpdateListToolsMode={(newMode) => {
+          this.setState({ listToolsMode: newMode });
+        }}
+      />
+    );
+  };
+
+  componentDidUpdate(prevProps, prevState) {
+    //keep track of the mode that the list tools are in.
+    if (prevState.listToolsMode !== this.state.listToolsMode) {
+      let previousMode = prevState.listToolsMode;
+      this.#endListToolsMode(previousMode);
+      this.#startListToolsMode(this.state.listToolsMode);
+    }
+  }
+
   render() {
     const { classes } = this.props;
     const { mode } = this.state;
@@ -400,42 +443,8 @@ class IntegrationView extends React.PureComponent {
           </div>
         </div>
         <div>
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<TouchAppIcon />}
-              onClick={() => {
-                this.props.model.drawPoint();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Markera/Avmarkera
-            </Button>
-          </ListItem>
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<Crop32Icon />}
-              onClick={() => {
-                this.props.model.drawPolygon();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Markera med polygon
-            </Button>
-          </ListItem>
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.#clearResults();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Ta bort alla markeringar
-            </Button>
-          </ListItem>
+          <Grid container>{this.renderListTools()}</Grid>
+          <Divider style={{ marginTop: "16px" }} />
           {this.state.mode === "realEstate" ? (
             <ListItem style={{ paddingLeft: "0px" }}>
               <Button
