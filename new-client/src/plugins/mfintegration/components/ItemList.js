@@ -2,9 +2,10 @@ import React from "react";
 import PropTypes from "prop-types";
 import { withStyles, Typography, IconButton } from "@material-ui/core";
 import VisibilityIcon from "@material-ui/icons/Visibility";
+import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import InfoIcon from "@material-ui/icons/Info";
-import EditIcon from "@material-ui/icons/Edit";
+import clsx from "clsx";
 
 const styles = (theme) => ({
   listItemContainer: {
@@ -31,6 +32,10 @@ const styles = (theme) => ({
   itemButton: {
     padding: theme.spacing(0.3),
   },
+  itemSelected: { backgroundColor: "#fc9" },
+  itemUnselected: { backgroundColor: "#fff" },
+  infoDescription: { fontWeight: "bold", fontSize: "0.85rem" },
+  infoText: { fontSize: "0.9rem" },
 });
 
 //override the standard MUI <IconButton> element style so we can customize the padding/margin.
@@ -48,6 +53,7 @@ class ItemList extends React.PureComponent {
 
   static propTypes = {
     item: PropTypes.object.isRequired,
+    handleClickItem: PropTypes.func.isRequired,
     handleRemoveItem: PropTypes.func.isRequired,
   };
 
@@ -57,31 +63,53 @@ class ItemList extends React.PureComponent {
     });
   };
 
-  toggleVisibility = () => {
-    console.log("toggleVisibility");
-  };
-
-  editItem = () => {
-    console.log("editItem");
-  };
-
   renderInfo = (item) => {
+    const { classes } = this.props;
     if (this.state.infoVisible) {
       return (
-        <div>
-          <Typography>{item.information}</Typography>
-        </div>
+        <>
+          {item.information.map((property, index) => (
+            <React.Fragment key={index}>
+              <div style={{ cursor: "default" }}>
+                <Typography className={classes.infoDescription}>
+                  {property.description}
+                </Typography>
+                <Typography className={classes.infoText}>
+                  {property.value}
+                </Typography>
+              </div>
+            </React.Fragment>
+          ))}
+        </>
       );
     } else return null;
   };
 
   render() {
-    const { classes, item, listMode, handleRemoveItem } = this.props;
+    const {
+      classes,
+      item,
+      listMode,
+      handleClickItem,
+      handleRemoveItem,
+      handleToggleItemVisibilty,
+    } = this.props;
     return (
       <div className={classes.itemList}>
-        <div key={item.id} className={classes.listItemContainer}>
+        <div
+          key={item.id}
+          className={
+            item.selected
+              ? clsx(classes.listItemContainer, classes.itemSelected)
+              : clsx(classes.listItemContainer, classes.itemUnselected)
+          }
+        >
           <div className={classes.listItem}>
-            <div id="itemText" className={classes.listItemText}>
+            <div
+              id="itemText"
+              className={classes.listItemText}
+              onClick={(e) => handleClickItem(item, listMode)}
+            >
               <Typography noWrap>{item.name}</Typography>
             </div>
             <div className={classes.itemButtons}>
@@ -98,11 +126,11 @@ class ItemList extends React.PureComponent {
               <div className={classes.itemButton}>
                 <StyledIconButton
                   onClick={() => {
-                    this.toggleVisibility();
+                    handleToggleItemVisibilty(item, listMode);
                   }}
                   aria-label="växla synlighet"
                 >
-                  <VisibilityIcon />
+                  {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </StyledIconButton>
               </div>
               <div className={classes.itemButton}>
@@ -113,17 +141,6 @@ class ItemList extends React.PureComponent {
                   aria-label="välj bort"
                 >
                   <CancelOutlinedIcon />
-                </StyledIconButton>
-              </div>
-              <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={() => {
-                    this.editItem();
-                  }}
-                  aria-label="redigera"
-                  disabled={listMode === "realEstate"}
-                >
-                  <EditIcon />
                 </StyledIconButton>
               </div>
             </div>

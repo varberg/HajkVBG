@@ -43,7 +43,7 @@ const defaultState = {
 
 //TODO - Move this out to config.
 const informationText =
-  "Lorem, ipsum dolor sit amet consectetur adipisicing elit. Fugiat officiis quam incidunt cupiditate quisquam tempore minima cumque exercitationem omnis ratione!";
+  "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.";
 
 //TODO - move this? where to place constant information on the different modes - the model?
 const modeDisplay = {
@@ -72,12 +72,17 @@ class IntegrationView extends React.PureComponent {
 
     this.globalObserver = props.globalObserver;
     this.localObserver = props.localObserver;
+    this.app = props.app;
+    this.title = props.title;
+
+    this.drawingSupport = this.#getDrawingSupportSettings();
     this.#bindSubscriptions();
   }
 
   #bindSubscriptions = () => {
     this.localObserver.subscribe("window-opened", () => {
       console.log("IntegrationView - window-opened");
+      this.#initDrawingSupport();
     });
     this.localObserver.subscribe(
       "mf-wfs-map-updated-features-real-estates",
@@ -91,6 +96,55 @@ class IntegrationView extends React.PureComponent {
         this.#updateCoordinateList(props);
       }
     );
+    this.localObserver.subscribe("mf-kubb-message-received", (message) => {
+      this.props.enqueueSnackbar(`Inläsning av  ${message} från EDP Vision`, {
+        variant: "info",
+        persist: false,
+      });
+    });
+    this.globalObserver.subscribe("core.closeWindow", (title) => {
+      if (title !== this.title) return;
+      this.#clearDrawingSupport();
+      this.#clearAllDataSources();
+    });
+  };
+
+  #initDrawingSupport = () => {
+    this.#showDrawingSupport(this.drawingSupport[defaultState.mode]);
+  };
+
+  #showDrawingSupport = (layerId) => {
+    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
+    if (drawingSupportLayers.length > 0)
+      drawingSupportLayers[0].setVisible(true);
+  };
+
+  #hideDrawingSupport = (layerId) => {
+    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
+    if (drawingSupportLayers.length > 0)
+      drawingSupportLayers[0].setVisible(false);
+  };
+
+  #clearDrawingSupport = () => {
+    this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
+  };
+
+  #clearAllDataSources = () => {
+    this.#clearResultsRealEstate();
+    this.#clearResultsCoordinates();
+    this.props.model.clearHighlight();
+  };
+
+  #getDrawingSupportLayer = (layerId) => {
+    if (!layerId) return [];
+    const layers = this.app.map
+      .getLayers()
+      .getArray()
+      .filter((layer) => layer.get("layerInfo"));
+    return layers.filter((layer) => {
+      if (layer.getProperties().name === layerId) return layer;
+      return false;
+    });
   };
 
   #updateRealEstateList = (props) => {
@@ -100,10 +154,19 @@ class IntegrationView extends React.PureComponent {
       return {
         id: ++id,
         fnr: properties[props.propertyName],
-        mapId: feature.ol_uid,
         name: properties.fastighet,
         municipality: properties.trakt,
-        information: `Information om fastighet ${id}`,
+        information: [
+          {
+            description: "Fastighetsnummer",
+            value: properties[props.propertyName],
+          },
+          { description: "Trakt", value: properties.trakt },
+        ],
+        visible: true,
+        selected: false,
+        mapId: feature.ol_uid,
+        feature: feature,
       };
     });
     this.setState({
@@ -114,17 +177,33 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
-  #updateCoordinateList = (coordinates) => {
+  #updateCoordinateList = (props) => {
     let id = -1;
-    const coordinateData = [...coordinates].map((coordinate) => {
-      coordinate.id = ++id;
-      if (coordinate.Label.length > 0) {
-        coordinate.name = coordinate.Label;
-        return coordinate;
-      }
-      coordinate.name =
-        "(" + coordinate.Northing + "; " + coordinate.Easting + ")";
-      return coordinate;
+    const coordinateData = props.features.map((coordinate) => {
+      const properties = coordinate.getProperties();
+      const coordinateText =
+        "(" +
+        coordinate.getGeometry().flatCoordinates[0] +
+        "; " +
+        coordinate.getGeometry().flatCoordinates[1] +
+        ")";
+      const name =
+        properties.label.length > 0 ? properties.label : coordinateText;
+      return {
+        id: ++id,
+        name: name,
+        information: [
+          {
+            description: "Label",
+            value: properties.label.length > 0 ? properties.label : "-",
+          },
+          { description: "Koordinat", value: coordinateText },
+        ],
+        visible: true,
+        selected: false,
+        mapId: coordinate.ol_uid,
+        feature: coordinate,
+      };
     });
     this.setState({
       currentListResults: {
@@ -134,13 +213,44 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
-  toggleMode = (mode) => {
+  #toggleMode = (mode) => {
+    this.#unselectAllFeatures(this.state.mode);
+    this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
     this.setState({
       mode: mode,
     });
+    this.#showDrawingSupport(this.drawingSupport[mode]);
+    this.localObserver.publish("mf-new-mode", mode);
   };
 
-  removeFromResults = (item, mode) => {
+  #unselectAllFeatures = (mode) => {
+    this.state.currentListResults[mode].map((feature) => {
+      feature.selected = false;
+      return null;
+    });
+  };
+
+  #clickRow = (clickedItem, mode) => {
+    this.localObserver.publish("mf-item-list-clicked", clickedItem);
+
+    let updateList = { ...this.state.currentListResults };
+    let isSelected = !updateList[mode].find(
+      (listItem) => listItem.id === clickedItem.id
+    ).selected;
+
+    const updatedResults = updateList[mode].map((listItem) => {
+      if (listItem.id === clickedItem.id) {
+        return { ...listItem, selected: isSelected };
+      } else {
+        return { ...listItem, selected: false };
+      }
+    });
+
+    updateList[mode] = updatedResults;
+    this.setState({ currentListResults: updateList });
+  };
+
+  #removeFromResults = (item, mode) => {
     let updateList = { ...this.state.currentListResults };
     const updatedResults = updateList[mode].filter(
       (listItem) => listItem.id !== item.id
@@ -149,13 +259,36 @@ class IntegrationView extends React.PureComponent {
     updateList[mode] = updatedResults;
     this.setState({ currentListResults: updateList });
 
-    //also need to move from results list.
-    this.props.model.removeRealEstateItemFromSource(item);
+    this.props.model.removeItemFromActiveSource(item);
   };
 
   #clearResults = () => {
     if (this.state.mode === "realEstate") this.#clearResultsRealEstate();
     if (this.state.mode === "coordinate") this.#clearResultsCoordinates();
+    this.props.model.clearHighlight();
+  };
+
+  toggleResultItemVisibility = (item, mode) => {
+    let updateList = { ...this.state.currentListResults };
+    let shouldBeVisible = !updateList[mode].find(
+      (listItem) => listItem.id === item.id
+    ).visible;
+
+    const updatedResults = updateList[mode].map((listItem) => {
+      if (listItem.id === item.id) {
+        return { ...listItem, visible: shouldBeVisible };
+      } else {
+        return listItem;
+      }
+    });
+
+    updateList[mode] = updatedResults;
+    this.setState({ currentListResults: updateList });
+
+    this.props.model.toggleFeatureStyleVisibility(
+      item.feature,
+      shouldBeVisible
+    );
   };
 
   #clearResultsRealEstate = () => {
@@ -178,8 +311,10 @@ class IntegrationView extends React.PureComponent {
     this.props.model.clearResultsCoordinate();
   };
 
-  #clearRealEstateList = () => {
-    this.setState({ currentListResults: defaultState.currentListResults });
+  #getDrawingSupportSettings = () => {
+    return {
+      realEstate: "o83amu",
+    };
   };
 
   render() {
@@ -196,7 +331,7 @@ class IntegrationView extends React.PureComponent {
               id="modeSelection"
               value={mode}
               onChange={(e) => {
-                this.toggleMode(e.target.value);
+                this.#toggleMode(e.target.value);
               }}
             >
               <MenuItem value={"realEstate"}>Fastigheter</MenuItem>
@@ -206,7 +341,7 @@ class IntegrationView extends React.PureComponent {
             </Select>
           </FormControl>
         </div>
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 20, cursor: "pointer" }}>
           <Typography variant="subtitle1" className={classes.listHeading}>
             {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
             {this.state.currentListResults[mode].length > 0
@@ -221,8 +356,14 @@ class IntegrationView extends React.PureComponent {
                     key={item.id}
                     item={item}
                     listMode={mode}
+                    handleClickItem={(clickedItem, mode) => {
+                      this.#clickRow(clickedItem, mode);
+                    }}
                     handleRemoveItem={(item, mode) => {
-                      this.removeFromResults(item, mode);
+                      this.#removeFromResults(item, mode);
+                    }}
+                    handleToggleItemVisibilty={(item, mode) => {
+                      this.toggleResultItemVisibility(item, mode);
                     }}
                   />
                 ))}
@@ -274,12 +415,12 @@ class IntegrationView extends React.PureComponent {
               <Button
                 startIcon={<CancelOutlinedIcon />}
                 onClick={() => {
-                  this.props.model.testWfsList();
+                  this.props.model.testRealEstatesFromKUBB();
                 }}
                 color="primary"
                 variant="contained"
               >
-                Testa wfs-anrop med lista
+                Fejk-KUBB: Testa fastigheter
               </Button>
             </ListItem>
           ) : null}
@@ -288,12 +429,12 @@ class IntegrationView extends React.PureComponent {
               <Button
                 startIcon={<CancelOutlinedIcon />}
                 onClick={() => {
-                  this.props.model.testCoordinateList();
+                  this.props.model.testCoordinatesFromKUBB();
                 }}
                 color="primary"
                 variant="contained"
               >
-                Testa koordinater
+                Fejk-KUBB: Testa koordinater
               </Button>
             </ListItem>
           ) : null}

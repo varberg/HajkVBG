@@ -13,22 +13,24 @@ export default class SearchModel {
     this.app = settings.app;
     this.localObserver = settings.localObserver;
 
-    this.wfsConfig = this.#getWfsConfig();
+    this.wfsConfigRealEstate = this.#getWfsConfigRealEstate();
+    this.wfsConfigCoordinates = this.#getWfsConfigCoordiantes();
   }
 
   findRealEstatesWithGeometry = (selectionFeature) => {
     const filter = this.#getSpatialFilter(
       selectionFeature.getGeometry(),
-      this.#getTransformationMapToWfs(this.wfsConfig),
-      this.wfsConfig
+      this.#getTransformationMapToWfs(this.wfsConfigRealEstate),
+      this.wfsConfigRealEstate
     );
-    const wfsRequest = this.#getWfsRequest(filter, this.wfsConfig);
+    const wfsRequest = this.#getWfsRequest(filter, this.wfsConfigRealEstate);
 
-    hfetch(this.wfsConfig.url, wfsRequest).then((response) => {
+    hfetch(this.wfsConfigRealEstate.url, wfsRequest).then((response) => {
       response.json().then((featureCollection) => {
-        let realEstates = this.#createRealEstateRespone(
+        let realEstates = this.#createRespone(
           featureCollection,
-          this.#getTransformationWfsToMap(this.wfsConfig),
+          this.wfsConfigRealEstate.geometryField,
+          this.#getTransformationWfsToMap(this.wfsConfigRealEstate),
           selectionFeature.getGeometry().getType()
         );
         realEstates.selectionFeature = selectionFeature;
@@ -38,20 +40,54 @@ export default class SearchModel {
   };
 
   findRealEstatesWithNumbers = (realEstatesList) => {
-    const filter = this.#getListFilter(realEstatesList, this.wfsConfig);
-    const wfsRequest = this.#getWfsRequest(filter, this.wfsConfig);
+    const filter = this.#getListFilter(
+      realEstatesList,
+      this.wfsConfigRealEstate
+    );
+    const wfsRequest = this.#getWfsRequest(filter, this.wfsConfigRealEstate);
 
-    hfetch(this.wfsConfig.url, wfsRequest).then((response) => {
+    hfetch(this.wfsConfigRealEstate.url, wfsRequest).then((response) => {
       response.json().then((featureCollection) => {
-        let realEstates = this.#createRealEstateRespone(
+        let realEstates = this.#createRespone(
           featureCollection,
-          this.#getTransformationWfsToMap(this.wfsConfig),
+          this.wfsConfigRealEstate.geometryField,
+          this.#getTransformationWfsToMap(this.wfsConfigRealEstate),
           "List"
         );
         realEstates.selectedRealEstates = realEstatesList;
         this.localObserver.publish("mf-wfs-search-realEstates", realEstates);
       });
     });
+  };
+
+  findCoordinatesWithCoordinates = (coordinateList) => {
+    /*** Lägg till en wfs-sökning här ***/
+    // const filter
+    // const wfsRequest
+    // hfetch ...
+    let id = 0;
+    const features = coordinateList.map((coordinate) => {
+      return {
+        geometry: {
+          type: "Point",
+          coordinates: [coordinate.Easting, coordinate.Northing],
+        },
+        id: "koordinat." + ++id,
+        geometry_name: this.wfsConfigCoordinates.geometryName,
+        properties: { label: coordinate.Label },
+        type: "Feature",
+      };
+    });
+    const simulatedFeatureCollection = { features: features };
+
+    let coordinates = this.#createRespone(
+      simulatedFeatureCollection,
+      this.wfsConfigCoordinates.geometryField,
+      this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
+      "List"
+    );
+    coordinates.selectedCoordinates = coordinateList;
+    this.localObserver.publish("mf-wfs-search-coordinates", coordinates);
   };
 
   #getSpatialFilter = (geometry, transformation, wfsConfig) => {
@@ -71,7 +107,7 @@ export default class SearchModel {
         transformation.toSrs
       );
     }
-    return geometry.getGeometry();
+    return geometry;
   };
 
   #getListFilter = (realEstatesList, wfsConfig) => {
@@ -101,14 +137,15 @@ export default class SearchModel {
     return this.map.getView().getProjection().getCode();
   };
 
-  #createRealEstateRespone = (
+  #createRespone = (
     featureCollection,
+    geometryField,
     transformation,
     searchType
   ) => {
     return {
       searchType: searchType,
-      geometryField: this.wfsConfig.geometryField,
+      geometryField: geometryField,
       featureCollection: featureCollection,
       transformation: transformation,
     };
@@ -146,13 +183,25 @@ export default class SearchModel {
     );
   };
 
-  #getWfsConfig = () => {
+  #getWfsConfigRealEstate = () => {
     const wfsConfig = {
       featureTypes: ["fastighet.wfs.v1:fastighet"],
       geometryField: "fnr_fr",
       geometryName: "geom",
       srsName: "EPSG:3007",
       url: "https://geodata.sbk.goteborg.se/service/wfs/fastighet/v1",
+    };
+    return wfsConfig;
+  };
+
+  #getWfsConfigCoordiantes = () => {
+    // Byt ut till inställningar för koordinat-wms:en.
+    const wfsConfig = {
+      featureTypes: ["???"],
+      geometryField: "geometryField",
+      geometryName: "geom",
+      srsName: "EPSG:3007",
+      url: "???",
     };
     return wfsConfig;
   };
