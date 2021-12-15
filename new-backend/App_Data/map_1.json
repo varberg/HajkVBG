@@ -184,7 +184,7 @@
           },
           {
             "id": "2",
-            "visibleAtStart": false,
+            "visibleAtStart": true,
             "drawOrder": 0,
             "visibleForGroups": null,
             "infobox": null
@@ -223,15 +223,32 @@
             "groups": []
           },
           {
+            "id": "8938c969-590c-8683-435c-1ecaca271095",
+            "parent": "-1",
+            "name": "Integration Miljö",
+            "toggled": false,
+            "expanded": false,
+            "layers": [
+              {
+                "id": "o83amu",
+                "visibleAtStart": false,
+                "drawOrder": 4,
+                "visibleForGroups": null,
+                "infobox": null
+              }
+            ],
+            "groups": []
+          },
+          {
             "id": "9938c969-590c-8683-435c-1ecaca271096",
             "parent": "-1",
             "name": "Övrigt",
-            "toggled": true,
+            "toggled": false,
             "expanded": false,
             "layers": [
               {
                 "id": "1352",
-                "visibleAtStart": true,
+                "visibleAtStart": false,
                 "drawOrder": 4,
                 "visibleForGroups": null,
                 "infobox": null
@@ -547,22 +564,25 @@
         "position": "right",
         "visibleAtStart": false
       },
-      "index": 6 
+      "index": 6
     }
   ],
   "map": {
     "target": "map",
-    "center": [576357, 6386049],
+    "center": [149178, 6396195],
     "title": "Hajk 3",
-    "projection": "EPSG:3006",
-    "zoom": 1.33,
-    "maxZoom": 8,
+    "projection": "EPSG:3007",
+    "zoom": 3,
+    "maxZoom": 13,
     "minZoom": 0,
-    "resolutions": [2048, 1024, 512, 256, 128, 64, 32, 16, 8],
+    "resolutions": [
+      280.0008, 140.0004, 70.00022, 42, 28.00009, 14.00004, 7.000022, 2.800009,
+      1.400004, 0.700002, 0.2800008, 0.1400004, 0.0700002
+    ],
     "origin": [0, 0],
-    "extent": [-1200000, 4700000, 2600000, 8500000],
+    "extent": [115000, 6370000, 190000, 6500000],
     "constrainOnlyCenter": false,
-    "constrainResolution": false,
+    "constrainResolution": true,
     "logo": "/logoLight.png",
     "geoserverLegendOptions": "",
     "mapselector": false,
