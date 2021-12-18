@@ -46,7 +46,7 @@ const StyledIconButton = withStyles({
   },
 })(IconButton);
 
-class ItemList extends React.PureComponent {
+class ListResult extends React.PureComponent {
   state = {
     infoVisible: false,
   };
@@ -152,4 +152,4 @@ class ItemList extends React.PureComponent {
   }
 }
 
-export default withStyles(styles)(ItemList);
+export default withStyles(styles)(ListResult);

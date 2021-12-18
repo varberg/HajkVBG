@@ -30,7 +30,7 @@ class ListToolbar extends React.PureComponent {
 
     return (
       <Grid item xs={12}>
-        <FormLabel style={{ padding: "4px 0px" }}>Markera i kartan</FormLabel>
+        <FormLabel>Markera i kartan</FormLabel>
         <Box display="flex">
           <Box>
             <ToggleButtonGroup

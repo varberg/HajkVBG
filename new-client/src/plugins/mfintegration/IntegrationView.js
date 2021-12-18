@@ -12,46 +12,26 @@ import {
   MenuItem,
   ListItem,
   Grid,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Paper,
-  Tabs,
-  Tab,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  Divider,
 } from "@material-ui/core";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
-import ItemList from "./components/ItemList";
-import ExpandMore from "@material-ui/icons/ExpandMore";
-import { ToggleButtonGroup, ToggleButton } from "@material-ui/lab";
+import ListResult from "./components/ListResult";
 import ListToolbar from "./components/ListToolbar";
+import EditMenu from "./components/EditMenu";
 
 const styles = (theme) => {
   return {
+    itemList: {
+      maxHeight: 250,
+      overflowY: "scroll",
+      overflowX: "hidden",
+      border: "1px solid rgba(0, 0, 0, .125)",
+    },
     dropdown: {
       width: "50%",
     },
     listHeading: {
       fontWeight: theme.typography.fontWeightMedium,
     },
-    itemList: {
-      maxHeight: 250,
-      overflowY: "scroll",
-      overflowX: "hidden",
-    },
-    gridContainer: {
-      margin: "0px",
-      paddingLeft: "0px",
-    },
-    accordionSummary: {},
-    accordionDetails: {},
-    paper: {},
-    tabs: {},
-    editContainer: { backgroundColor: "#F3F3F3" },
   };
 };
 
@@ -363,6 +343,10 @@ class IntegrationView extends React.PureComponent {
     }
   };
 
+  renderEditMenu = () => {
+    return <EditMenu />;
+  };
+
   renderListTools = () => {
     return (
       <ListToolbar
@@ -374,6 +358,43 @@ class IntegrationView extends React.PureComponent {
           this.setState({ listToolsMode: newMode });
         }}
       />
+    );
+  };
+
+  //TODO - these buttons are temporary, while Kubb data is being mocked by buttons instead of received by SignalR events.
+  //These will be removed.
+  renderTemporaryDummyButtons = () => {
+    return (
+      <div>
+        {this.state.mode === "realEstate" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testRealEstatesFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa fastigheter
+            </Button>
+          </ListItem>
+        ) : null}
+        {this.state.mode === "coordinate" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testCoordinatesFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa koordinater
+            </Button>
+          </ListItem>
+        ) : null}
+      </div>
     );
   };
 
@@ -391,154 +412,69 @@ class IntegrationView extends React.PureComponent {
     const { mode } = this.state;
     return (
       <Container disableGutters>
-        <Typography>{informationText}</Typography>
-        <br />
-        <div style={{ marginBottom: 20 }}>
-          <FormControl className={classes.dropdown}>
-            <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
-            <Select
-              id="modeSelection"
-              value={mode}
-              onChange={(e) => {
-                this.#toggleMode(e.target.value);
-              }}
-            >
-              <MenuItem value={"realEstate"}>Fastigheter</MenuItem>
-              <MenuItem value={"coordinate"}>Koordinater</MenuItem>
-              <MenuItem value={"geometry"}>Geometrier</MenuItem>
-              <MenuItem value={"controlObject"}>Tillsynsobjekt</MenuItem>
-            </Select>
-          </FormControl>
-        </div>
-        <div style={{ marginBottom: 20, cursor: "pointer" }}>
-          <Typography variant="subtitle1" className={classes.listHeading}>
-            {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
-            {this.state.currentListResults[mode].length > 0
-              ? ` (${this.state.currentListResults[mode].length})`
-              : null}
-          </Typography>
-          <div>
-            {this.state.currentListResults[mode].length > 0 ? (
-              <div className={classes.itemList}>
-                {this.state.currentListResults[mode].map((item) => (
-                  <ItemList
-                    key={item.id}
-                    item={item}
-                    listMode={mode}
-                    handleClickItem={(clickedItem, mode) => {
-                      this.#clickRow(clickedItem, mode);
-                    }}
-                    handleRemoveItem={(item, mode) => {
-                      this.#removeFromResults(item, mode);
-                    }}
-                    handleToggleItemVisibilty={(item, mode) => {
-                      this.toggleResultItemVisibility(item, mode);
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              `Inga ${modeDisplay[mode]["displayNamePlural"]} valda.`
-            )}
-          </div>
-        </div>
-        <div>
-          <Grid container>{this.renderListTools()}</Grid>
-          <Divider style={{ marginTop: "16px" }} />
-          {this.state.mode === "realEstate" ? (
-            <ListItem style={{ paddingLeft: "0px" }}>
-              <Button
-                startIcon={<CancelOutlinedIcon />}
-                onClick={() => {
-                  this.props.model.testRealEstatesFromKUBB();
+        <Grid container spacing={(1, 1)}>
+          <Grid item xs={12}>
+            <Typography>{informationText}</Typography>
+          </Grid>
+          <Grid item xs={12}>
+            <FormControl className={classes.dropdown}>
+              <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
+              <Select
+                id="modeSelection"
+                value={mode}
+                onChange={(e) => {
+                  this.#toggleMode(e.target.value);
                 }}
-                color="primary"
-                variant="contained"
               >
-                Fejk-KUBB: Testa fastigheter
-              </Button>
-            </ListItem>
-          ) : null}
-          {this.state.mode === "coordinate" ? (
-            <ListItem style={{ paddingLeft: "0px" }}>
-              <Button
-                startIcon={<CancelOutlinedIcon />}
-                onClick={() => {
-                  this.props.model.testCoordinatesFromKUBB();
-                }}
-                color="primary"
-                variant="contained"
-              >
-                Fejk-KUBB: Testa koordinater
-              </Button>
-            </ListItem>
-          ) : null}
-        </div>
-        {/* editing menu */}
-        <div>
-          <Accordion elevation={0}>
-            <AccordionSummary
-              expandIcon={<ExpandMore />}
-              className={classes.accordionSummary}
-            >
-              <Typography>Redigera</Typography>
-            </AccordionSummary>
-            <AccordionDetails className={classes.accordionDetails}>
-              <Grid container className={classes.editContainer}>
-                <Grid item xs={12}>
-                  <Paper className={classes.paper} square elevation={0}>
-                    <Tabs
-                      className={classes.tabs}
-                      value={this.state.editTab}
-                      variant="fullWidth"
-                      indicatorColor="primary"
-                      textColor="primary"
-                      onChange={(e, newValue) => {
-                        this.setState({ editTab: newValue });
+                <MenuItem value={"realEstate"}>Fastigheter</MenuItem>
+                <MenuItem value={"coordinate"}>Koordinater</MenuItem>
+                <MenuItem value={"geometry"}>Geometrier</MenuItem>
+                <MenuItem value={"controlObject"}>Tillsynsobjekt</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" className={classes.listHeading}>
+              {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
+              {this.state.currentListResults[mode].length > 0
+                ? ` (${this.state.currentListResults[mode].length})`
+                : null}
+            </Typography>
+          </Grid>
+          {this.renderListTools()}
+          <Grid item xs={12}>
+            <div>
+              {this.state.currentListResults[mode].length > 0 ? (
+                <div className={classes.itemList}>
+                  {this.state.currentListResults[mode].map((item) => (
+                    <ListResult
+                      key={item.id}
+                      item={item}
+                      listMode={mode}
+                      handleClickItem={(clickedItem, mode) => {
+                        this.#clickRow(clickedItem, mode);
                       }}
-                    >
-                      <Tab value="create" label="Skapa nytt"></Tab>
-                      <Tab value="update" label="Ändra"></Tab>
-                    </Tabs>
-                  </Paper>
-                </Grid>
-                <Grid item xs={12}>
-                  <Stepper orientation="vertical" style={{ padding: 8 }}>
-                    <Step key="changeObject">
-                      <StepLabel>Ändra objekt</StepLabel>
-                      <StepContent>
-                        <Grid container item>
-                          <Grid item xs={12}></Grid>
-                          <ToggleButtonGroup
-                            value={this.state.editMode}
-                            exclusive
-                            onChange={(e, newValue) => {
-                              this.setState({ editMode: newValue });
-                            }}
-                          >
-                            <ToggleButton value="draw">Rita</ToggleButton>
-                            <ToggleButton value="copy">Kopiera</ToggleButton>
-                            <ToggleButton value="combine">
-                              Kombinera
-                            </ToggleButton>
-                          </ToggleButtonGroup>
-                        </Grid>
-                      </StepContent>
-                    </Step>
-                    <Step key="changeAttributes">
-                      <StepLabel>Ange attribut</StepLabel>
-                      <StepContent></StepContent>
-                    </Step>
-                    <Step key="confirm">
-                      <StepLabel>Klart</StepLabel>
-                      <StepContent></StepContent>
-                    </Step>
-                  </Stepper>
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-        </div>
+                      handleRemoveItem={(item, mode) => {
+                        this.#removeFromResults(item, mode);
+                      }}
+                      handleToggleItemVisibilty={(item, mode) => {
+                        this.toggleResultItemVisibility(item, mode);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                `Inga ${modeDisplay[mode]["displayNamePlural"]} valda.`
+              )}
+            </div>
+          </Grid>
+          <Grid item xs={12}>
+            {this.renderTemporaryDummyButtons()}
+          </Grid>
+          <Grid container item xs={12} style={{ marginTop: "16px" }}>
+            {this.renderEditMenu()}
+          </Grid>
+        </Grid>
       </Container>
     );
   }
