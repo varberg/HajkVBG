@@ -47,6 +47,8 @@ const defaultState = {
   listToolsMode: "none",
 };
 
+const showDevelopmentOnlyButtons = false;
+
 //TODO - Move this out to config.
 const informationText =
   "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.";
@@ -468,9 +470,11 @@ class IntegrationView extends React.PureComponent {
               )}
             </div>
           </Grid>
-          <Grid item xs={12}>
-            {this.renderTemporaryDummyButtons()}
-          </Grid>
+          {showDevelopmentOnlyButtons && (
+            <Grid item xs={12}>
+              {this.renderTemporaryDummyButtons()}
+            </Grid>
+          )}
           <Grid container item xs={12} style={{ marginTop: "16px" }}>
             {this.renderEditMenu()}
           </Grid>
