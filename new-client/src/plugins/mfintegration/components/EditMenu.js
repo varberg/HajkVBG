@@ -17,6 +17,10 @@ import {
   ButtonGroup,
   Button,
   Box,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@material-ui/core";
 import { ToggleButton, ToggleButtonGroup } from "@material-ui/lab";
 import ExpandMore from "@material-ui/icons/ExpandMore";
@@ -24,7 +28,9 @@ import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
 import EditIcon from "@material-ui/icons/Edit";
 import OpenWithIcon from "@material-ui/icons/OpenWith";
 import DeleteIcon from "@material-ui/icons/Delete";
+import FileCopyOutlinedIcon from "@material-ui/icons/FileCopyOutlined";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
+import SnappingControl from "./SnappingControl";
 
 const styles = (theme) => {
   return {
@@ -64,19 +70,49 @@ const StyledAccordionSummary = withStyles({
   expanded: {},
 })(AccordionSummary);
 
+const defaultState = {
+  activeStep: 0,
+  editOpen: false,
+  editTab: "create",
+  editMode: "none", //draw, copy, combine
+  changeEditMode: null, //edit, move, delete
+  drawActive: false,
+  isNewEdit: false,
+  selectCopyActive: false,
+  selectCombineActive: false,
+  activeCopyLayer: "",
+  activeCombineLayer: "",
+};
+
 class EditMenu extends React.PureComponent {
   state = {
     activeStep: 0,
     editOpen: false,
     editTab: "create",
-    editMode: "none",
+    editMode: "none", //draw, copy, combine
+    changeEditMode: null, //edit, move, delete
     drawActive: false,
     isNewEdit: false,
-    changeEditMode: null,
+    selectCopyActive: false,
+    selectCombineActive: false,
+    activeCopyLayer: "",
+    activeCombineLayer: "",
+  };
+
+  #resetEditMenu = () => {
+    this.setState({ ...defaultState });
   };
 
   #toggleEditOpen = () => {
     this.setState({ editOpen: !this.state.editOpen });
+  };
+
+  #handleChangeCopyLayer = (layerId) => {
+    this.setState({ activeCopyLayer: layerId });
+  };
+
+  #handleChangeCombineLayer = (layerId) => {
+    this.setState({ activeCombineLayer: layerId });
   };
 
   renderStepTwoControls = () => {
@@ -94,7 +130,7 @@ class EditMenu extends React.PureComponent {
           disabled={!this.state.isNewEdit}
           className={classes.stepButtonGroup}
           size="small"
-          value="move"
+          value="edit"
           title="Omforma befintlig redigering"
           aria-label="Omforma befintlig redigering"
         >
@@ -120,7 +156,7 @@ class EditMenu extends React.PureComponent {
           disabled={!this.state.isNewEdit}
           className={classes.stepButtonGroup}
           size="small"
-          value="move"
+          value="delete"
           title="Radera befintlig redigering"
           aria-label="Radera befintlig redigering"
         >
@@ -209,18 +245,13 @@ class EditMenu extends React.PureComponent {
             </TooltipToggleButton>
           </Grid>
           <Grid item xs={12}>
-            <Box
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-              style={{
-                width: "100%",
-                height: "70px",
-                border: "1px solid black",
-              }}
-            >
-              <Typography>Snapping component goes here</Typography>
-            </Box>
+            <SnappingControl
+              enabled={false}
+              availableLayers={[
+                { id: 1, name: "Fastigheter" },
+                { id: 2, name: "Tillsynsobjekt" },
+              ]}
+            />
           </Grid>
           <Grid item xs={12}>
             {this.renderStepTwoControls()}
@@ -258,16 +289,162 @@ class EditMenu extends React.PureComponent {
 
     if (editMode === "copy") {
       return (
-        <Grid item xs={12}>
-          <Typography>kopiera</Typography>
+        <Grid container item xs={12} spacing={(2, 2)}>
+          <Grid item xs={12}>
+            <Typography>Välj ett objekt i kartan att kopiera från</Typography>
+          </Grid>
+          <Grid item xs={12}>
+            <FormControl margin="none">
+              <InputLabel disableAnimation>Från lager</InputLabel>
+              <Select
+                style={{ minWidth: 200 }}
+                value={this.state.activeCopyLayer}
+                onChange={(e) => this.#handleChangeCopyLayer(e.target.value)}
+              >
+                <MenuItem key={"1"} value={"1"}>
+                  {"example layer"}
+                </MenuItem>
+                <MenuItem key={"2"} value={"2"}>
+                  {"example layer 2"}
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12}>
+            <TooltipToggleButton
+              size="small"
+              title="Välj objekt för kopiering"
+              aria-label="Välj objekt för kopiering"
+              selected={this.state.selectCopyActive}
+              value={"selectCopyActive"}
+              onChange={() => {
+                this.setState({
+                  selectCopyActive: !this.state.selectCopyActive,
+                });
+              }}
+            >
+              <Typography variant="button">&nbsp; Välj Objekt</Typography>
+            </TooltipToggleButton>
+            <Button variant="outlined" style={{ marginLeft: "8px" }}>
+              <FileCopyOutlinedIcon size="small" />
+              Skapa kopia
+            </Button>
+          </Grid>
+          <Grid item xs={12}>
+            {this.renderStepTwoControls()}
+          </Grid>
+          <Grid item xs={12}>
+            <Box display="flex">
+              <ButtonGroup style={{ width: "100%" }}>
+                <Tooltip title="Tillbaka till föregående steg">
+                  <Button
+                    className={classes.stepButtonGroup}
+                    startIcon={<ChevronLeftIcon />}
+                    onClick={() => {
+                      this.setState({ activeStep: 0 });
+                    }}
+                    aria-label="Tillbaka"
+                  >
+                    Bakåt
+                  </Button>
+                </Tooltip>
+                <Button
+                  className={classes.stepButtonGroup}
+                  onClick={() => {
+                    this.setState({ activeStep: 2 });
+                  }}
+                  aria-label="OK"
+                >
+                  Ok
+                </Button>
+              </ButtonGroup>
+            </Box>
+          </Grid>
         </Grid>
       );
     }
 
     if (editMode === "combine") {
       return (
-        <Grid item xs={12}>
-          <Typography>kombinera</Typography>
+        <Grid container item xs={12} spacing={(2, 2)}>
+          <Grid item xs={12}>
+            <Typography>
+              Välj två angränsande objekt i kartan att kombinera till nytt
+              objekt
+            </Typography>
+          </Grid>
+          <Grid item xs={12}>
+            <FormControl margin="none">
+              <InputLabel disableAnimation>Från lager</InputLabel>
+              <Select
+                style={{ minWidth: 200 }}
+                value={this.state.activeCombineLayer}
+                onChange={(e) => this.#handleChangeCombineLayer(e.target.value)}
+              >
+                <MenuItem key={"1"} value={"1"}>
+                  {"example layer"}
+                </MenuItem>
+                <MenuItem key={"2"} value={"2"}>
+                  {"example layer 2"}
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12}>
+            <TooltipToggleButton
+              size="small"
+              title="Välj objekt att slå ihop"
+              aria-label="Välj objekt att slå ihop"
+              selected={this.state.selectCombineActive}
+              value={"selectCombineActive"}
+              onChange={() => {
+                this.setState({
+                  selectCombineActive: !this.state.selectCombineActive,
+                });
+              }}
+            >
+              <Typography variant="button">&nbsp; Välj Objekt</Typography>
+            </TooltipToggleButton>
+            <Button
+              variant="outlined"
+              style={{ marginLeft: "8px" }}
+              onClick={() => {
+                console.log("kombinera");
+              }}
+            >
+              Kombinera
+            </Button>
+          </Grid>
+          <Grid item xs={12}>
+            {this.renderStepTwoControls()}
+          </Grid>
+          <Grid item xs={12}>
+            <Box display="flex">
+              <ButtonGroup style={{ width: "100%" }}>
+                <Tooltip title="Tillbaka till föregående steg">
+                  <Button
+                    className={classes.stepButtonGroup}
+                    startIcon={<ChevronLeftIcon />}
+                    onClick={() => {
+                      this.setState({ activeStep: 0 });
+                    }}
+                    aria-label="Tillbaka"
+                  >
+                    Bakåt
+                  </Button>
+                </Tooltip>
+                <Button
+                  className={classes.stepButtonGroup}
+                  onClick={() => {
+                    this.setState({ activeStep: 2 });
+                  }}
+                  aria-label="OK"
+                >
+                  Ok
+                </Button>
+              </ButtonGroup>
+            </Box>
+          </Grid>
         </Grid>
       );
     }
@@ -296,7 +473,7 @@ class EditMenu extends React.PureComponent {
               <Button
                 className={classes.stepButtonGroup}
                 onClick={() => {
-                  console.log("Finsish Editing");
+                  this.#resetEditMenu();
                 }}
               >
                 Avsluta
