@@ -17,6 +17,8 @@ import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ListResult from "./components/ListResult";
 import ListToolbar from "./components/ListToolbar";
 import EditMenu from "./components/EditMenu";
+import ItemList from "./components/ItemList";
+import { drawingSupportLayers } from "./mockdata/mockdataLayers";
 
 const styles = (theme) => {
   return {
@@ -40,7 +42,9 @@ const defaultState = {
   currentListResults: {
     realEstate: [],
     coordinate: [],
-    geometry: [],
+    area: [],
+    survey: [],
+    contamination: [],
   },
   editTab: "create",
   editMode: "none",
@@ -55,12 +59,16 @@ const informationText =
 
 //TODO - move this? where to place constant information on the different modes - the model?
 const modeDisplay = {
-  realEstate: { displayName: "Fastighet", displayNamePlural: "Fastigheter" },
+  realEstate: {
+    displayName: "Fastighet",
+    displayNamePlural: "Fastigheter",
+  },
   coordinate: { displayName: "Koordinat", displayNamePlural: "Koordinater" },
-  geometry: { displayName: "Geometri", displayNamePlural: "Geometrier" },
-  controlObject: {
-    displayName: "Tillsynsobjekt",
-    displayNamePlural: "Tillsynsobjekt",
+  area: { displayName: "Område", displayNamePlural: "Områden" },
+  survey: { displayName: "Underökning", displayNamePlural: "Undersökningar" },
+  contamination: {
+    displayName: "Förorening",
+    displayNamePlural: "Föroreningar",
   },
 };
 
@@ -83,7 +91,9 @@ class IntegrationView extends React.PureComponent {
     this.app = props.app;
     this.title = props.title;
 
-    this.drawingSupport = this.#getDrawingSupportSettings();
+    this.drawingSupport = drawingSupportLayers();
+    this.#initUpdateFunctions();
+    this.#initClearFunctions();
     this.#bindSubscriptions();
   }
 
@@ -92,18 +102,9 @@ class IntegrationView extends React.PureComponent {
       console.log("IntegrationView - window-opened");
       this.#initDrawingSupport();
     });
-    this.localObserver.subscribe(
-      "mf-wfs-map-updated-features-real-estates",
-      (props) => {
-        this.#updateRealEstateList(props);
-      }
-    );
-    this.localObserver.subscribe(
-      "mf-wfs-map-updated-features-coordinates",
-      (props) => {
-        this.#updateCoordinateList(props);
-      }
-    );
+    this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
+      this.#updateList(props);
+    });
     this.localObserver.subscribe("mf-kubb-message-received", (message) => {
       this.props.enqueueSnackbar(`Inläsning av  ${message} från EDP Vision`, {
         variant: "info",
@@ -115,6 +116,26 @@ class IntegrationView extends React.PureComponent {
       this.#clearDrawingSupport();
       this.#clearAllDataSources();
     });
+  };
+
+  #initUpdateFunctions = () => {
+    this.updateListFunctions = {
+      realEstate: this.#updateRealEstateList,
+      coordinate: this.#updateCoordinateList,
+      area: this.#updateAreaList,
+      survey: this.#updateSurveyList,
+      contamination: this.#updateContaminationList,
+    };
+  };
+
+  #initClearFunctions = () => {
+    this.clearFunctions = {
+      realEstate: this.#clearResultsRealEstate,
+      coordinate: this.#clearResultsCoordinates,
+      area: this.#updateAreaList,
+      survey: this.#updateSurveyList,
+      contamination: this.#updateContaminationList,
+    };
   };
 
   #initDrawingSupport = () => {
@@ -155,6 +176,10 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #updateList = (props) => {
+    this.updateListFunctions[props.type](props);
+  };
+
   #updateRealEstateList = (props) => {
     let id = -1;
     const realEstateData = props.features.map((feature) => {
@@ -173,7 +198,6 @@ class IntegrationView extends React.PureComponent {
         ],
         visible: true,
         selected: false,
-        mapId: feature.ol_uid,
         feature: feature,
       };
     });
@@ -209,7 +233,6 @@ class IntegrationView extends React.PureComponent {
         ],
         visible: true,
         selected: false,
-        mapId: coordinate.ol_uid,
         feature: coordinate,
       };
     });
@@ -220,6 +243,36 @@ class IntegrationView extends React.PureComponent {
       },
     });
   };
+
+  #updateAreaList = (props) => {
+    let id = -1;
+    const areaData = props.features.map((feature) => {
+      const properties = feature.getProperties();
+      return {
+        id: ++id,
+        name: properties.omrade,
+        information: [
+          {
+            description: "saknas",
+            value: properties["saknas"],
+          },
+        ],
+        visible: true,
+        selected: false,
+        feature: feature,
+      };
+    });
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        area: areaData,
+      },
+    });
+  };
+
+  #updateSurveyList = (props) => {};
+
+  #updateContaminationList = (props) => {};
 
   #toggleMode = (mode) => {
     this.#unselectAllFeatures(this.state.mode);
@@ -317,12 +370,6 @@ class IntegrationView extends React.PureComponent {
       },
     });
     this.props.model.clearResultsCoordinate();
-  };
-
-  #getDrawingSupportSettings = () => {
-    return {
-      realEstate: "o83amu",
-    };
   };
 
   #endListToolsMode = (listToolsMode) => {
