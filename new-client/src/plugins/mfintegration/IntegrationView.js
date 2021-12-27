@@ -17,7 +17,6 @@ import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ListResult from "./components/ListResult";
 import ListToolbar from "./components/ListToolbar";
 import EditMenu from "./components/EditMenu";
-import ItemList from "./components/ItemList";
 import { drawingSupportLayers } from "./mockdata/mockdataLayers";
 
 const styles = (theme) => {
