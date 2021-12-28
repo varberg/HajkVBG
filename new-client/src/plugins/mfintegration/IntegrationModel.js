@@ -402,9 +402,7 @@ class IntegrationModel {
   };
 
   #hideAllLayers = () => {
-    this.allMapLayers.forEach((layer) => {
-      layer.setVisible(false);
-    });
+    for (const layer of this.mapLayers.array) layer.setVisible(false);
   };
 
   #showAcitveMapLayer = (mode) => {
@@ -465,6 +463,8 @@ class IntegrationModel {
 
   testSurveysFromKUBB = () => {
     this.#sendSnackbarMessage("undersökningar");
+    const surveys = KUBB().surveys;
+    this.searchModel.findSurveysWithNumbers(surveys);
   };
 
   testContaminationsFromKUBB = () => {

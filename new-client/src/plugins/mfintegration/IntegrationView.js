@@ -275,7 +275,31 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
-  #updateSurveyList = (props) => {};
+  #updateSurveyList = (props) => {
+    let id = -1;
+    const surveyData = props.features.map((feature) => {
+      const properties = feature.getProperties();
+      return {
+        id: ++id,
+        name: properties.omrade,
+        information: [
+          {
+            description: "saknas",
+            value: properties["saknas"],
+          },
+        ],
+        visible: true,
+        selected: false,
+        feature: feature,
+      };
+    });
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        survey: surveyData,
+      },
+    });
+  };
 
   #updateContaminationList = (props) => {};
 
