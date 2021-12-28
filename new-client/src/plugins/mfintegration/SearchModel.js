@@ -66,6 +66,8 @@ export default class SearchModel {
     });
   };
 
+  findCoordinatesWithGeometry = (selectionFeature) => {};
+
   findCoordinatesWithCoordinates = (coordinateList) => {
     /*** Lägg till en wfs-sökning här ***/
     // const filter
@@ -96,6 +98,8 @@ export default class SearchModel {
     answer.type = "coordinate";
     this.localObserver.publish("mf-wfs-search", answer);
   };
+
+  findAreasWithGeometry = (selectionFeature) => {};
 
   // Skall vara ett nummer, men är en koordinat i vår testkod
   findAreasWithNumbers = (areaList) => {
@@ -130,12 +134,16 @@ export default class SearchModel {
     this.localObserver.publish("mf-wfs-search", answer);
   };
 
+  findSurveysWithGeometry = (selectionFeature) => {};
+
   findSurveysWithNumbers = () => {
     /*** Lägg till en wfs-sökning här ***/
     // const filter
     // const wfsRequest
     // hfetch ...
   };
+
+  findContaminationsWithGeometry = (selectionFeature) => {};
 
   findContaminationsWithNumbers = () => {
     /*** Lägg till en wfs-sökning här ***/

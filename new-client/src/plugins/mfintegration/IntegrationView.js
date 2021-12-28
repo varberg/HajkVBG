@@ -131,10 +131,17 @@ class IntegrationView extends React.PureComponent {
     this.clearFunctions = {
       realEstate: this.#clearResultsRealEstate,
       coordinate: this.#clearResultsCoordinates,
-      area: this.#updateAreaList,
-      survey: this.#updateSurveyList,
-      contamination: this.#updateContaminationList,
+      area: this.#clearResultsArea,
+      survey: this.#clearResultsSurvey,
+      contamination: this.#clearResultsContamination,
     };
+    this.clearFunctions.array = [
+      this.clearFunctions.realEstate,
+      this.clearFunctions.coordinate,
+      this.clearFunctions.area,
+      this.clearFunctions.survey,
+      this.clearFunctions.contamination,
+    ];
   };
 
   #initDrawingSupport = () => {
@@ -158,8 +165,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clearAllDataSources = () => {
-    this.#clearResultsRealEstate();
-    this.#clearResultsCoordinates();
+    for (const clearFunction of this.clearFunctions.array) clearFunction();
     this.props.model.clearHighlight();
   };
 
@@ -299,11 +305,9 @@ class IntegrationView extends React.PureComponent {
     ).selected;
 
     const updatedResults = updateList[mode].map((listItem) => {
-      if (listItem.id === clickedItem.id) {
+      if (listItem.id === clickedItem.id)
         return { ...listItem, selected: isSelected };
-      } else {
-        return { ...listItem, selected: false };
-      }
+      return { ...listItem, selected: false };
     });
 
     updateList[mode] = updatedResults;
@@ -323,8 +327,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clearResults = () => {
-    if (this.state.mode === "realEstate") this.#clearResultsRealEstate();
-    if (this.state.mode === "coordinate") this.#clearResultsCoordinates();
+    this.clearFunctions[this.state.mode]();
     this.props.model.clearHighlight();
   };
 
@@ -335,11 +338,9 @@ class IntegrationView extends React.PureComponent {
     ).visible;
 
     const updatedResults = updateList[mode].map((listItem) => {
-      if (listItem.id === item.id) {
+      if (listItem.id === item.id)
         return { ...listItem, visible: shouldBeVisible };
-      } else {
-        return listItem;
-      }
+      return listItem;
     });
 
     updateList[mode] = updatedResults;
@@ -358,7 +359,7 @@ class IntegrationView extends React.PureComponent {
         realEstate: [],
       },
     });
-    this.props.model.clearResultsRealEstate();
+    this.props.model.clearResults(this.state.mode);
   };
 
   #clearResultsCoordinates = () => {
@@ -368,7 +369,37 @@ class IntegrationView extends React.PureComponent {
         coordinate: [],
       },
     });
-    this.props.model.clearResultsCoordinate();
+    this.props.model.clearResults(this.state.mode);
+  };
+
+  #clearResultsArea = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        area: [],
+      },
+    });
+    this.props.model.clearResults(this.state.mode);
+  };
+
+  #clearResultsSurvey = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        survey: [],
+      },
+    });
+    this.props.model.clearResults(this.state.mode);
+  };
+
+  #clearResultsContamination = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        contamination: [],
+      },
+    });
+    this.props.model.clearResults(this.state.mode);
   };
 
   #endListToolsMode = (listToolsMode) => {
@@ -383,11 +414,11 @@ class IntegrationView extends React.PureComponent {
 
   #startListToolsMode = (listToolsMode) => {
     if (listToolsMode === "pointselect") {
-      this.props.model.drawPoint();
+      this.props.model.drawPoint(this.state.mode);
     }
 
     if (listToolsMode === "polygonselect") {
-      this.props.model.drawPolygon();
+      this.props.model.drawPolygon(this.state.mode);
     }
   };
 
@@ -442,6 +473,48 @@ class IntegrationView extends React.PureComponent {
             </Button>
           </ListItem>
         ) : null}
+        {this.state.mode === "area" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testAreasFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa koordinater
+            </Button>
+          </ListItem>
+        ) : null}
+        {this.state.mode === "survey" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testSurveysFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa koordinater
+            </Button>
+          </ListItem>
+        ) : null}
+        {this.state.mode === "contamination" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testContaminationsFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa koordinater
+            </Button>
+          </ListItem>
+        ) : null}
       </div>
     );
   };
@@ -476,8 +549,9 @@ class IntegrationView extends React.PureComponent {
               >
                 <MenuItem value={"realEstate"}>Fastigheter</MenuItem>
                 <MenuItem value={"coordinate"}>Koordinater</MenuItem>
-                <MenuItem value={"geometry"}>Geometrier</MenuItem>
-                <MenuItem value={"controlObject"}>Tillsynsobjekt</MenuItem>
+                <MenuItem value={"area"}>Områden</MenuItem>
+                <MenuItem value={"survey"}>Undersökningar</MenuItem>
+                <MenuItem value={"contamination"}>Föroreningar</MenuItem>
               </Select>
             </FormControl>
           </Grid>
