@@ -7,7 +7,7 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import {
-  drawStyle,
+  searchStyle,
   highLightStyle,
   layerStyle,
 } from "./mockdata/mockdataStyle";
@@ -62,22 +62,22 @@ class IntegrationModel {
     };
   };
 
-  drawPolygon = (mode) => {
+  drawSearchPolygon = (mode) => {
     this.drawSourcePointPolygon.mode = mode;
-    this.#drawPolygon();
+    this.#drawSearchPolygon();
   };
 
-  endDrawPolygon = () => {
+  endDrawSearchPolygon = () => {
     this.map.removeInteraction(this.draw);
     this.map.clickLock.delete("search");
   };
 
-  drawPoint = (mode) => {
+  drawSerachPoint = (mode) => {
     this.drawSourcePointPolygon.mode = mode;
-    this.#drawPoint();
+    this.#drawSearchPoint();
   };
 
-  endDrawPoint = () => {
+  endDrawSearchPoint = () => {
     this.map.removeInteraction(this.draw);
     this.map.clickLock.delete("search");
   };
@@ -106,22 +106,22 @@ class IntegrationModel {
     this.#setFeatureStyle(feature, featureStyle);
   };
 
-  #drawPolygon = () => {
+  #drawSearchPolygon = () => {
     const drawFunctionProps = {
       listenerType: "addfeature",
       requestText: "search",
-      style: this.#getDrawPointPolygonStyle(),
+      style: this.#getSearchStyle(),
       source: this.drawSourcePointPolygon,
       type: "Polygon",
     };
     this.#createDrawFunction(drawFunctionProps);
   };
 
-  #drawPoint = () => {
+  #drawSearchPoint = () => {
     const drawFunctionProps = {
       listenerType: "addfeature",
       requestText: "search",
-      style: this.#getDrawPointPolygonStyle(),
+      style: this.#getSearchStyle(),
       source: this.drawSourcePointPolygon,
       type: "Point",
     };
@@ -163,7 +163,7 @@ class IntegrationModel {
   };
 
   #addDrawPointPolygonLayer = () => {
-    const stylePointPolygon = this.#getDrawPointPolygonStyle();
+    const stylePointPolygon = this.#getSearchStyle();
     this.drawSourcePointPolygon =
       this.#createNewVectorSource(stylePointPolygon);
 
@@ -174,9 +174,9 @@ class IntegrationModel {
     this.map.addLayer(drawPointPolygonLayer);
   };
 
-  #getDrawPointPolygonStyle = () => {
-    const drawPolygonStyleSettings = drawStyle();
-    return this.#createNewVectorCircleStyle(drawPolygonStyleSettings);
+  #getSearchStyle = () => {
+    const searchStyleSettings = searchStyle();
+    return this.#createNewVectorCircleStyle(searchStyleSettings);
   };
 
   #addLayers = () => {
@@ -469,6 +469,8 @@ class IntegrationModel {
 
   testContaminationsFromKUBB = () => {
     this.#sendSnackbarMessage("föroreningar");
+    const contaminations = KUBB().contaminations;
+    this.searchModel.findContaminationsWithNumbers(contaminations);
   };
 }
 
