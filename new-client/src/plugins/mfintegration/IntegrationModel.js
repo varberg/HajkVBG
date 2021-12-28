@@ -22,6 +22,7 @@ class IntegrationModel {
 
     this.#initMapLayers();
     this.#initActiveSource();
+    this.#initSearchModelFunctions();
     this.#bindSubscriptions();
   }
 
@@ -51,8 +52,19 @@ class IntegrationModel {
     this.activeSource = this.sources[0];
   };
 
-  drawPolygon = () => {
-    this.#drawRealEstatePolygon();
+  #initSearchModelFunctions = () => {
+    this.searchModelFunctions = {
+      realEstate: this.searchModel.findRealEstatesWithGeometry,
+      coordinate: this.searchModel.findCoordinatesWithGeometry,
+      area: this.searchModel.findAreasWithGeometry,
+      survey: this.searchModel.findSurveysWithGeometry,
+      contamination: this.searchModel.findContaminationsWithGeometry,
+    };
+  };
+
+  drawPolygon = (mode) => {
+    this.drawSourcePointPolygon.mode = mode;
+    this.#drawPolygon();
   };
 
   endDrawPolygon = () => {
@@ -60,8 +72,9 @@ class IntegrationModel {
     this.map.clickLock.delete("search");
   };
 
-  drawPoint = () => {
-    this.#drawRealEstatePoint();
+  drawPoint = (mode) => {
+    this.drawSourcePointPolygon.mode = mode;
+    this.#drawPoint();
   };
 
   endDrawPoint = () => {
@@ -69,12 +82,8 @@ class IntegrationModel {
     this.map.clickLock.delete("search");
   };
 
-  clearResultsRealEstate = () => {
-    this.#clearSource(this.realEstateSource);
-  };
-
-  clearResultsCoordinate = () => {
-    this.#clearSource(this.coordinateSource);
+  clearResults = (mode) => {
+    this.#clearSource(this.sources[mode]);
   };
 
   clearHighlight = () => {
@@ -97,9 +106,9 @@ class IntegrationModel {
     this.#setFeatureStyle(feature, featureStyle);
   };
 
-  #drawRealEstatePolygon = () => {
+  #drawPolygon = () => {
     const drawFunctionProps = {
-      listenerText: "addfeature",
+      listenerType: "addfeature",
       requestText: "search",
       style: this.#getDrawPointPolygonStyle(),
       source: this.drawSourcePointPolygon,
@@ -108,9 +117,9 @@ class IntegrationModel {
     this.#createDrawFunction(drawFunctionProps);
   };
 
-  #drawRealEstatePoint = () => {
+  #drawPoint = () => {
     const drawFunctionProps = {
-      listenerText: "addfeature",
+      listenerType: "addfeature",
       requestText: "search",
       style: this.#getDrawPointPolygonStyle(),
       source: this.drawSourcePointPolygon,
@@ -196,19 +205,14 @@ class IntegrationModel {
         layerStyle
       ),
     };
-
-    this.allMapLayers = [
+    this.mapLayers.array = [
       this.mapLayers.realEstate,
       this.mapLayers.coordinate,
       this.mapLayers.area,
       this.mapLayers.survey,
       this.mapLayers.contamination,
     ];
-
-    this.allMapLayers.forEach((mapLayer) => {
-      this.map.addLayer(mapLayer);
-      return false;
-    });
+    for (const mapLayer of this.mapLayers.array) this.map.addLayer(mapLayer);
   };
 
   #addHighlightLayer = () => {
@@ -243,7 +247,7 @@ class IntegrationModel {
     this.map.clickLock.add(props.requestText);
     this.map.addInteraction(this.draw);
     this.drawSourcePointPolygon.on(
-      props.listenerText,
+      props.listenerType,
       this.#handleDrawFeatureAdded
     );
   };
@@ -251,7 +255,7 @@ class IntegrationModel {
   #handleDrawFeatureAdded = (e) => {
     this.map.removeInteraction(this.draw);
     this.map.clickLock.delete("search");
-    this.searchModel.findRealEstatesWithGeometry(e.feature);
+    this.searchModelFunctions[e.target.mode](e.feature);
     this.#clearSource(this.drawSourcePointPolygon);
   };
 
