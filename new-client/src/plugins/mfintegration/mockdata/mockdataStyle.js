@@ -1,4 +1,4 @@
-export const drawStyle = () => {
+export const searchStyle = () => {
   const strokeColor = "rgba(74,74,74,0.5)";
   const strokeWidth = 4;
   const fillColor = "rgba(255,255,255,0.07)";

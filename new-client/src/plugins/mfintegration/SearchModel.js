@@ -170,11 +170,36 @@ export default class SearchModel {
 
   findContaminationsWithGeometry = (selectionFeature) => {};
 
-  findContaminationsWithNumbers = () => {
+  findContaminationsWithNumbers = (contaminationList) => {
     /*** Lägg till en wfs-sökning här ***/
     // const filter
     // const wfsRequest
     // hfetch ...
+    let id = 0;
+    const features = [
+      {
+        geometry: {
+          type: "Polygon",
+          coordinates: contaminationList.coordinates,
+        },
+        id: "område." + ++id,
+        geometry_name: this.wfsConfigAreas.geometryName,
+        properties: { saknas: "-", omrade: contaminationList.name },
+        type: "Feature",
+      },
+    ];
+
+    const simulatedFeatureCollection = { features: features };
+
+    let answer = this.#createRespone(
+      simulatedFeatureCollection,
+      this.wfsConfigCoordinates.geometryField,
+      this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
+      "List"
+    );
+    answer.selectedCoordinates = contaminationList;
+    answer.type = "contamination";
+    this.localObserver.publish("mf-wfs-search", answer);
   };
 
   #getSpatialFilter = (geometry, transformation, wfsConfig) => {
