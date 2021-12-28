@@ -136,11 +136,36 @@ export default class SearchModel {
 
   findSurveysWithGeometry = (selectionFeature) => {};
 
-  findSurveysWithNumbers = () => {
+  findSurveysWithNumbers = (surveyList) => {
     /*** Lägg till en wfs-sökning här ***/
     // const filter
     // const wfsRequest
     // hfetch ...
+    let id = 0;
+    const features = [
+      {
+        geometry: {
+          type: "Polygon",
+          coordinates: surveyList.coordinates,
+        },
+        id: "område." + ++id,
+        geometry_name: this.wfsConfigAreas.geometryName,
+        properties: { saknas: "-", omrade: surveyList.name },
+        type: "Feature",
+      },
+    ];
+
+    const simulatedFeatureCollection = { features: features };
+
+    let answer = this.#createRespone(
+      simulatedFeatureCollection,
+      this.wfsConfigCoordinates.geometryField,
+      this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
+      "List"
+    );
+    answer.selectedCoordinates = surveyList;
+    answer.type = "survey";
+    this.localObserver.publish("mf-wfs-search", answer);
   };
 
   findContaminationsWithGeometry = (selectionFeature) => {};
