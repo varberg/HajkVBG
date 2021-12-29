@@ -116,9 +116,10 @@ class IntegrationView extends React.PureComponent {
   };
 
   #init = () => {
-    this.drawingSupport = drawingSupportLayers();
+    this.drawingSupportLayerNames = drawingSupportLayers();
     this.#initUpdateFunctions();
     this.#initClearFunctions();
+    this.#initDrawFunctions();
   };
 
   #initUpdateFunctions = () => {
@@ -148,8 +149,29 @@ class IntegrationView extends React.PureComponent {
     ];
   };
 
+  #initDrawFunctions = () => {
+    this.drawFunctions = {
+      pointselect: {
+        start: this.props.model.startDrawSearchPoint,
+        end: this.props.model.endDrawSearch,
+      },
+      polygonselect: {
+        start: this.props.model.startDrawSearchPolygon,
+        end: this.props.model.endDrawSearch,
+      },
+      pointdraw: {
+        start: this.props.model.startDrawNewPoint,
+        end: this.props.model.endDrawNew,
+      },
+      polygondraw: {
+        start: this.props.model.startDrawNewPolygon,
+        end: this.props.model.endDrawNew,
+      },
+    };
+  };
+
   #initDrawingSupport = () => {
-    this.#showDrawingSupport(this.drawingSupport[defaultState.mode]);
+    this.#showDrawingSupport(this.drawingSupportLayerNames[defaultState.mode]);
   };
 
   #showDrawingSupport = (layerId) => {
@@ -165,7 +187,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clearDrawingSupport = () => {
-    this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
+    this.#hideDrawingSupport(this.drawingSupportLayerNames[this.state.mode]);
   };
 
   #clearAllDataSources = () => {
@@ -333,11 +355,11 @@ class IntegrationView extends React.PureComponent {
 
   #toggleMode = (mode) => {
     this.#unselectAllFeatures(this.state.mode);
-    this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
+    this.#hideDrawingSupport(this.drawingSupportLayerNames[this.state.mode]);
     this.setState({
       mode: mode,
     });
-    this.#showDrawingSupport(this.drawingSupport[mode]);
+    this.#showDrawingSupport(this.drawingSupportLayerNames[mode]);
     this.localObserver.publish("mf-new-mode", mode);
   };
 
@@ -455,23 +477,11 @@ class IntegrationView extends React.PureComponent {
   };
 
   #endListToolsMode = (listToolsMode) => {
-    if (listToolsMode === "pointselect") {
-      this.props.model.endDrawSearchPoint();
-    }
-
-    if (listToolsMode === "polygonselect") {
-      this.props.model.endDrawSearchPolygon();
-    }
+    this.drawFunctions[listToolsMode]?.end();
   };
 
   #startListToolsMode = (listToolsMode) => {
-    if (listToolsMode === "pointselect") {
-      this.props.model.startDrawSearchPoint(this.state.mode);
-    }
-
-    if (listToolsMode === "polygonselect") {
-      this.props.model.startDrawSearchPolygon(this.state.mode);
-    }
+    this.drawFunctions[listToolsMode]?.start(this.state.mode);
   };
 
   renderEditMenu = () => {

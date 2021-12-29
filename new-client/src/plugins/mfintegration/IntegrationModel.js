@@ -70,35 +70,19 @@ class IntegrationModel {
     };
   };
 
-  startDrawSearchPolygon = (mode) => {
-    this.drawingFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Polygon");
-  };
-
-  endDrawSearchPolygon = () => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("search");
-  };
-
   startDrawSearchPoint = (mode) => {
     this.drawingFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Point");
+    this.#drawGeometry("search", "Point", searchStyle());
   };
 
-  endDrawSearchPoint = () => {
+  startDrawSearchPolygon = (mode) => {
+    this.drawingFunctions.search.source.mode = mode;
+    this.#drawGeometry("search", "Polygon", searchStyle());
+  };
+
+  endDrawSearch = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("search");
-  };
-
-  startDrawNewPolygon = (mode) => {
-    this.drawingFunctions.new.source.mode = mode;
-    // TODO:
-    // his.#drawGeometry("new", "Polygon");
-  };
-
-  endDrawNewPolygon = () => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("new");
   };
 
   startDrawNewPoint = (mode) => {
@@ -107,7 +91,13 @@ class IntegrationModel {
     // his.#drawGeometry("new", "Point");
   };
 
-  endDrawNewPoint = () => {
+  startDrawNewPolygon = (mode) => {
+    this.drawingFunctions.new.source.mode = mode;
+    // TODO:
+    // his.#drawGeometry("new", "Polygon");
+  };
+
+  endDrawNew = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("new");
   };
@@ -136,17 +126,6 @@ class IntegrationModel {
     this.#setFeatureStyle(feature, featureStyle);
   };
 
-  #drawGeometry = (requestType, drawType) => {
-    const drawFunctionProps = {
-      listenerType: "addfeature",
-      requestType: requestType,
-      style: this.#getSearchStyle(),
-      source: this.drawingFunctions[requestType].source,
-      type: drawType,
-    };
-    this.#createDrawFunction(drawFunctionProps);
-  };
-
   #clearSource = (source) => {
     source.clear();
   };
@@ -162,7 +141,8 @@ class IntegrationModel {
     });
   };
 
-  #createNewVectorCircleStyle = (style) => {
+  // TODO: Ev. ta bort denna funktion om admin ger ett sådant här objekt (finns i mockdata)
+  #createLayerStyle = (style) => {
     return new Style({
       stroke: new Stroke({
         color: style.stroke.color,
@@ -191,42 +171,31 @@ class IntegrationModel {
   #addSearchLayer = () => {
     const searchLayer = this.#createNewVectorLayer(
       this.drawingFunctions.search.source,
-      this.#getSearchStyle()
+      this.#createLayerStyle(searchStyle())
     );
     this.map.addLayer(searchLayer);
-  };
-
-  #getSearchStyle = () => {
-    const searchStyleSettings = searchStyle();
-    return this.#createNewVectorCircleStyle(searchStyleSettings);
   };
 
   #addNewGeometryLayer = () => {
     const newGeometryLayer = this.#createNewVectorLayer(
       this.drawingFunctions.new.source,
-      this.#getNewGeometryStyle()
+      this.#createLayerStyle(newGeometryStyle())
     );
     this.map.addLayer(newGeometryLayer);
-  };
-
-  #getNewGeometryStyle = () => {
-    const searchStyleSettings = newGeometryStyle();
-    return this.#createNewVectorCircleStyle(searchStyleSettings);
   };
 
   #addDataLayers = () => {
     this.#addSources();
     this.#addActiveSource();
 
-    const layerStyle = this.#getLayerStyle();
     this.layers = {
       realEstate: this.#createNewVectorLayer(
         this.sources.realEstate,
-        layerStyle
+        this.#createLayerStyle(layerStyle())
       ),
       coordinate: this.#createNewVectorLayer(
         this.sources.coordinate,
-        layerStyle
+        this.#createLayerStyle(layerStyle())
       ),
       area: this.#createNewVectorLayer(this.sources.area, layerStyle),
       survey: this.#createNewVectorLayer(this.sources.survey, layerStyle),
@@ -260,24 +229,24 @@ class IntegrationModel {
   };
 
   #addHighlightLayer = () => {
-    const styleHighlight = this.#getHighlightStyle();
     this.highlightSource = this.#createNewVectorSource();
 
     this.highlightLayer = this.#createNewVectorLayer(
       this.highlightSource,
-      styleHighlight
+      this.#createLayerStyle(highLightStyle())
     );
     this.map.addLayer(this.highlightLayer);
   };
 
-  #getLayerStyle = () => {
-    const styleSettings = layerStyle();
-    return this.#createNewVectorCircleStyle(styleSettings);
-  };
-
-  #getHighlightStyle = () => {
-    const hightlightStyleSettings = highLightStyle();
-    return this.#createNewVectorCircleStyle(hightlightStyleSettings);
+  #drawGeometry = (requestType, drawType, style) => {
+    const drawFunctionProps = {
+      listenerType: "addfeature",
+      requestType: requestType,
+      style: this.#createLayerStyle(style),
+      source: this.drawingFunctions[requestType].source,
+      type: drawType,
+    };
+    this.#createDrawFunction(drawFunctionProps);
   };
 
   #createDrawFunction = (props) => {
@@ -309,33 +278,6 @@ class IntegrationModel {
     // TODO:
     // Lägg till geometri till källan.
     // Rensa rita-ny-källan.
-  };
-
-  #updateList = (source, data) => {
-    const featuresAndGeometryProperyName = {
-      features: source.getFeatures(),
-      propertyName: data.geometryField,
-      type: data.type,
-    };
-    this.localObserver.publish(
-      "mf-wfs-map-updated-features",
-      featuresAndGeometryProperyName
-    );
-  };
-
-  #zoomToSource = (source) => {
-    const featuresInSource = source.getFeatures();
-    if (featuresInSource.length === 0) return;
-
-    let extent = createEmpty();
-    featuresInSource.forEach((feature) => {
-      extend(extent, feature.getGeometry().getExtent());
-    });
-    this.map.getView().fit(extent, {
-      size: this.map.getSize(),
-      padding: [100, 100, 100, 100],
-      maxZoom: 12,
-    });
   };
 
   #setFeatureStyle = (feature, style) => {
@@ -444,6 +386,33 @@ class IntegrationModel {
 
     const pointClick = selectionGeometryType === "Point";
     return { features: features, addOrRemoveFeature: pointClick };
+  };
+
+  #updateList = (source, data) => {
+    const featuresAndGeometryProperyName = {
+      features: source.getFeatures(),
+      propertyName: data.geometryField,
+      type: data.type,
+    };
+    this.localObserver.publish(
+      "mf-wfs-map-updated-features",
+      featuresAndGeometryProperyName
+    );
+  };
+
+  #zoomToSource = (source) => {
+    const featuresInSource = source.getFeatures();
+    if (featuresInSource.length === 0) return;
+
+    let extent = createEmpty();
+    featuresInSource.forEach((feature) => {
+      extend(extent, feature.getGeometry().getExtent());
+    });
+    this.map.getView().fit(extent, {
+      size: this.map.getSize(),
+      padding: [100, 100, 100, 100],
+      maxZoom: 12,
+    });
   };
 
   #modeChanged = (mode) => {
