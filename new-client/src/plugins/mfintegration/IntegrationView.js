@@ -90,9 +90,7 @@ class IntegrationView extends React.PureComponent {
     this.app = props.app;
     this.title = props.title;
 
-    this.drawingSupport = drawingSupportLayers();
-    this.#initUpdateFunctions();
-    this.#initClearFunctions();
+    this.#init();
     this.#bindSubscriptions();
   }
 
@@ -115,6 +113,12 @@ class IntegrationView extends React.PureComponent {
       this.#clearDrawingSupport();
       this.#clearAllDataSources();
     });
+  };
+
+  #init = () => {
+    this.drawingSupport = drawingSupportLayers();
+    this.#initUpdateFunctions();
+    this.#initClearFunctions();
   };
 
   #initUpdateFunctions = () => {
@@ -452,21 +456,21 @@ class IntegrationView extends React.PureComponent {
 
   #endListToolsMode = (listToolsMode) => {
     if (listToolsMode === "pointselect") {
-      this.props.model.endDrawPoint();
+      this.props.model.endDrawSearchPoint();
     }
 
     if (listToolsMode === "polygonselect") {
-      this.props.model.endDrawPolygon();
+      this.props.model.endDrawSearchPolygon();
     }
   };
 
   #startListToolsMode = (listToolsMode) => {
     if (listToolsMode === "pointselect") {
-      this.props.model.drawPoint(this.state.mode);
+      this.props.model.startDrawSearchPoint(this.state.mode);
     }
 
     if (listToolsMode === "polygonselect") {
-      this.props.model.drawPolygon(this.state.mode);
+      this.props.model.startDrawSearchPolygon(this.state.mode);
     }
   };
 

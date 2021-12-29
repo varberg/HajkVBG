@@ -10,6 +10,7 @@ import {
   searchStyle,
   highLightStyle,
   layerStyle,
+  newGeometryStyle,
 } from "./mockdata/mockdataStyle";
 
 class IntegrationModel {
@@ -20,9 +21,7 @@ class IntegrationModel {
     this.localObserver = settings.localObserver;
     this.searchModel = settings.searchModel;
 
-    this.#initMapLayers();
-    this.#initActiveSource();
-    this.#initSearchModelFunctions();
+    this.#init();
     this.#bindSubscriptions();
   }
 
@@ -41,15 +40,11 @@ class IntegrationModel {
     });
   };
 
-  #initMapLayers = () => {
+  #init = () => {
     this.handleWindowOpen();
-    this.#addDrawPointPolygonLayer();
+    this.#initSearchModelFunctions();
+    this.#initDrawingFunctions();
     this.#addLayers();
-    this.#addHighlightLayer();
-  };
-
-  #initActiveSource = () => {
-    this.activeSource = this.sources[0];
   };
 
   #initSearchModelFunctions = () => {
@@ -62,24 +57,59 @@ class IntegrationModel {
     };
   };
 
-  drawSearchPolygon = (mode) => {
-    this.drawSourcePointPolygon.mode = mode;
-    this.#drawSearchPolygon();
+  #initDrawingFunctions = () => {
+    this.drawingFunctions = {
+      new: {
+        drawCallback: this.#handleDrawNewFeatureAdded,
+        source: this.#createNewVectorSource(),
+      },
+      search: {
+        drawCallback: this.#handleDrawSearchFeatureAdded,
+        source: this.#createNewVectorSource(),
+      },
+    };
+  };
+
+  startDrawSearchPolygon = (mode) => {
+    this.drawingFunctions.search.source.mode = mode;
+    this.#drawGeometry("search", "Polygon");
   };
 
   endDrawSearchPolygon = () => {
-    this.map.removeInteraction(this.draw);
+    this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("search");
   };
 
-  drawSerachPoint = (mode) => {
-    this.drawSourcePointPolygon.mode = mode;
-    this.#drawSearchPoint();
+  startDrawSearchPoint = (mode) => {
+    this.drawingFunctions.search.source.mode = mode;
+    this.#drawGeometry("search", "Point");
   };
 
   endDrawSearchPoint = () => {
-    this.map.removeInteraction(this.draw);
+    this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("search");
+  };
+
+  startDrawNewPolygon = (mode) => {
+    this.drawingFunctions.new.source.mode = mode;
+    // TODO:
+    // his.#drawGeometry("new", "Polygon");
+  };
+
+  endDrawNewPolygon = () => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("new");
+  };
+
+  startDrawNewPoint = (mode) => {
+    this.drawingFunctions.new.source.mode = mode;
+    // TODO:
+    // his.#drawGeometry("new", "Point");
+  };
+
+  endDrawNewPoint = () => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("new");
   };
 
   clearResults = (mode) => {
@@ -106,24 +136,13 @@ class IntegrationModel {
     this.#setFeatureStyle(feature, featureStyle);
   };
 
-  #drawSearchPolygon = () => {
+  #drawGeometry = (requestType, drawType) => {
     const drawFunctionProps = {
       listenerType: "addfeature",
-      requestText: "search",
+      requestType: requestType,
       style: this.#getSearchStyle(),
-      source: this.drawSourcePointPolygon,
-      type: "Polygon",
-    };
-    this.#createDrawFunction(drawFunctionProps);
-  };
-
-  #drawSearchPoint = () => {
-    const drawFunctionProps = {
-      listenerType: "addfeature",
-      requestText: "search",
-      style: this.#getSearchStyle(),
-      source: this.drawSourcePointPolygon,
-      type: "Point",
+      source: this.drawingFunctions[requestType].source,
+      type: drawType,
     };
     this.#createDrawFunction(drawFunctionProps);
   };
@@ -162,16 +181,19 @@ class IntegrationModel {
     });
   };
 
-  #addDrawPointPolygonLayer = () => {
-    const stylePointPolygon = this.#getSearchStyle();
-    this.drawSourcePointPolygon =
-      this.#createNewVectorSource(stylePointPolygon);
+  #addLayers = () => {
+    this.#addSearchLayer();
+    this.#addNewGeometryLayer();
+    this.#addDataLayers();
+    this.#addHighlightLayer();
+  };
 
-    const drawPointPolygonLayer = this.#createNewVectorLayer(
-      this.drawSourcePointPolygon,
-      stylePointPolygon
+  #addSearchLayer = () => {
+    const searchLayer = this.#createNewVectorLayer(
+      this.drawingFunctions.search.source,
+      this.#getSearchStyle()
     );
-    this.map.addLayer(drawPointPolygonLayer);
+    this.map.addLayer(searchLayer);
   };
 
   #getSearchStyle = () => {
@@ -179,17 +201,25 @@ class IntegrationModel {
     return this.#createNewVectorCircleStyle(searchStyleSettings);
   };
 
-  #addLayers = () => {
-    this.sources = {
-      realEstate: this.#createNewVectorSource(),
-      coordinate: this.#createNewVectorSource(),
-      area: this.#createNewVectorSource(),
-      survey: this.#createNewVectorSource(),
-      contamination: this.#createNewVectorSource(),
-    };
+  #addNewGeometryLayer = () => {
+    const newGeometryLayer = this.#createNewVectorLayer(
+      this.drawingFunctions.new.source,
+      this.#getNewGeometryStyle()
+    );
+    this.map.addLayer(newGeometryLayer);
+  };
+
+  #getNewGeometryStyle = () => {
+    const searchStyleSettings = newGeometryStyle();
+    return this.#createNewVectorCircleStyle(searchStyleSettings);
+  };
+
+  #addDataLayers = () => {
+    this.#addSources();
+    this.#addActiveSource();
 
     const layerStyle = this.#getLayerStyle();
-    this.mapLayers = {
+    this.layers = {
       realEstate: this.#createNewVectorLayer(
         this.sources.realEstate,
         layerStyle
@@ -205,14 +235,28 @@ class IntegrationModel {
         layerStyle
       ),
     };
-    this.mapLayers.array = [
-      this.mapLayers.realEstate,
-      this.mapLayers.coordinate,
-      this.mapLayers.area,
-      this.mapLayers.survey,
-      this.mapLayers.contamination,
+    this.layers.array = [
+      this.layers.realEstate,
+      this.layers.coordinate,
+      this.layers.area,
+      this.layers.survey,
+      this.layers.contamination,
     ];
-    for (const mapLayer of this.mapLayers.array) this.map.addLayer(mapLayer);
+    for (const layer of this.layers.array) this.map.addLayer(layer);
+  };
+
+  #addSources = () => {
+    this.sources = {
+      realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
+    };
+  };
+
+  #addActiveSource = () => {
+    this.activeSource = this.sources[0];
   };
 
   #addHighlightLayer = () => {
@@ -237,26 +281,34 @@ class IntegrationModel {
   };
 
   #createDrawFunction = (props) => {
-    this.draw = new Draw({
+    this.drawInteraction = new Draw({
       source: props.source,
       type: props.type,
       freehand: false,
       stopClick: true,
       style: props.style,
     });
-    this.map.clickLock.add(props.requestText);
-    this.map.addInteraction(this.draw);
-    this.drawSourcePointPolygon.on(
+    this.map.clickLock.add(props.requestType);
+    this.map.addInteraction(this.drawInteraction);
+    this.drawingFunctions.search.source.on(
       props.listenerType,
-      this.#handleDrawFeatureAdded
+      this.drawingFunctions[props.requestType].drawCallback
     );
   };
 
-  #handleDrawFeatureAdded = (e) => {
-    this.map.removeInteraction(this.draw);
+  #handleDrawSearchFeatureAdded = (e) => {
+    this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("search");
     this.searchModelFunctions[e.target.mode](e.feature);
-    this.#clearSource(this.drawSourcePointPolygon);
+    this.#clearSource(this.drawingFunctions.search.source);
+  };
+
+  #handleDrawNewFeatureAdded = (e) => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("new");
+    // TODO:
+    // Lägg till geometri till källan.
+    // Rensa rita-ny-källan.
   };
 
   #updateList = (source, data) => {
@@ -397,16 +449,16 @@ class IntegrationModel {
   #modeChanged = (mode) => {
     this.#clearSource(this.highlightSource);
     this.#hideAllLayers();
-    this.#showAcitveMapLayer(mode);
+    this.#showAcitveLayer(mode);
     this.#setActiveSource(mode);
   };
 
   #hideAllLayers = () => {
-    for (const layer of this.mapLayers.array) layer.setVisible(false);
+    for (const layer of this.layers.array) layer.setVisible(false);
   };
 
-  #showAcitveMapLayer = (mode) => {
-    this.mapLayers[mode].setVisible(true);
+  #showAcitveLayer = (mode) => {
+    this.layers[mode].setVisible(true);
   };
 
   #setActiveSource = (mode) => {
