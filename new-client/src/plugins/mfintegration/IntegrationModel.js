@@ -330,8 +330,6 @@ class IntegrationModel {
   };
 
   #handleDrawSearchFeatureAdded = (e) => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("search");
     this.searchModelFunctions[e.target.mode](e.feature);
     this.#clearSource(this.drawingToolFunctions.search.source);
   };
