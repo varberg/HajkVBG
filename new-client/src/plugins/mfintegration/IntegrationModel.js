@@ -7,10 +7,11 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import {
-  searchStyle,
+  drawNewStyle,
   highLightStyle,
   layerStyle,
   newGeometryStyle,
+  searchStyle,
 } from "./mockdata/mockdataStyle";
 
 class IntegrationModel {
@@ -67,6 +68,21 @@ class IntegrationModel {
     };
   };
 
+  startDrawNewPoint = (mode) => {
+    this.drawingFunctions.new.source.mode = mode;
+    this.#drawGeometry("new", "Point", drawNewStyle());
+  };
+
+  startDrawNewPolygon = (mode) => {
+    this.drawingFunctions.new.source.mode = mode;
+    this.#drawGeometry("new", "Polygon", drawNewStyle());
+  };
+
+  endDrawNew = () => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("new");
+  };
+
   startDrawSearchPoint = (mode) => {
     this.drawingFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Point", searchStyle());
@@ -80,23 +96,6 @@ class IntegrationModel {
   endDrawSearch = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("search");
-  };
-
-  startDrawNewPoint = (mode) => {
-    this.drawingFunctions.new.source.mode = mode;
-    // TODO:
-    // his.#drawGeometry("new", "Point");
-  };
-
-  startDrawNewPolygon = (mode) => {
-    this.drawingFunctions.new.source.mode = mode;
-    // TODO:
-    // his.#drawGeometry("new", "Polygon");
-  };
-
-  endDrawNew = () => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("new");
   };
 
   clearResults = (mode) => {
@@ -161,7 +160,7 @@ class IntegrationModel {
   #addLayers = () => {
     this.#addSearchLayer();
     this.#addNewGeometryLayer();
-    this.#addDataLayers();
+    this.#addMapLayers();
     this.#addHighlightLayer();
   };
 
@@ -181,10 +180,60 @@ class IntegrationModel {
     this.map.addLayer(newGeometryLayer);
   };
 
-  #addDataLayers = () => {
+  #addMapLayers = () => {
     this.#addSources();
     this.#addActiveSource();
 
+    this.#addEditLayers();
+    this.#addLayersToMap(this.editLayers.array);
+
+    this.#addDataLayers();
+    this.#addLayersToMap(this.layers.array);
+  };
+
+  #addSources = () => {
+    this.editSources = {
+      new: this.#createNewVectorSource(),
+      copy: this.#createNewVectorSource(),
+      combine: this.#createNewVectorSource(),
+    };
+
+    this.sources = {
+      realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
+    };
+  };
+
+  #addActiveSource = () => {
+    this.activeSource = this.sources[0];
+  };
+
+  #addEditLayers = () => {
+    this.editLayers = {
+      new: this.#createNewVectorLayer(
+        this.editSources.new,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      copy: this.#createNewVectorLayer(
+        this.editSources.copy,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      combine: this.#createNewVectorLayer(
+        this.editSources.combine,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+    };
+    this.editLayers.array = [
+      this.editLayers.new,
+      this.editLayers.copy,
+      this.editLayers.combine,
+    ];
+  };
+
+  #addDataLayers = () => {
     this.layers = {
       realEstate: this.#createNewVectorLayer(
         this.sources.realEstate,
@@ -214,21 +263,10 @@ class IntegrationModel {
       this.layers.survey,
       this.layers.contamination,
     ];
-    for (const layer of this.layers.array) this.map.addLayer(layer);
   };
 
-  #addSources = () => {
-    this.sources = {
-      realEstate: this.#createNewVectorSource(),
-      coordinate: this.#createNewVectorSource(),
-      area: this.#createNewVectorSource(),
-      survey: this.#createNewVectorSource(),
-      contamination: this.#createNewVectorSource(),
-    };
-  };
-
-  #addActiveSource = () => {
-    this.activeSource = this.sources[0];
+  #addLayersToMap = (layerArray) => {
+    for (const layer of layerArray) this.map.addLayer(layer);
   };
 
   #addHighlightLayer = () => {
@@ -262,7 +300,7 @@ class IntegrationModel {
     });
     this.map.clickLock.add(props.requestType);
     this.map.addInteraction(this.drawInteraction);
-    this.drawingFunctions.search.source.on(
+    this.drawingFunctions[props.requestType].source.on(
       props.listenerType,
       this.drawingFunctions[props.requestType].callback
     );
@@ -271,9 +309,8 @@ class IntegrationModel {
   #handleDrawNewFeatureAdded = (e) => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("new");
-    // TODO:
-    // Lägg till geometri till källan.
-    // Rensa rita-ny-källan.
+    this.editSources.new.addFeature(e.feature);
+    this.#clearSource(this.drawingFunctions.new.source);
   };
 
   #handleDrawSearchFeatureAdded = (e) => {
@@ -484,7 +521,6 @@ class IntegrationModel {
 
   testAreasFromKUBB = () => {
     this.#sendSnackbarMessage("områden");
-    // Lindholmen 27:1
     this.searchModel.findAreasWithNumbers({
       coordinates: KUBB().areas.coordinates,
       name: KUBB().areas.name,

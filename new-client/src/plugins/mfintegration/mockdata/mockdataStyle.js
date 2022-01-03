@@ -1,5 +1,5 @@
 export const searchStyle = () => {
-  const strokeColor = "rgba(74,74,74,0.5)";
+  const strokeColor = "rgba(74,74,150,0.5)";
   const strokeWidth = 4;
   const fillColor = "rgba(255,255,255,0.07)";
   const circleRadius = 6;
@@ -41,7 +41,7 @@ export const layerStyle = () => {
 };
 
 export const drawNewStyle = () => {
-  const strokeColor = "rgba(255,0,0,0.5)";
+  const strokeColor = "rgba(150,74,74,0.5)";
   const strokeWidth = 4;
   const fillColor = "rgba(255,0,0,0.07)";
   const circleRadius = 6;
