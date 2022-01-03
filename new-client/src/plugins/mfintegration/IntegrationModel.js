@@ -27,11 +27,8 @@ class IntegrationModel {
 
   #bindSubscriptions = () => {
     this.localObserver.subscribe("mf-wfs-search", (data) => {
-      this.#addFeaturesToSource(this.sources[data.type], data);
-      this.#updateList(this.sources[data.type], data);
-      this.#zoomToSource(this.sources[data.type]);
+      this.#addWfsSearch(data);
     });
-
     this.localObserver.subscribe("mf-new-mode", (mode) => {
       this.#modeChanged(mode);
     });
@@ -60,11 +57,11 @@ class IntegrationModel {
   #initDrawingFunctions = () => {
     this.drawingFunctions = {
       new: {
-        drawCallback: this.#handleDrawNewFeatureAdded,
+        callback: this.#handleDrawNewFeatureAdded,
         source: this.#createNewVectorSource(),
       },
       search: {
-        drawCallback: this.#handleDrawSearchFeatureAdded,
+        callback: this.#handleDrawSearchFeatureAdded,
         source: this.#createNewVectorSource(),
       },
     };
@@ -197,11 +194,17 @@ class IntegrationModel {
         this.sources.coordinate,
         this.#createLayerStyle(layerStyle())
       ),
-      area: this.#createNewVectorLayer(this.sources.area, layerStyle),
-      survey: this.#createNewVectorLayer(this.sources.survey, layerStyle),
+      area: this.#createNewVectorLayer(
+        this.sources.area,
+        this.#createLayerStyle(layerStyle())
+      ),
+      survey: this.#createNewVectorLayer(
+        this.sources.survey,
+        this.#createLayerStyle(layerStyle())
+      ),
       contamination: this.#createNewVectorLayer(
         this.sources.contamination,
-        layerStyle
+        this.#createLayerStyle(layerStyle())
       ),
     };
     this.layers.array = [
@@ -261,15 +264,8 @@ class IntegrationModel {
     this.map.addInteraction(this.drawInteraction);
     this.drawingFunctions.search.source.on(
       props.listenerType,
-      this.drawingFunctions[props.requestType].drawCallback
+      this.drawingFunctions[props.requestType].callback
     );
-  };
-
-  #handleDrawSearchFeatureAdded = (e) => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("search");
-    this.searchModelFunctions[e.target.mode](e.feature);
-    this.#clearSource(this.drawingFunctions.search.source);
   };
 
   #handleDrawNewFeatureAdded = (e) => {
@@ -280,8 +276,21 @@ class IntegrationModel {
     // Rensa rita-ny-källan.
   };
 
+  #handleDrawSearchFeatureAdded = (e) => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("search");
+    this.searchModelFunctions[e.target.mode](e.feature);
+    this.#clearSource(this.drawingFunctions.search.source);
+  };
+
   #setFeatureStyle = (feature, style) => {
     feature.setStyle(style);
+  };
+
+  #addWfsSearch = (data) => {
+    this.#addFeaturesToSource(this.sources[data.type], data);
+    this.#updateList(this.sources[data.type], data);
+    this.#zoomToSource(this.sources[data.type]);
   };
 
   #addFeaturesToSource = (source, featureCollection) => {
