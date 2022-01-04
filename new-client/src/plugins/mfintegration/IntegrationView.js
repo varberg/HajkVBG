@@ -120,6 +120,7 @@ class IntegrationView extends React.PureComponent {
     this.#initUpdateFunctions();
     this.#initClearFunctions();
     this.#initDrawFunctions();
+    this.#initPublishDefaultMode();
   };
 
   #initUpdateFunctions = () => {
@@ -151,13 +152,9 @@ class IntegrationView extends React.PureComponent {
 
   #initDrawFunctions = () => {
     this.drawFunctions = {
-      pointselect: {
-        start: this.props.model.startDrawSearchPoint,
-        end: this.props.model.endDrawSearch,
-      },
-      polygonselect: {
-        start: this.props.model.startDrawSearchPolygon,
-        end: this.props.model.endDrawSearch,
+      pointcopy: {
+        start: this.props.model.startDrawCopyPoint,
+        end: this.props.model.endDrawCopy,
       },
       pointdraw: {
         start: this.props.model.startDrawNewPoint,
@@ -167,7 +164,19 @@ class IntegrationView extends React.PureComponent {
         start: this.props.model.startDrawNewPolygon,
         end: this.props.model.endDrawNew,
       },
+      pointselect: {
+        start: this.props.model.startDrawSearchPoint,
+        end: this.props.model.endDrawSearch,
+      },
+      polygonselect: {
+        start: this.props.model.startDrawSearchPolygon,
+        end: this.props.model.endDrawSearch,
+      },
     };
+  };
+
+  #initPublishDefaultMode = () => {
+    this.localObserver.publish("mf-new-mode", defaultState.mode);
   };
 
   #initDrawingSupport = () => {
@@ -519,6 +528,16 @@ class IntegrationView extends React.PureComponent {
             >
               Fejk-KUBB: Testa fastigheter
             </Button>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.startDrawCopyPoint(this.state.mode);
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-kopiera: Testa kopiera fastighet
+            </Button>
           </ListItem>
         ) : null}
         {this.state.mode === "coordinate" ? (
@@ -545,7 +564,17 @@ class IntegrationView extends React.PureComponent {
               color="primary"
               variant="contained"
             >
-              Fejk-KUBB: Testa koordinater
+              Fejk-KUBB: Testa områden
+            </Button>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.startDrawNewPolygon(this.state.mode);
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-rita: Testa rita område
             </Button>
           </ListItem>
         ) : null}
@@ -559,7 +588,7 @@ class IntegrationView extends React.PureComponent {
               color="primary"
               variant="contained"
             >
-              Fejk-KUBB: Testa koordinater
+              Fejk-KUBB: Testa undersökningar
             </Button>
           </ListItem>
         ) : null}
@@ -573,7 +602,7 @@ class IntegrationView extends React.PureComponent {
               color="primary"
               variant="contained"
             >
-              Fejk-KUBB: Testa koordinater
+              Fejk-KUBB: Testa föroreningar
             </Button>
           </ListItem>
         ) : null}
