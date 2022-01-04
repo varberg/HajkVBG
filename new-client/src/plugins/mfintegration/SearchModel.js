@@ -222,13 +222,12 @@ export default class SearchModel {
     return geometry;
   };
 
-  #getListFilter = (realEstatesList, wfsConfig) => {
+  #getListFilter = (list, wfsConfig) => {
     const geometryField = wfsConfig.geometryField;
-    if (realEstatesList.length === 1)
-      return new EqualTo(geometryField, realEstatesList[0]);
+    if (list.length === 1) return new EqualTo(geometryField, list[0]);
     return new Or(
-      ...realEstatesList.map((fnrNumber) => {
-        return new EqualTo(geometryField, fnrNumber);
+      ...list.map((id) => {
+        return new EqualTo(geometryField, id);
       })
     );
   };

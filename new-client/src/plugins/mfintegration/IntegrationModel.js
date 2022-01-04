@@ -1,11 +1,11 @@
-import { Fill, Stroke, Style, Circle } from "ol/style";
-import { extend, createEmpty } from "ol/extent";
 import Draw from "ol/interaction/Draw";
 import Feature from "ol/Feature";
-import Transform from "./Transformation/Transform";
+import { extend, createEmpty } from "ol/extent";
+import { Fill, Stroke, Style, Circle } from "ol/style";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
+import Transform from "./Transformation/Transform";
 import {
   drawNewStyle,
   highLightStyle,
@@ -28,7 +28,7 @@ class IntegrationModel {
 
   #bindSubscriptions = () => {
     this.localObserver.subscribe("mf-wfs-search", (data) => {
-      this.#addWfsSearch(data);
+      this.#handleWfsSearch(data);
     });
     this.localObserver.subscribe("mf-new-mode", (mode) => {
       this.#modeChanged(mode);
@@ -41,6 +41,7 @@ class IntegrationModel {
   #init = () => {
     this.handleWindowOpen();
     this.#initSearchModelFunctions();
+    this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
     this.#addLayers();
   };
@@ -55,8 +56,19 @@ class IntegrationModel {
     };
   };
 
+  #initSearchResponseFunctions = () => {
+    this.searchResponseFunctions = {
+      copy: this.#copyWfsSearch,
+      search: this.#addWfsSearch,
+    };
+  };
+
   #initDrawingFunctions = () => {
-    this.drawingFunctions = {
+    this.drawingToolFunctions = {
+      copy: {
+        callback: this.#handleDrawCopyFeatureAdded,
+        source: this.#createNewVectorSource(),
+      },
       new: {
         callback: this.#handleDrawNewFeatureAdded,
         source: this.#createNewVectorSource(),
@@ -68,34 +80,35 @@ class IntegrationModel {
     };
   };
 
+  startDrawCopyPoint = (mode) => {
+    this.drawingToolFunctions.copy.source.mode = mode;
+    this.#drawGeometry("copy", "Point", drawNewStyle());
+  };
+
   startDrawNewPoint = (mode) => {
-    this.drawingFunctions.new.source.mode = mode;
+    this.drawingToolFunctions.new.source.mode = mode;
     this.#drawGeometry("new", "Point", drawNewStyle());
   };
 
   startDrawNewPolygon = (mode) => {
-    this.drawingFunctions.new.source.mode = mode;
+    this.drawingToolFunctions.new.source.mode = mode;
     this.#drawGeometry("new", "Polygon", drawNewStyle());
   };
 
-  endDrawNew = () => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("new");
-  };
-
   startDrawSearchPoint = (mode) => {
-    this.drawingFunctions.search.source.mode = mode;
+    this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Point", searchStyle());
   };
 
   startDrawSearchPolygon = (mode) => {
-    this.drawingFunctions.search.source.mode = mode;
+    this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Polygon", searchStyle());
   };
 
-  endDrawSearch = () => {
+  endDraw = () => {
     this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("search");
+    this.map.clickLock.delete(this.drawingTool);
+    this.drawingTool = "none";
   };
 
   clearResults = (mode) => {
@@ -166,7 +179,7 @@ class IntegrationModel {
 
   #addSearchLayer = () => {
     const searchLayer = this.#createNewVectorLayer(
-      this.drawingFunctions.search.source,
+      this.drawingToolFunctions.search.source,
       this.#createLayerStyle(searchStyle())
     );
     this.map.addLayer(searchLayer);
@@ -174,7 +187,7 @@ class IntegrationModel {
 
   #addNewGeometryLayer = () => {
     const newGeometryLayer = this.#createNewVectorLayer(
-      this.drawingFunctions.new.source,
+      this.drawingToolFunctions.new.source,
       this.#createLayerStyle(newGeometryStyle())
     );
     this.map.addLayer(newGeometryLayer);
@@ -182,7 +195,6 @@ class IntegrationModel {
 
   #addMapLayers = () => {
     this.#addSources();
-    this.#addActiveSource();
 
     this.#addEditLayers();
     this.#addLayersToMap(this.editLayers.array);
@@ -205,10 +217,6 @@ class IntegrationModel {
       survey: this.#createNewVectorSource(),
       contamination: this.#createNewVectorSource(),
     };
-  };
-
-  #addActiveSource = () => {
-    this.activeSource = this.sources[0];
   };
 
   #addEditLayers = () => {
@@ -279,49 +287,61 @@ class IntegrationModel {
     this.map.addLayer(this.highlightLayer);
   };
 
-  #drawGeometry = (requestType, drawType, style) => {
+  #drawGeometry = (drawingTool, drawType, style) => {
+    this.drawingTool = drawingTool;
     const drawFunctionProps = {
       listenerType: "addfeature",
-      requestType: requestType,
+      requestType: drawingTool,
       style: this.#createLayerStyle(style),
-      source: this.drawingFunctions[requestType].source,
+      source: this.drawingToolFunctions[drawingTool].source,
       type: drawType,
     };
     this.#createDrawFunction(drawFunctionProps);
   };
 
-  #createDrawFunction = (props) => {
+  #createDrawFunction = (drawProps) => {
     this.drawInteraction = new Draw({
-      source: props.source,
-      type: props.type,
+      source: drawProps.source,
+      type: drawProps.type,
       freehand: false,
       stopClick: true,
-      style: props.style,
+      style: drawProps.style,
     });
-    this.map.clickLock.add(props.requestType);
+    this.map.clickLock.add(drawProps.requestType);
     this.map.addInteraction(this.drawInteraction);
-    this.drawingFunctions[props.requestType].source.on(
-      props.listenerType,
-      this.drawingFunctions[props.requestType].callback
+    this.drawingToolFunctions[drawProps.requestType].source.on(
+      drawProps.listenerType,
+      this.drawingToolFunctions[drawProps.requestType].callback
     );
+  };
+
+  #handleDrawCopyFeatureAdded = (e) => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("copy");
+    this.searchModelFunctions[e.target.mode](e.feature);
+    this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
   #handleDrawNewFeatureAdded = (e) => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("new");
     this.editSources.new.addFeature(e.feature);
-    this.#clearSource(this.drawingFunctions.new.source);
+    this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
   #handleDrawSearchFeatureAdded = (e) => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete("search");
     this.searchModelFunctions[e.target.mode](e.feature);
-    this.#clearSource(this.drawingFunctions.search.source);
+    this.#clearSource(this.drawingToolFunctions.search.source);
   };
 
   #setFeatureStyle = (feature, style) => {
     feature.setStyle(style);
+  };
+
+  #handleWfsSearch = (data) => {
+    this.searchResponseFunctions[this.drawingTool](data);
   };
 
   #addWfsSearch = (data) => {
@@ -461,6 +481,10 @@ class IntegrationModel {
     });
   };
 
+  #copyWfsSearch = (data) => {
+    this.#addFeaturesToSource(this.editSources.copy, data);
+  };
+
   #modeChanged = (mode) => {
     this.#clearSource(this.highlightSource);
     this.#hideAllLayers();
@@ -510,17 +534,20 @@ class IntegrationModel {
   testRealEstatesFromKUBB = () => {
     this.#sendSnackbarMessage("fastighter");
     const FNRs = KUBB().realEstates;
+    this.drawingTool = "search";
     this.searchModel.findRealEstatesWithNumbers(FNRs);
   };
 
   testCoordinatesFromKUBB = () => {
     this.#sendSnackbarMessage("koordinater");
     const coordinates = KUBB().coordinates;
+    this.drawingTool = "search";
     this.searchModel.findCoordinatesWithCoordinates(coordinates);
   };
 
   testAreasFromKUBB = () => {
     this.#sendSnackbarMessage("områden");
+    this.drawingTool = "search";
     this.searchModel.findAreasWithNumbers({
       coordinates: KUBB().areas.coordinates,
       name: KUBB().areas.name,
@@ -530,12 +557,14 @@ class IntegrationModel {
   testSurveysFromKUBB = () => {
     this.#sendSnackbarMessage("undersökningar");
     const surveys = KUBB().surveys;
+    this.drawingTool = "search";
     this.searchModel.findSurveysWithNumbers(surveys);
   };
 
   testContaminationsFromKUBB = () => {
     this.#sendSnackbarMessage("föroreningar");
     const contaminations = KUBB().contaminations;
+    this.drawingTool = "search";
     this.searchModel.findContaminationsWithNumbers(contaminations);
   };
 }
