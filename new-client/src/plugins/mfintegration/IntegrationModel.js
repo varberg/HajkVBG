@@ -105,6 +105,12 @@ class IntegrationModel {
     this.#drawGeometry("search", "Polygon", searchStyle());
   };
 
+  endDrawSearch = () => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete(this.drawingTool);
+    this.drawingTool = "none";
+  };
+
   endDraw = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
