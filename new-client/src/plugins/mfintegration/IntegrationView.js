@@ -580,16 +580,6 @@ class IntegrationView extends React.PureComponent {
             >
               Fejk-KUBB: Testa områden
             </Button>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.startDrawNewPolygon(this.state.mode);
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-rita: Testa rita område
-            </Button>
           </ListItem>
         ) : null}
         {this.state.mode === "survey" ? (
