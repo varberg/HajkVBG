@@ -105,12 +105,6 @@ class IntegrationModel {
     this.#drawGeometry("search", "Polygon", searchStyle());
   };
 
-  endDrawSearch = () => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete(this.drawingTool);
-    this.drawingTool = "none";
-  };
-
   endDraw = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
@@ -130,8 +124,6 @@ class IntegrationModel {
       this.highlightSource.removeFeature(clickedItem.feature);
 
     this.activeSource.removeFeature(clickedItem.feature);
-    if (this.activeSource.getFeatures().length > 0)
-      this.#zoomToSource(this.activeSource);
   };
 
   toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
@@ -351,7 +343,6 @@ class IntegrationModel {
   #addWfsSearch = (data) => {
     this.#addFeaturesToSource(this.sources[data.type], data);
     this.#updateList(this.sources[data.type], data);
-    this.#zoomToSource(this.sources[data.type]);
   };
 
   #addFeaturesToSource = (source, featureCollection) => {

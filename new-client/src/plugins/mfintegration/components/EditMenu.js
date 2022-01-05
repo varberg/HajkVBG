@@ -222,7 +222,7 @@ class EditMenu extends React.PureComponent {
   };
 
   renderStepTwo = (editMode) => {
-    const { classes } = this.props;
+    const { classes, localObserver } = this.props;
     if (editMode === "draw") {
       return (
         <Grid container item xs={12} spacing={(2, 2)}>
@@ -237,7 +237,11 @@ class EditMenu extends React.PureComponent {
               selected={this.state.drawActive}
               value={"drawActive"}
               onChange={() => {
-                this.setState({ drawActive: !this.state.drawActive });
+                this.setState({ drawActive: !this.state.drawActive }, () => {
+                  if (this.state.drawActive) {
+                    localObserver.publish("mf-start-draw-new-geometry");
+                  }
+                });
               }}
             >
               <EditIcon size="small" />

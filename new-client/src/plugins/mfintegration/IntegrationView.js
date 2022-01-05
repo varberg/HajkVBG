@@ -50,7 +50,7 @@ const defaultState = {
   listToolsMode: "none",
 };
 
-const showDevelopmentOnlyButtons = false;
+const showDevelopmentOnlyButtons = true;
 
 //TODO - Move this out to config.
 const informationText =
@@ -108,6 +108,9 @@ class IntegrationView extends React.PureComponent {
         persist: false,
       });
     });
+    this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
+      this.newGeometryFunctions[this.state.mode]();
+    });
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
       this.#clearDrawingSupport();
@@ -120,6 +123,7 @@ class IntegrationView extends React.PureComponent {
     this.#initUpdateFunctions();
     this.#initClearFunctions();
     this.#initDrawFunctions();
+    this.#initNewGeometryFunctions();
     this.#initPublishDefaultMode();
   };
 
@@ -166,12 +170,22 @@ class IntegrationView extends React.PureComponent {
       },
       pointselect: {
         start: this.props.model.startDrawSearchPoint,
-        end: this.props.model.endDrawSearch,
+        end: this.props.model.endDraw,
       },
       polygonselect: {
         start: this.props.model.startDrawSearchPolygon,
-        end: this.props.model.endDrawSearch,
+        end: this.props.model.endDraw,
       },
+    };
+  };
+
+  #initNewGeometryFunctions = () => {
+    this.newGeometryFunctions = {
+      realEstate: this.drawFunctions.polygondraw.start,
+      coordinate: this.drawFunctions.pointdraw.start,
+      area: this.drawFunctions.polygondraw.start,
+      survey: this.drawFunctions.polygondraw.start,
+      contamination: this.drawFunctions.polygondraw.start,
     };
   };
 
@@ -494,7 +508,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   renderEditMenu = () => {
-    return <EditMenu />;
+    return <EditMenu localObserver={this.localObserver} />;
   };
 
   renderListTools = () => {
