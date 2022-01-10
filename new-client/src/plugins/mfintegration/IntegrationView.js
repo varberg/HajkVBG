@@ -50,7 +50,7 @@ const defaultState = {
   listToolsMode: "none",
 };
 
-const showDevelopmentOnlyButtons = false;
+const showDevelopmentOnlyButtons = true;
 
 //TODO - Move this out to config.
 const informationText =
@@ -154,23 +154,23 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions = {
       pointcopy: {
         start: this.props.model.startDrawCopyPoint,
-        end: this.props.model.endDrawCopy,
+        end: this.props.model.endDraw,
       },
       pointdraw: {
         start: this.props.model.startDrawNewPoint,
-        end: this.props.model.endDrawNew,
+        end: this.props.model.endDraw,
       },
       polygondraw: {
         start: this.props.model.startDrawNewPolygon,
-        end: this.props.model.endDrawNew,
+        end: this.props.model.endDraw,
       },
       pointselect: {
         start: this.props.model.startDrawSearchPoint,
-        end: this.props.model.endDrawSearch,
+        end: this.props.model.endDraw,
       },
       polygonselect: {
         start: this.props.model.startDrawSearchPolygon,
-        end: this.props.model.endDrawSearch,
+        end: this.props.model.endDraw,
       },
     };
   };
@@ -574,7 +574,27 @@ class IntegrationView extends React.PureComponent {
               color="primary"
               variant="contained"
             >
-              Fejk-rita: Testa rita område
+              Fejk-rita
+            </Button>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.addSnapInteraction("realEstate");
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Snap/På
+            </Button>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.endSnapDraw();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Snap/Av
             </Button>
           </ListItem>
         ) : null}
