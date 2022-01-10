@@ -1,6 +1,8 @@
 import Draw from "ol/interaction/Draw";
 import Feature from "ol/Feature";
 import { extend, createEmpty } from "ol/extent";
+import Point from "ol/geom/Point";
+import Snap from "ol/interaction/Snap";
 import { Fill, Stroke, Style, Circle } from "ol/style";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
@@ -12,7 +14,9 @@ import {
   layerStyle,
   newGeometryStyle,
   searchStyle,
+  snapStyle,
 } from "./mockdata/mockdataStyle";
+import { wfsConfig } from "./mockdata/mockdataWFS";
 
 class IntegrationModel {
   constructor(settings) {
@@ -46,6 +50,33 @@ class IntegrationModel {
     this.#addLayers();
   };
 
+  #initSnap = (mode) => {
+    this.snapMode = mode;
+    this.map.on("pointermove", this.#snapPointerMove);
+  };
+
+  #snapPointerMove = (e) => {
+    if (!e.coordinate) return;
+
+    let snapWfsSearch = true;
+    this.map.forEachFeatureAtPixel(e.pixel, (snappedGeometry) => {
+      const foundFeatureInSource = this.#getFeatureInSource(
+        this.activeSnapSource.getFeatures(),
+        snappedGeometry,
+        wfsConfig()[this.snapMode].geometryField
+      );
+      if (foundFeatureInSource) snapWfsSearch = false;
+      return false;
+    });
+
+    if (snapWfsSearch) this.#snapPointWfsSearch(e.coordinate, this.snapMode);
+  };
+
+  #snapPointWfsSearch = (coordinates, mode) => {
+    const feature = new Feature({ geometry: new Point(coordinates) });
+    this.searchModelFunctions[mode](feature);
+  };
+
   #initSearchModelFunctions = () => {
     this.searchModelFunctions = {
       realEstate: this.searchModel.findRealEstatesWithGeometry,
@@ -60,6 +91,7 @@ class IntegrationModel {
     this.searchResponseFunctions = {
       copy: this.#copyWfsSearch,
       search: this.#addWfsSearch,
+      snap: this.#snapWfsSearch,
     };
   };
 
@@ -105,14 +137,29 @@ class IntegrationModel {
     this.#drawGeometry("search", "Polygon", searchStyle());
   };
 
+  addSnapInteraction = (mode) => {
+    this.searchResponseTool = "snap";
+    this.activeSnapSource = this.snapSources[mode];
+    this.#initSnap(mode);
+    this.snapInteraction = new Snap({ source: this.activeSnapSource });
+    this.map.addInteraction(this.snapInteraction);
+  };
+
   endDraw = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
     this.drawingTool = "none";
   };
 
+  endSnapDraw = () => {
+    this.searchResponseTool = "snap";
+    this.activeSnapSource = null;
+    this.map.removeInteraction(this.snapInteraction);
+    this.map.un("pointermove", this.#snapPointerMove);
+  };
+
   clearResults = (mode) => {
-    this.#clearSource(this.sources[mode]);
+    this.#clearSource(this.dataSources[mode]);
   };
 
   clearHighlight = () => {
@@ -197,8 +244,15 @@ class IntegrationModel {
     this.#addEditLayers();
     this.#addLayersToMap(this.editLayers.array);
 
+    // TODO: Ta bort fyra rader nedan.
+    // Slå på om man behöver visa hur snappningen fungerar
+    if (false) {
+      this.#addSnapLayers();
+      this.#addLayersToMap(this.snapLayers.array);
+    }
+
     this.#addDataLayers();
-    this.#addLayersToMap(this.layers.array);
+    this.#addLayersToMap(this.dataLayers.array);
   };
 
   #addSources = () => {
@@ -208,7 +262,15 @@ class IntegrationModel {
       combine: this.#createNewVectorSource(),
     };
 
-    this.sources = {
+    this.dataSources = {
+      realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
+    };
+
+    this.snapSources = {
       realEstate: this.#createNewVectorSource(),
       coordinate: this.#createNewVectorSource(),
       area: this.#createNewVectorSource(),
@@ -239,35 +301,67 @@ class IntegrationModel {
     ];
   };
 
-  #addDataLayers = () => {
-    this.layers = {
+  #addSnapLayers = () => {
+    this.snapLayers = {
       realEstate: this.#createNewVectorLayer(
-        this.sources.realEstate,
+        this.snapSources.realEstate,
+        this.#createLayerStyle(snapStyle())
+      ),
+      coordinate: this.#createNewVectorLayer(
+        this.snapSources.coordinate,
+        this.#createLayerStyle(snapStyle())
+      ),
+      area: this.#createNewVectorLayer(
+        this.snapSources.area,
+        this.#createLayerStyle(snapStyle())
+      ),
+      survey: this.#createNewVectorLayer(
+        this.snapSources.survey,
+        this.#createLayerStyle(snapStyle())
+      ),
+      contamination: this.#createNewVectorLayer(
+        this.snapSources.contamination,
+        this.#createLayerStyle(snapStyle())
+      ),
+    };
+    this.snapLayers.array = [
+      this.snapLayers.realEstate,
+      this.snapLayers.coordinate,
+      this.snapLayers.area,
+      this.snapLayers.survey,
+      this.snapLayers.contamination,
+    ];
+  };
+
+  #addDataLayers = () => {
+    this.dataLayers = {
+      realEstate: this.#createNewVectorLayer(
+        this.dataSources.realEstate,
         this.#createLayerStyle(layerStyle())
       ),
       coordinate: this.#createNewVectorLayer(
-        this.sources.coordinate,
+        this.dataSources.coordinate,
         this.#createLayerStyle(layerStyle())
       ),
       area: this.#createNewVectorLayer(
-        this.sources.area,
+        this.dataSources.area,
         this.#createLayerStyle(layerStyle())
       ),
       survey: this.#createNewVectorLayer(
-        this.sources.survey,
+        this.dataSources.survey,
         this.#createLayerStyle(layerStyle())
       ),
       contamination: this.#createNewVectorLayer(
-        this.sources.contamination,
+        this.dataSources.contamination,
         this.#createLayerStyle(layerStyle())
       ),
     };
-    this.layers.array = [
-      this.layers.realEstate,
-      this.layers.coordinate,
-      this.layers.area,
-      this.layers.survey,
-      this.layers.contamination,
+    this.dataLayers.array = [
+      this.dataLayers.realEstate,
+      this.dataLayers.coordinate,
+      this.dataLayers.area,
+      this.dataLayers.survey,
+      this.dataLayers.contamination,
     ];
   };
 
@@ -307,10 +401,17 @@ class IntegrationModel {
     });
     this.map.clickLock.add(drawProps.requestType);
     this.map.addInteraction(this.drawInteraction);
+    this.#addSnapToDrawFunction();
     this.drawingToolFunctions[drawProps.requestType].source.on(
       drawProps.listenerType,
       this.drawingToolFunctions[drawProps.requestType].callback
     );
+  };
+
+  #addSnapToDrawFunction = () => {
+    if (!this.activeSnapSource) return;
+    this.snapInteraction = new Snap({ source: this.activeSnapSource });
+    this.map.addInteraction(this.snapInteraction);
   };
 
   #handleDrawCopyFeatureAdded = (e) => {
@@ -337,7 +438,7 @@ class IntegrationModel {
   };
 
   #handleWfsSearch = (data) => {
-    this.searchResponseFunctions[this.drawingTool](data);
+    this.searchResponseFunctions[this.searchResponseTool](data);
   };
 
   #addWfsSearch = (data) => {
@@ -480,6 +581,19 @@ class IntegrationModel {
     this.#addFeaturesToSource(this.editSources.copy, data);
   };
 
+  #snapWfsSearch = (data) => {
+    const features = this.#createFeaturesFromFeatureCollection(
+      data.searchType,
+      data.featureCollection,
+      data.transformation
+    );
+    this.#addNoDuplicatesToSource(
+      features,
+      this.activeSnapSource,
+      data.geometryField
+    );
+  };
+
   #modeChanged = (mode) => {
     this.#clearSource(this.highlightSource);
     this.#hideAllLayers();
@@ -488,15 +602,15 @@ class IntegrationModel {
   };
 
   #hideAllLayers = () => {
-    for (const layer of this.layers.array) layer.setVisible(false);
+    for (const layer of this.dataLayers.array) layer.setVisible(false);
   };
 
   #showAcitveLayer = (mode) => {
-    this.layers[mode].setVisible(true);
+    this.dataLayers[mode].setVisible(true);
   };
 
   #setActiveSource = (mode) => {
-    this.activeSource = this.sources[mode];
+    this.activeSource = this.dataSources[mode];
   };
 
   #highlightItem = (item) => {
@@ -529,20 +643,20 @@ class IntegrationModel {
   testRealEstatesFromKUBB = () => {
     this.#sendSnackbarMessage("fastighter");
     const FNRs = KUBB().realEstates;
-    this.drawingTool = "search";
+    this.searchResponseTool = "search";
     this.searchModel.findRealEstatesWithNumbers(FNRs);
   };
 
   testCoordinatesFromKUBB = () => {
     this.#sendSnackbarMessage("koordinater");
     const coordinates = KUBB().coordinates;
-    this.drawingTool = "search";
+    this.searchResponseTool = "search";
     this.searchModel.findCoordinatesWithCoordinates(coordinates);
   };
 
   testAreasFromKUBB = () => {
     this.#sendSnackbarMessage("områden");
-    this.drawingTool = "search";
+    this.searchResponseTool = "search";
     this.searchModel.findAreasWithNumbers({
       coordinates: KUBB().areas.coordinates,
       name: KUBB().areas.name,
@@ -552,14 +666,14 @@ class IntegrationModel {
   testSurveysFromKUBB = () => {
     this.#sendSnackbarMessage("undersökningar");
     const surveys = KUBB().surveys;
-    this.drawingTool = "search";
+    this.searchResponseTool = "search";
     this.searchModel.findSurveysWithNumbers(surveys);
   };
 
   testContaminationsFromKUBB = () => {
     this.#sendSnackbarMessage("föroreningar");
     const contaminations = KUBB().contaminations;
-    this.drawingTool = "search";
+    this.searchResponseTool = "search";
     this.searchModel.findContaminationsWithNumbers(contaminations);
   };
 }

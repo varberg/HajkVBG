@@ -67,3 +67,17 @@ export const newGeometryStyle = () => {
     circle: { radius: circleRadius, width: strokeWithCircle },
   };
 };
+
+export const snapStyle = () => {
+  const strokeColor = "rgba(74,74,74,0.5)";
+  const strokeWidth = 4;
+  const fillColor = "rgba(74,74,74,0.07)";
+  const circleRadius = 6;
+  const strokeWithCircle = 2;
+
+  return {
+    stroke: { color: strokeColor, width: strokeWidth },
+    fill: { color: fillColor },
+    circle: { radius: circleRadius, width: strokeWithCircle },
+  };
+};
