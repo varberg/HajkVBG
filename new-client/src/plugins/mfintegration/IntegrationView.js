@@ -87,6 +87,7 @@ class IntegrationView extends React.PureComponent {
 
     this.globalObserver = props.globalObserver;
     this.localObserver = props.localObserver;
+    this.model = props.model;
     this.app = props.app;
     this.title = props.title;
 
@@ -110,6 +111,14 @@ class IntegrationView extends React.PureComponent {
     });
     this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
       this.newGeometryFunctions[this.state.mode]();
+    });
+    this.localObserver.subscribe("mf-snap-supportLayer", (snapTarget) => {
+      this.#showDrawingSupport(snapTarget.layerId);
+      this.model.addSnapInteraction(snapTarget.sourceName);
+    });
+    this.localObserver.subscribe("mf-snap-noSupportLayer", (snapTarget) => {
+      this.#hideDrawingSupport(snapTarget.layerId);
+      this.model.endSnapInteraction(snapTarget.sourceName);
     });
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
@@ -145,13 +154,14 @@ class IntegrationView extends React.PureComponent {
       survey: this.#clearResultsSurvey,
       contamination: this.#clearResultsContamination,
     };
-    this.clearFunctions.array = [
-      this.clearFunctions.realEstate,
-      this.clearFunctions.coordinate,
-      this.clearFunctions.area,
-      this.clearFunctions.survey,
-      this.clearFunctions.contamination,
-    ];
+    this.#addArrayToObject(this.clearFunctions);
+  };
+
+  #addArrayToObject = (object) => {
+    const array = Object.keys(object).map((key) => {
+      return object[key];
+    });
+    object.array = array;
   };
 
   #initDrawFunctions = () => {
@@ -579,36 +589,6 @@ class IntegrationView extends React.PureComponent {
               variant="contained"
             >
               Fejk-KUBB: Testa områden
-            </Button>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.startDrawNewPolygon(this.state.mode);
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-rita
-            </Button>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.addSnapInteraction("realEstate");
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Snap/På
-            </Button>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.endSnapDraw();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Snap/Av
             </Button>
           </ListItem>
         ) : null}

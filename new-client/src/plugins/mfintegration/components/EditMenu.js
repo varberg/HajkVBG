@@ -31,6 +31,7 @@ import DeleteIcon from "@material-ui/icons/Delete";
 import FileCopyOutlinedIcon from "@material-ui/icons/FileCopyOutlined";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
 import SnappingControl from "./SnappingControl";
+import { drawingSupportSnapLayers } from "./../mockdata/mockdataLayers";
 
 const styles = (theme) => {
   return {
@@ -113,6 +114,10 @@ class EditMenu extends React.PureComponent {
 
   #handleChangeCombineLayer = (layerId) => {
     this.setState({ activeCombineLayer: layerId });
+  };
+
+  #getAvailableSnapLayers = () => {
+    return drawingSupportSnapLayers();
   };
 
   renderStepTwoControls = () => {
@@ -250,11 +255,9 @@ class EditMenu extends React.PureComponent {
           </Grid>
           <Grid item xs={12}>
             <SnappingControl
-              enabled={false}
-              availableLayers={[
-                { id: 1, name: "Fastigheter" },
-                { id: 2, name: "Tillsynsobjekt" },
-              ]}
+              enabled={true}
+              availableSnapLayers={this.#getAvailableSnapLayers()}
+              localObserver={localObserver}
             />
           </Grid>
           <Grid item xs={12}>

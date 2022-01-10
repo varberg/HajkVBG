@@ -151,7 +151,7 @@ class IntegrationModel {
     this.drawingTool = "none";
   };
 
-  endSnapDraw = () => {
+  endSnapInteraction = () => {
     this.searchResponseTool = "snap";
     this.activeSnapSource = null;
     this.map.removeInteraction(this.snapInteraction);
@@ -294,11 +294,7 @@ class IntegrationModel {
         this.#createLayerStyle(newGeometryStyle())
       ),
     };
-    this.editLayers.array = [
-      this.editLayers.new,
-      this.editLayers.copy,
-      this.editLayers.combine,
-    ];
+    this.#addArrayToObject(this.editLayers);
   };
 
   #addSnapLayers = () => {
@@ -324,13 +320,7 @@ class IntegrationModel {
         this.#createLayerStyle(snapStyle())
       ),
     };
-    this.snapLayers.array = [
-      this.snapLayers.realEstate,
-      this.snapLayers.coordinate,
-      this.snapLayers.area,
-      this.snapLayers.survey,
-      this.snapLayers.contamination,
-    ];
+    this.#addArrayToObject(this.snapLayers);
   };
 
   #addDataLayers = () => {
@@ -356,13 +346,14 @@ class IntegrationModel {
         this.#createLayerStyle(layerStyle())
       ),
     };
-    this.dataLayers.array = [
-      this.dataLayers.realEstate,
-      this.dataLayers.coordinate,
-      this.dataLayers.area,
-      this.dataLayers.survey,
-      this.dataLayers.contamination,
-    ];
+    this.#addArrayToObject(this.dataLayers);
+  };
+
+  #addArrayToObject = (object) => {
+    const array = Object.keys(object).map((key) => {
+      return object[key];
+    });
+    object.array = array;
   };
 
   #addLayersToMap = (layerArray) => {
@@ -442,8 +433,9 @@ class IntegrationModel {
   };
 
   #addWfsSearch = (data) => {
-    this.#addFeaturesToSource(this.sources[data.type], data);
-    this.#updateList(this.sources[data.type], data);
+    this.#addFeaturesToSource(this.dataSources[data.type], data);
+    this.#updateList(this.dataSources[data.type], data);
+    this.#zoomToSource(this.dataSources[data.type]);
   };
 
   #addFeaturesToSource = (source, featureCollection) => {
