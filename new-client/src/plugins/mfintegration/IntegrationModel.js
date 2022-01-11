@@ -1,10 +1,22 @@
-import { Fill, Stroke, Style, Circle } from "ol/style";
-import { extend, createEmpty } from "ol/extent";
 import Draw from "ol/interaction/Draw";
 import Feature from "ol/Feature";
-import Transform from "./Transformation/Transform";
+import { extend, createEmpty } from "ol/extent";
+import Point from "ol/geom/Point";
+import Snap from "ol/interaction/Snap";
+import { Fill, Stroke, Style, Circle } from "ol/style";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
+import { KUBB } from "./mockdata/mockdataKUBB";
+import Transform from "./Transformation/Transform";
+import {
+  drawNewStyle,
+  highLightStyle,
+  layerStyle,
+  newGeometryStyle,
+  searchStyle,
+  snapStyle,
+} from "./mockdata/mockdataStyle";
+import { wfsConfig } from "./mockdata/mockdataWFS";
 
 class IntegrationModel {
   constructor(settings) {
@@ -14,62 +26,140 @@ class IntegrationModel {
     this.localObserver = settings.localObserver;
     this.searchModel = settings.searchModel;
 
-    this.#initMapLayers();
-    this.#initActiveSource();
+    this.#init();
     this.#bindSubscriptions();
   }
 
   #bindSubscriptions = () => {
-    this.localObserver.subscribe("mf-wfs-search-realEstates", (realEstates) => {
-      this.#drawRealEstateResponseFromWfs(realEstates);
+    this.localObserver.subscribe("mf-wfs-search", (data) => {
+      this.#handleWfsSearch(data);
     });
-    this.localObserver.subscribe(
-      "mf-wfs-search-coordinates",
-      (coordindates) => {
-        this.#drawCoordinateResponseFromWfs(coordindates);
-      }
-    );
     this.localObserver.subscribe("mf-new-mode", (mode) => {
-      if (mode === "realEstate") {
-        this.#modeChanged(true, false);
-        this.activeSource = this.realEstateSource;
-      }
-      if (mode === "coordinate") {
-        this.#modeChanged(false, true);
-        this.activeSource = this.coordinateSource;
-      }
+      this.#modeChanged(mode);
     });
     this.localObserver.subscribe("mf-item-list-clicked", (clickedItem) => {
       this.#highlightItem(clickedItem);
     });
   };
 
-  #initMapLayers = () => {
+  #init = () => {
     this.handleWindowOpen();
-    this.#addDrawPointPolygonLayer();
-    this.#addRealEstateLayer();
-    this.#addCoordinateLayer();
-    this.#addHighlightLayer();
+    this.#initSearchModelFunctions();
+    this.#initSearchResponseFunctions();
+    this.#initDrawingFunctions();
+    this.#addLayers();
   };
 
-  #initActiveSource = () => {
-    this.activeSource = this.realEstateSource;
+  #initSnap = (mode) => {
+    this.snapMode = mode;
+    this.map.on("pointermove", this.#snapPointerMove);
   };
 
-  drawPolygon = () => {
-    this.#drawRealEstatePolygon();
+  #snapPointerMove = (e) => {
+    if (!e.coordinate) return;
+
+    let snapWfsSearch = true;
+    this.map.forEachFeatureAtPixel(e.pixel, (snappedGeometry) => {
+      const foundFeatureInSource = this.#getFeatureInSource(
+        this.activeSnapSource.getFeatures(),
+        snappedGeometry,
+        wfsConfig()[this.snapMode].geometryField
+      );
+      if (foundFeatureInSource) snapWfsSearch = false;
+      return false;
+    });
+
+    if (snapWfsSearch) this.#snapPointWfsSearch(e.coordinate, this.snapMode);
   };
 
-  drawPoint = () => {
-    this.#drawRealEstatePoint();
+  #snapPointWfsSearch = (coordinates, mode) => {
+    const feature = new Feature({ geometry: new Point(coordinates) });
+    this.searchModelFunctions[mode](feature);
   };
 
-  clearResultsRealEstate = () => {
-    this.#clearSource(this.realEstateSource);
+  #initSearchModelFunctions = () => {
+    this.searchModelFunctions = {
+      realEstate: this.searchModel.findRealEstatesWithGeometry,
+      coordinate: this.searchModel.findCoordinatesWithGeometry,
+      area: this.searchModel.findAreasWithGeometry,
+      survey: this.searchModel.findSurveysWithGeometry,
+      contamination: this.searchModel.findContaminationsWithGeometry,
+    };
   };
 
-  clearResultsCoordinate = () => {
-    this.#clearSource(this.coordinateSource);
+  #initSearchResponseFunctions = () => {
+    this.searchResponseFunctions = {
+      copy: this.#copyWfsSearch,
+      search: this.#addWfsSearch,
+      snap: this.#snapWfsSearch,
+    };
+  };
+
+  #initDrawingFunctions = () => {
+    this.drawingToolFunctions = {
+      copy: {
+        callback: this.#handleDrawCopyFeatureAdded,
+        source: this.#createNewVectorSource(),
+      },
+      new: {
+        callback: this.#handleDrawNewFeatureAdded,
+        source: this.#createNewVectorSource(),
+      },
+      search: {
+        callback: this.#handleDrawSearchFeatureAdded,
+        source: this.#createNewVectorSource(),
+      },
+    };
+  };
+
+  startDrawCopyPoint = (mode) => {
+    this.drawingToolFunctions.copy.source.mode = mode;
+    this.#drawGeometry("copy", "Point", drawNewStyle());
+  };
+
+  startDrawNewPoint = (mode) => {
+    this.drawingToolFunctions.new.source.mode = mode;
+    this.#drawGeometry("new", "Point", drawNewStyle());
+  };
+
+  startDrawNewPolygon = (mode) => {
+    this.drawingToolFunctions.new.source.mode = mode;
+    this.#drawGeometry("new", "Polygon", drawNewStyle());
+  };
+
+  startDrawSearchPoint = (mode) => {
+    this.drawingToolFunctions.search.source.mode = mode;
+    this.#drawGeometry("search", "Point", searchStyle());
+  };
+
+  startDrawSearchPolygon = (mode) => {
+    this.drawingToolFunctions.search.source.mode = mode;
+    this.#drawGeometry("search", "Polygon", searchStyle());
+  };
+
+  addSnapInteraction = (mode) => {
+    this.searchResponseTool = "snap";
+    this.activeSnapSource = this.snapSources[mode];
+    this.#initSnap(mode);
+    this.snapInteraction = new Snap({ source: this.activeSnapSource });
+    this.map.addInteraction(this.snapInteraction);
+  };
+
+  endDraw = () => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete(this.drawingTool);
+    this.drawingTool = "none";
+  };
+
+  endSnapInteraction = () => {
+    this.searchResponseTool = "snap";
+    this.activeSnapSource = null;
+    this.map.removeInteraction(this.snapInteraction);
+    this.map.un("pointermove", this.#snapPointerMove);
+  };
+
+  clearResults = (mode) => {
+    this.#clearSource(this.dataSources[mode]);
   };
 
   clearHighlight = () => {
@@ -81,30 +171,13 @@ class IntegrationModel {
       this.highlightSource.removeFeature(clickedItem.feature);
 
     this.activeSource.removeFeature(clickedItem.feature);
-    if (this.activeSource.getFeatures().length > 0)
-      this.#zoomToSource(this.activeSource);
   };
 
-  #drawRealEstatePolygon = () => {
-    const drawFunctionProps = {
-      listenerText: "addfeature",
-      requestText: "search",
-      style: this.#getDrawPointPolygonStyle(),
-      source: this.drawSourcePointPolygon,
-      type: "Polygon",
-    };
-    this.#createDrawFunction(drawFunctionProps);
-  };
+  toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
+    let featureStyle = new Style();
+    if (shouldBeVisible) featureStyle = null;
 
-  #drawRealEstatePoint = () => {
-    const drawFunctionProps = {
-      listenerText: "addfeature",
-      requestText: "search",
-      style: this.#getDrawPointPolygonStyle(),
-      source: this.drawSourcePointPolygon,
-      type: "Point",
-    };
-    this.#createDrawFunction(drawFunctionProps);
+    this.#setFeatureStyle(feature, featureStyle);
   };
 
   #clearSource = (source) => {
@@ -122,7 +195,8 @@ class IntegrationModel {
     });
   };
 
-  #createNewVectorCircleStyle = (style) => {
+  // TODO: Ev. ta bort denna funktion om admin ger ett sådant här objekt (finns i mockdata)
+  #createLayerStyle = (style) => {
     return new Style({
       stroke: new Stroke({
         color: style.stroke.color,
@@ -141,257 +215,249 @@ class IntegrationModel {
     });
   };
 
-  #addDrawPointPolygonLayer = () => {
-    const stylePointPolygon = this.#getDrawPointPolygonStyle();
-    this.drawSourcePointPolygon =
-      this.#createNewVectorSource(stylePointPolygon);
+  #addLayers = () => {
+    this.#addSearchLayer();
+    this.#addNewGeometryLayer();
+    this.#addMapLayers();
+    this.#addHighlightLayer();
+  };
 
-    const drawPointPolygonLayer = this.#createNewVectorLayer(
-      this.drawSourcePointPolygon,
-      stylePointPolygon
+  #addSearchLayer = () => {
+    const searchLayer = this.#createNewVectorLayer(
+      this.drawingToolFunctions.search.source,
+      this.#createLayerStyle(searchStyle())
     );
-    this.map.addLayer(drawPointPolygonLayer);
+    this.map.addLayer(searchLayer);
   };
 
-  #getDrawPointPolygonStyle = () => {
-    const drawPolygonStyleSettings = this.#getDrawPointPolygonStyleSettings();
-    return this.#createNewVectorCircleStyle(drawPolygonStyleSettings);
+  #addNewGeometryLayer = () => {
+    const newGeometryLayer = this.#createNewVectorLayer(
+      this.drawingToolFunctions.new.source,
+      this.#createLayerStyle(newGeometryStyle())
+    );
+    this.map.addLayer(newGeometryLayer);
   };
 
-  #getDrawPointPolygonStyleSettings = () => {
-    // Lägg till inställningar här!
-    const strokeColor = "rgba(74,74,74,0.5)";
-    const strokeWidth = 4;
-    const fillColor = "rgba(255,255,255,0.07)";
-    const circleRadius = 6;
-    const strokeWithCircle = 2;
+  #addMapLayers = () => {
+    this.#addSources();
 
-    return {
-      stroke: { color: strokeColor, width: strokeWidth },
-      fill: { color: fillColor },
-      circle: { radius: circleRadius, width: strokeWithCircle },
+    this.#addEditLayers();
+    this.#addLayersToMap(this.editLayers.array);
+
+    // TODO: Ta bort fyra rader nedan.
+    // Slå på om man behöver visa hur snappningen fungerar
+    if (false) {
+      this.#addSnapLayers();
+      this.#addLayersToMap(this.snapLayers.array);
+    }
+
+    this.#addDataLayers();
+    this.#addLayersToMap(this.dataLayers.array);
+  };
+
+  #addSources = () => {
+    this.editSources = {
+      new: this.#createNewVectorSource(),
+      copy: this.#createNewVectorSource(),
+      combine: this.#createNewVectorSource(),
+    };
+
+    this.dataSources = {
+      realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
+    };
+
+    this.snapSources = {
+      realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
     };
   };
 
-  #addRealEstateLayer = () => {
-    const styleRealEstatePolygon = this.#getRealEstateStyle();
-    this.realEstateSource = this.#createNewVectorSource();
-
-    this.realEstateLayer = this.#createNewVectorLayer(
-      this.realEstateSource,
-      styleRealEstatePolygon
-    );
-    this.map.addLayer(this.realEstateLayer);
+  #addEditLayers = () => {
+    this.editLayers = {
+      new: this.#createNewVectorLayer(
+        this.editSources.new,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      copy: this.#createNewVectorLayer(
+        this.editSources.copy,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      combine: this.#createNewVectorLayer(
+        this.editSources.combine,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+    };
+    this.#addArrayToObject(this.editLayers);
   };
 
-  #addCoordinateLayer = () => {
-    const styleCoordinatePoint = this.#getCoordinateStyle();
-    this.coordinateSource = this.#createNewVectorSource();
+  #addSnapLayers = () => {
+    this.snapLayers = {
+      realEstate: this.#createNewVectorLayer(
+        this.snapSources.realEstate,
+        this.#createLayerStyle(snapStyle())
+      ),
+      coordinate: this.#createNewVectorLayer(
+        this.snapSources.coordinate,
+        this.#createLayerStyle(snapStyle())
+      ),
+      area: this.#createNewVectorLayer(
+        this.snapSources.area,
+        this.#createLayerStyle(snapStyle())
+      ),
+      survey: this.#createNewVectorLayer(
+        this.snapSources.survey,
+        this.#createLayerStyle(snapStyle())
+      ),
+      contamination: this.#createNewVectorLayer(
+        this.snapSources.contamination,
+        this.#createLayerStyle(snapStyle())
+      ),
+    };
+    this.#addArrayToObject(this.snapLayers);
+  };
 
-    this.coordinateLayer = this.#createNewVectorLayer(
-      this.coordinateSource,
-      styleCoordinatePoint
-    );
-    this.map.addLayer(this.coordinateLayer);
+  #addDataLayers = () => {
+    this.dataLayers = {
+      realEstate: this.#createNewVectorLayer(
+        this.dataSources.realEstate,
+        this.#createLayerStyle(layerStyle())
+      ),
+      coordinate: this.#createNewVectorLayer(
+        this.dataSources.coordinate,
+        this.#createLayerStyle(layerStyle())
+      ),
+      area: this.#createNewVectorLayer(
+        this.dataSources.area,
+        this.#createLayerStyle(layerStyle())
+      ),
+      survey: this.#createNewVectorLayer(
+        this.dataSources.survey,
+        this.#createLayerStyle(layerStyle())
+      ),
+      contamination: this.#createNewVectorLayer(
+        this.dataSources.contamination,
+        this.#createLayerStyle(layerStyle())
+      ),
+    };
+    this.#addArrayToObject(this.dataLayers);
+  };
+
+  #addArrayToObject = (object) => {
+    const array = Object.keys(object).map((key) => {
+      return object[key];
+    });
+    object.array = array;
+  };
+
+  #addLayersToMap = (layerArray) => {
+    for (const layer of layerArray) this.map.addLayer(layer);
   };
 
   #addHighlightLayer = () => {
-    const styleHighlight = this.#getHighlightStyle();
     this.highlightSource = this.#createNewVectorSource();
 
     this.highlightLayer = this.#createNewVectorLayer(
       this.highlightSource,
-      styleHighlight
+      this.#createLayerStyle(highLightStyle())
     );
     this.map.addLayer(this.highlightLayer);
   };
 
-  #getRealEstateStyle = () => {
-    const drawRealEstateStyleSettings = this.#getRealEstateStyleSettings();
-    return this.#createNewVectorCircleStyle(drawRealEstateStyleSettings);
-  };
-
-  #getRealEstateStyleSettings = () => {
-    // Lägg till inställningar här!
-    const strokeColor = "rgba(0,0,255,0.5)";
-    const strokeWidth = 4;
-    const fillColor = "rgba(0,0,255,0.07)";
-    const circleRadius = 6;
-    const strokeWithCircle = 2;
-
-    return {
-      stroke: { color: strokeColor, width: strokeWidth },
-      fill: { color: fillColor },
-      circle: { radius: circleRadius, width: strokeWithCircle },
+  #drawGeometry = (drawingTool, drawType, style) => {
+    this.drawingTool = drawingTool;
+    const drawFunctionProps = {
+      listenerType: "addfeature",
+      requestType: drawingTool,
+      style: this.#createLayerStyle(style),
+      source: this.drawingToolFunctions[drawingTool].source,
+      type: drawType,
     };
+    this.#createDrawFunction(drawFunctionProps);
   };
 
-  #getCoordinateStyle = () => {
-    const drawCoordinateStyleSettings = this.#getCoordinateStyleSettings();
-    return this.#createNewVectorCircleStyle(drawCoordinateStyleSettings);
-  };
-
-  #getCoordinateStyleSettings = () => {
-    // Lägg till inställningar här!
-    const strokeColor = "rgba(0,0,255,0.7)";
-    const strokeWidth = 4;
-    const fillColor = "rgba(0,0,255,0.07)";
-    const circleRadius = 6;
-    const strokeWithCircle = 4;
-
-    return {
-      stroke: { color: strokeColor, width: strokeWidth },
-      fill: { color: fillColor },
-      circle: { radius: circleRadius, width: strokeWithCircle },
-    };
-  };
-
-  #getHighlightStyle = () => {
-    const hightlightStyleSettings = this.#getHighlightStyleSettings();
-    return this.#createNewVectorCircleStyle(hightlightStyleSettings);
-  };
-
-  #getHighlightStyleSettings = () => {
-    // Lägg till inställningar här!
-    const strokeColor = "rgba(255,128,40,1)";
-    const strokeWidth = 4;
-    const fillColor = "rgba(255,128,40,0.5)";
-    const circleRadius = 6;
-    const strokeWithCircle = 4;
-
-    return {
-      stroke: { color: strokeColor, width: strokeWidth },
-      fill: { color: fillColor },
-      circle: { radius: circleRadius, width: strokeWithCircle },
-    };
-  };
-
-  #createDrawFunction = (props) => {
-    this.draw = new Draw({
-      source: props.source,
-      type: props.type,
+  #createDrawFunction = (drawProps) => {
+    this.drawInteraction = new Draw({
+      source: drawProps.source,
+      type: drawProps.type,
       freehand: false,
       stopClick: true,
-      style: props.style,
+      style: drawProps.style,
     });
-    this.map.clickLock.add(props.requestText);
-    this.map.addInteraction(this.draw);
-    this.drawSourcePointPolygon.on(
-      props.listenerText,
-      this.handleDrawFeatureAdded
+    this.map.clickLock.add(drawProps.requestType);
+    this.map.addInteraction(this.drawInteraction);
+    this.#addSnapToDrawFunction();
+    this.drawingToolFunctions[drawProps.requestType].source.on(
+      drawProps.listenerType,
+      this.drawingToolFunctions[drawProps.requestType].callback
     );
   };
 
-  handleDrawFeatureAdded = (e) => {
-    this.map.removeInteraction(this.draw);
-    this.map.clickLock.delete("search");
-    this.searchModel.findRealEstatesWithGeometry(e.feature);
-    this.#clearSource(this.drawSourcePointPolygon);
+  #addSnapToDrawFunction = () => {
+    if (!this.activeSnapSource) return;
+    this.snapInteraction = new Snap({ source: this.activeSnapSource });
+    this.map.addInteraction(this.snapInteraction);
   };
 
-  #drawRealEstateResponseFromWfs = (realEstates) => {
-    this.#addRealEstateToSource(this.realEstateSource, realEstates);
-    this.#updateRealEstateList(this.realEstateSource, realEstates);
-    this.#zoomToSource(this.realEstateSource);
+  #handleDrawCopyFeatureAdded = (e) => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("copy");
+    this.searchModelFunctions[e.target.mode](e.feature);
+    this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
-  #updateRealEstateList = (source, realEstates) => {
-    const featuresAndGeometryProperyName = {
-      features: source.getFeatures(),
-      propertyName: realEstates.geometryField,
-    };
-    this.localObserver.publish(
-      "mf-wfs-map-updated-features-real-estates",
-      featuresAndGeometryProperyName
-    );
+  #handleDrawNewFeatureAdded = (e) => {
+    this.map.removeInteraction(this.drawInteraction);
+    this.map.clickLock.delete("new");
+    this.editSources.new.addFeature(e.feature);
+    this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
-  #drawCoordinateResponseFromWfs = (coordinates) => {
-    this.#addCoordinateToSource(this.coordinateSource, coordinates);
-    this.#updateCoordinateList(this.coordinateSource, coordinates);
-    this.#zoomToSource(this.coordinateSource);
-  };
-
-  #updateCoordinateList = (source, coordinates) => {
-    const featuresAndGeometryProperyName = {
-      features: source.getFeatures(),
-      propertyName: coordinates.geometryField,
-    };
-    this.localObserver.publish(
-      "mf-wfs-map-updated-features-coordinate",
-      featuresAndGeometryProperyName
-    );
-  };
-
-  #zoomToSource = (source) => {
-    const featuresInSource = source.getFeatures();
-    if (featuresInSource.length === 0) return;
-
-    let extent = createEmpty();
-    featuresInSource.forEach((feature) => {
-      extend(extent, feature.getGeometry().getExtent());
-    });
-    this.map.getView().fit(extent, {
-      size: this.map.getSize(),
-      padding: [100, 100, 100, 100],
-      maxZoom: 12,
-    });
-  };
-
-  toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
-    let featureStyle = new Style();
-    if (shouldBeVisible) featureStyle = null;
-
-    this.#setFeatureStyle(feature, featureStyle);
+  #handleDrawSearchFeatureAdded = (e) => {
+    this.searchModelFunctions[e.target.mode](e.feature);
+    this.#clearSource(this.drawingToolFunctions.search.source);
   };
 
   #setFeatureStyle = (feature, style) => {
     feature.setStyle(style);
   };
 
-  #addRealEstateToSource = (source, realEstates) => {
-    const realEstateFeatures = this.#createFeaturesFromFeatureCollection(
-      realEstates.searchType,
-      realEstates.featureCollection,
-      realEstates.transformation
-    );
-    this.#clearOldSearch(source, realEstates);
-    if (realEstateFeatures.noFeaturesFound) return;
-    if (realEstateFeatures.addOrRemoveFeature) {
-      this.#handlePointClickOnRealEstateLayer(
-        source,
-        realEstateFeatures,
-        realEstates.geometryField
-      );
-      return;
-    }
-    this.#addNoDuplicatesToSource(
-      realEstateFeatures,
-      source,
-      realEstates.geometryField
-    );
+  #handleWfsSearch = (data) => {
+    this.searchResponseFunctions[this.searchResponseTool](data);
   };
 
-  #addCoordinateToSource = (source, coordinates) => {
-    const coordinateFeatures = this.#createFeaturesFromFeatureCollection(
-      coordinates.searchType,
-      coordinates.featureCollection,
-      coordinates.transformation
+  #addWfsSearch = (data) => {
+    this.#addFeaturesToSource(this.dataSources[data.type], data);
+    this.#updateList(this.dataSources[data.type], data);
+    this.#zoomToSource(this.dataSources[data.type]);
+  };
+
+  #addFeaturesToSource = (source, featureCollection) => {
+    const features = this.#createFeaturesFromFeatureCollection(
+      featureCollection.searchType,
+      featureCollection.featureCollection,
+      featureCollection.transformation
     );
-    this.#clearOldSearch(source, coordinates);
-    if (coordinateFeatures.noFeaturesFound) return;
-    if (coordinateFeatures.addOrRemoveFeature) {
-      this.#handlePointClickOnCoordinateLayer(
+    this.#clearOldSearch(source, featureCollection);
+    if (features.noFeaturesFound) return;
+    if (features.addOrRemoveFeature) {
+      this.#handlePointClickOnLayer(
         source,
-        coordinateFeatures,
-        coordinates.geometryField
+        features,
+        featureCollection.geometryField
       );
       return;
     }
     this.#addNoDuplicatesToSource(
-      coordinateFeatures,
+      features,
       source,
-      coordinates.geometryField
+      featureCollection.geometryField
     );
   };
 
@@ -399,27 +465,8 @@ class IntegrationModel {
     if (featureCollection.searchType === "List") this.#clearSource(source);
   };
 
-  #handlePointClickOnRealEstateLayer = (
-    source,
-    realEstateFeatures,
-    comparePropertyId
-  ) => {
-    const clickedFeature = realEstateFeatures.features[0];
-    const foundFeatureInSource = this.#getFeatureInSource(
-      source.getFeatures(),
-      clickedFeature,
-      comparePropertyId
-    );
-    if (foundFeatureInSource) source.removeFeature(foundFeatureInSource);
-    else source.addFeature(clickedFeature);
-  };
-
-  #handlePointClickOnCoordinateLayer = (
-    source,
-    coordinateFeatures,
-    comparePropertyId
-  ) => {
-    const clickedFeature = coordinateFeatures.features[0];
+  #handlePointClickOnLayer = (source, featureCollection, comparePropertyId) => {
+    const clickedFeature = featureCollection.features[0];
     const foundFeatureInSource = this.#getFeatureInSource(
       source.getFeatures(),
       clickedFeature,
@@ -495,16 +542,67 @@ class IntegrationModel {
     return { features: features, addOrRemoveFeature: pointClick };
   };
 
-  #modeChanged = (realEstate, coordinate) => {
-    this.#clearSource(this.highlightSource);
-    this.#showHideLayers(realEstate, coordinate);
-    if (realEstate) this.#zoomToSource(this.realEstateSource);
-    if (coordinate) this.#zoomToSource(this.coordinateSource);
+  #updateList = (source, data) => {
+    const featuresAndGeometryProperyName = {
+      features: source.getFeatures(),
+      propertyName: data.geometryField,
+      type: data.type,
+    };
+    this.localObserver.publish(
+      "mf-wfs-map-updated-features",
+      featuresAndGeometryProperyName
+    );
   };
 
-  #showHideLayers = (realEstateLayer, coordinateLayer) => {
-    this.realEstateLayer.setVisible(realEstateLayer);
-    this.coordinateLayer.setVisible(coordinateLayer);
+  #zoomToSource = (source) => {
+    const featuresInSource = source.getFeatures();
+    if (featuresInSource.length === 0) return;
+
+    let extent = createEmpty();
+    featuresInSource.forEach((feature) => {
+      extend(extent, feature.getGeometry().getExtent());
+    });
+    this.map.getView().fit(extent, {
+      size: this.map.getSize(),
+      padding: [100, 100, 100, 100],
+      maxZoom: 12,
+    });
+  };
+
+  #copyWfsSearch = (data) => {
+    this.#addFeaturesToSource(this.editSources.copy, data);
+  };
+
+  #snapWfsSearch = (data) => {
+    const features = this.#createFeaturesFromFeatureCollection(
+      data.searchType,
+      data.featureCollection,
+      data.transformation
+    );
+    this.#addNoDuplicatesToSource(
+      features,
+      this.activeSnapSource,
+      data.geometryField
+    );
+  };
+
+  #modeChanged = (mode) => {
+    this.#clearSource(this.highlightSource);
+    this.#hideAllLayers();
+    this.#showAcitveLayer(mode);
+    this.#setActiveSource(mode);
+  };
+
+  #hideAllLayers = () => {
+    for (const layer of this.dataLayers.array) layer.setVisible(false);
+  };
+
+  #showAcitveLayer = (mode) => {
+    this.dataLayers[mode].setVisible(true);
+  };
+
+  #setActiveSource = (mode) => {
+    this.activeSource = this.dataSources[mode];
   };
 
   #highlightItem = (item) => {
@@ -528,39 +626,47 @@ class IntegrationModel {
     this.localObserver.publish("window-opened");
   };
 
-  testEdpConnection = () => {
-    console.log("Test EDP connection");
-  };
-
   #sendSnackbarMessage = (nativMessageType) => {
     //TODO - when Kubb is properly connected, we will do some kind of parsing of the message, to find out the type.
-    //as it is not, the message is a basic mock.
+    //as it is not the message, is a basic mock.
     this.localObserver.publish("mf-kubb-message-received", nativMessageType);
   };
 
   testRealEstatesFromKUBB = () => {
     this.#sendSnackbarMessage("fastighter");
-    const FNRs = ["140064566", "140041902"];
+    const FNRs = KUBB().realEstates;
+    this.searchResponseTool = "search";
     this.searchModel.findRealEstatesWithNumbers(FNRs);
   };
 
   testCoordinatesFromKUBB = () => {
     this.#sendSnackbarMessage("koordinater");
-    const coordinates = [
-      {
-        Northing: "6396150",
-        Easting: "145000",
-        SpatialReferenceSystemIdentifier: "3007",
-        Label: "Min punkt",
-      },
-      {
-        Northing: "6396200",
-        Easting: "145150",
-        SpatialReferenceSystemIdentifier: "3007",
-        Label: "",
-      },
-    ];
+    const coordinates = KUBB().coordinates;
+    this.searchResponseTool = "search";
     this.searchModel.findCoordinatesWithCoordinates(coordinates);
+  };
+
+  testAreasFromKUBB = () => {
+    this.#sendSnackbarMessage("områden");
+    this.searchResponseTool = "search";
+    this.searchModel.findAreasWithNumbers({
+      coordinates: KUBB().areas.coordinates,
+      name: KUBB().areas.name,
+    });
+  };
+
+  testSurveysFromKUBB = () => {
+    this.#sendSnackbarMessage("undersökningar");
+    const surveys = KUBB().surveys;
+    this.searchResponseTool = "search";
+    this.searchModel.findSurveysWithNumbers(surveys);
+  };
+
+  testContaminationsFromKUBB = () => {
+    this.#sendSnackbarMessage("föroreningar");
+    const contaminations = KUBB().contaminations;
+    this.searchResponseTool = "search";
+    this.searchModel.findContaminationsWithNumbers(contaminations);
   };
 }
 

@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { withSnackbar } from "notistack";
 import { withStyles } from "@material-ui/core/styles";
 import {
+  Container,
   Typography,
   Button,
   FormControl,
@@ -10,24 +11,27 @@ import {
   Select,
   MenuItem,
   ListItem,
+  Grid,
 } from "@material-ui/core";
-import TouchAppIcon from "@material-ui/icons/TouchApp";
-import Crop32Icon from "@material-ui/icons/Crop32";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
-import ItemList from "./components/ItemList";
+import ListResult from "./components/ListResult";
+import ListToolbar from "./components/ListToolbar";
+import EditMenu from "./components/EditMenu";
+import { drawingSupportLayers } from "./mockdata/mockdataLayers";
 
 const styles = (theme) => {
   return {
+    itemList: {
+      maxHeight: 250,
+      overflowY: "scroll",
+      overflowX: "hidden",
+      border: "1px solid rgba(0, 0, 0, .125)",
+    },
     dropdown: {
       width: "50%",
     },
     listHeading: {
       fontWeight: theme.typography.fontWeightMedium,
-    },
-    itemList: {
-      maxHeight: 250,
-      overflowY: "scroll",
-      overflowX: "hidden",
     },
   };
 };
@@ -37,9 +41,16 @@ const defaultState = {
   currentListResults: {
     realEstate: [],
     coordinate: [],
-    geometry: [],
+    area: [],
+    survey: [],
+    contamination: [],
   },
+  editTab: "create",
+  editMode: "none",
+  listToolsMode: "none",
 };
+
+const showDevelopmentOnlyButtons = true;
 
 //TODO - Move this out to config.
 const informationText =
@@ -47,12 +58,16 @@ const informationText =
 
 //TODO - move this? where to place constant information on the different modes - the model?
 const modeDisplay = {
-  realEstate: { displayName: "Fastighet", displayNamePlural: "Fastigheter" },
+  realEstate: {
+    displayName: "Fastighet",
+    displayNamePlural: "Fastigheter",
+  },
   coordinate: { displayName: "Koordinat", displayNamePlural: "Koordinater" },
-  geometry: { displayName: "Geometri", displayNamePlural: "Geometrier" },
-  controlObject: {
-    displayName: "Tillsynsobjekt",
-    displayNamePlural: "Tillsynsobjekt",
+  area: { displayName: "Område", displayNamePlural: "Områden" },
+  survey: { displayName: "Underökning", displayNamePlural: "Undersökningar" },
+  contamination: {
+    displayName: "Förorening",
+    displayNamePlural: "Föroreningar",
   },
 };
 
@@ -72,10 +87,11 @@ class IntegrationView extends React.PureComponent {
 
     this.globalObserver = props.globalObserver;
     this.localObserver = props.localObserver;
+    this.model = props.model;
     this.app = props.app;
     this.title = props.title;
 
-    this.drawingSupport = this.#getDrawingSupportSettings();
+    this.#init();
     this.#bindSubscriptions();
   }
 
@@ -84,23 +100,25 @@ class IntegrationView extends React.PureComponent {
       console.log("IntegrationView - window-opened");
       this.#initDrawingSupport();
     });
-    this.localObserver.subscribe(
-      "mf-wfs-map-updated-features-real-estates",
-      (props) => {
-        this.#updateRealEstateList(props);
-      }
-    );
-    this.localObserver.subscribe(
-      "mf-wfs-map-updated-features-coordinates",
-      (props) => {
-        this.#updateCoordinateList(props);
-      }
-    );
+    this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
+      this.#updateList(props);
+    });
     this.localObserver.subscribe("mf-kubb-message-received", (message) => {
       this.props.enqueueSnackbar(`Inläsning av  ${message} från EDP Vision`, {
         variant: "info",
         persist: false,
       });
+    });
+    this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
+      this.newGeometryFunctions[this.state.mode]();
+    });
+    this.localObserver.subscribe("mf-snap-supportLayer", (snapTarget) => {
+      this.#showDrawingSupport(snapTarget.layerId);
+      this.model.addSnapInteraction(snapTarget.sourceName);
+    });
+    this.localObserver.subscribe("mf-snap-noSupportLayer", (snapTarget) => {
+      this.#hideDrawingSupport(snapTarget.layerId);
+      this.model.endSnapInteraction(snapTarget.sourceName);
     });
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
@@ -109,8 +127,84 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #init = () => {
+    this.drawingSupportLayerNames = drawingSupportLayers();
+    this.#initUpdateFunctions();
+    this.#initClearFunctions();
+    this.#initDrawFunctions();
+    this.#initNewGeometryFunctions();
+    this.#initPublishDefaultMode();
+  };
+
+  #initUpdateFunctions = () => {
+    this.updateListFunctions = {
+      realEstate: this.#updateRealEstateList,
+      coordinate: this.#updateCoordinateList,
+      area: this.#updateAreaList,
+      survey: this.#updateSurveyList,
+      contamination: this.#updateContaminationList,
+    };
+  };
+
+  #initClearFunctions = () => {
+    this.clearFunctions = {
+      realEstate: this.#clearResultsRealEstate,
+      coordinate: this.#clearResultsCoordinates,
+      area: this.#clearResultsArea,
+      survey: this.#clearResultsSurvey,
+      contamination: this.#clearResultsContamination,
+    };
+    this.#addArrayToObject(this.clearFunctions);
+  };
+
+  #addArrayToObject = (object) => {
+    const array = Object.keys(object).map((key) => {
+      return object[key];
+    });
+    object.array = array;
+  };
+
+  #initDrawFunctions = () => {
+    this.drawFunctions = {
+      pointcopy: {
+        start: this.props.model.startDrawCopyPoint,
+        end: this.props.model.endDraw,
+      },
+      pointdraw: {
+        start: this.props.model.startDrawNewPoint,
+        end: this.props.model.endDraw,
+      },
+      polygondraw: {
+        start: this.props.model.startDrawNewPolygon,
+        end: this.props.model.endDraw,
+      },
+      pointselect: {
+        start: this.props.model.startDrawSearchPoint,
+        end: this.props.model.endDraw,
+      },
+      polygonselect: {
+        start: this.props.model.startDrawSearchPolygon,
+        end: this.props.model.endDraw,
+      },
+    };
+  };
+
+  #initNewGeometryFunctions = () => {
+    this.newGeometryFunctions = {
+      realEstate: this.drawFunctions.polygondraw.start,
+      coordinate: this.drawFunctions.pointdraw.start,
+      area: this.drawFunctions.polygondraw.start,
+      survey: this.drawFunctions.polygondraw.start,
+      contamination: this.drawFunctions.polygondraw.start,
+    };
+  };
+
+  #initPublishDefaultMode = () => {
+    this.localObserver.publish("mf-new-mode", defaultState.mode);
+  };
+
   #initDrawingSupport = () => {
-    this.#showDrawingSupport(this.drawingSupport[defaultState.mode]);
+    this.#showDrawingSupport(this.drawingSupportLayerNames[defaultState.mode]);
   };
 
   #showDrawingSupport = (layerId) => {
@@ -126,12 +220,11 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clearDrawingSupport = () => {
-    this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
+    this.#hideDrawingSupport(this.drawingSupportLayerNames[this.state.mode]);
   };
 
   #clearAllDataSources = () => {
-    this.#clearResultsRealEstate();
-    this.#clearResultsCoordinates();
+    for (const clearFunction of this.clearFunctions.array) clearFunction();
     this.props.model.clearHighlight();
   };
 
@@ -145,6 +238,10 @@ class IntegrationView extends React.PureComponent {
       if (layer.getProperties().name === layerId) return layer;
       return false;
     });
+  };
+
+  #updateList = (props) => {
+    this.updateListFunctions[props.type](props);
   };
 
   #updateRealEstateList = (props) => {
@@ -165,7 +262,6 @@ class IntegrationView extends React.PureComponent {
         ],
         visible: true,
         selected: false,
-        mapId: feature.ol_uid,
         feature: feature,
       };
     });
@@ -201,7 +297,6 @@ class IntegrationView extends React.PureComponent {
         ],
         visible: true,
         selected: false,
-        mapId: coordinate.ol_uid,
         feature: coordinate,
       };
     });
@@ -213,13 +308,91 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #updateAreaList = (props) => {
+    let id = -1;
+    const areaData = props.features.map((feature) => {
+      const properties = feature.getProperties();
+      return {
+        id: ++id,
+        name: properties.omrade,
+        information: [
+          {
+            description: "saknas",
+            value: properties["saknas"],
+          },
+        ],
+        visible: true,
+        selected: false,
+        feature: feature,
+      };
+    });
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        area: areaData,
+      },
+    });
+  };
+
+  #updateSurveyList = (props) => {
+    let id = -1;
+    const surveyData = props.features.map((feature) => {
+      const properties = feature.getProperties();
+      return {
+        id: ++id,
+        name: properties.omrade,
+        information: [
+          {
+            description: "saknas",
+            value: properties["saknas"],
+          },
+        ],
+        visible: true,
+        selected: false,
+        feature: feature,
+      };
+    });
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        survey: surveyData,
+      },
+    });
+  };
+
+  #updateContaminationList = (props) => {
+    let id = -1;
+    const contaminationData = props.features.map((feature) => {
+      const properties = feature.getProperties();
+      return {
+        id: ++id,
+        name: properties.omrade,
+        information: [
+          {
+            description: "saknas",
+            value: properties["saknas"],
+          },
+        ],
+        visible: true,
+        selected: false,
+        feature: feature,
+      };
+    });
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        contamination: contaminationData,
+      },
+    });
+  };
+
   #toggleMode = (mode) => {
     this.#unselectAllFeatures(this.state.mode);
-    this.#hideDrawingSupport(this.drawingSupport[this.state.mode]);
+    this.#hideDrawingSupport(this.drawingSupportLayerNames[this.state.mode]);
     this.setState({
       mode: mode,
     });
-    this.#showDrawingSupport(this.drawingSupport[mode]);
+    this.#showDrawingSupport(this.drawingSupportLayerNames[mode]);
     this.localObserver.publish("mf-new-mode", mode);
   };
 
@@ -239,11 +412,9 @@ class IntegrationView extends React.PureComponent {
     ).selected;
 
     const updatedResults = updateList[mode].map((listItem) => {
-      if (listItem.id === clickedItem.id) {
+      if (listItem.id === clickedItem.id)
         return { ...listItem, selected: isSelected };
-      } else {
-        return { ...listItem, selected: false };
-      }
+      return { ...listItem, selected: false };
     });
 
     updateList[mode] = updatedResults;
@@ -263,8 +434,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clearResults = () => {
-    if (this.state.mode === "realEstate") this.#clearResultsRealEstate();
-    if (this.state.mode === "coordinate") this.#clearResultsCoordinates();
+    this.clearFunctions[this.state.mode]();
     this.props.model.clearHighlight();
   };
 
@@ -275,11 +445,9 @@ class IntegrationView extends React.PureComponent {
     ).visible;
 
     const updatedResults = updateList[mode].map((listItem) => {
-      if (listItem.id === item.id) {
+      if (listItem.id === item.id)
         return { ...listItem, visible: shouldBeVisible };
-      } else {
-        return listItem;
-      }
+      return listItem;
     });
 
     updateList[mode] = updatedResults;
@@ -298,7 +466,7 @@ class IntegrationView extends React.PureComponent {
         realEstate: [],
       },
     });
-    this.props.model.clearResultsRealEstate();
+    this.props.model.clearResults(this.state.mode);
   };
 
   #clearResultsCoordinates = () => {
@@ -308,138 +476,235 @@ class IntegrationView extends React.PureComponent {
         coordinate: [],
       },
     });
-    this.props.model.clearResultsCoordinate();
+    this.props.model.clearResults(this.state.mode);
   };
 
-  #getDrawingSupportSettings = () => {
-    return {
-      realEstate: "o83amu",
-    };
+  #clearResultsArea = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        area: [],
+      },
+    });
+    this.props.model.clearResults(this.state.mode);
   };
+
+  #clearResultsSurvey = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        survey: [],
+      },
+    });
+    this.props.model.clearResults(this.state.mode);
+  };
+
+  #clearResultsContamination = () => {
+    this.setState({
+      currentListResults: {
+        ...this.state.currentListResults,
+        contamination: [],
+      },
+    });
+    this.props.model.clearResults(this.state.mode);
+  };
+
+  #endListToolsMode = (listToolsMode) => {
+    this.drawFunctions[listToolsMode]?.end();
+  };
+
+  #startListToolsMode = (listToolsMode) => {
+    this.drawFunctions[listToolsMode]?.start(this.state.mode);
+  };
+
+  renderEditMenu = () => {
+    return <EditMenu localObserver={this.localObserver} />;
+  };
+
+  renderListTools = () => {
+    return (
+      <ListToolbar
+        listToolsMode={this.state.listToolsMode}
+        handleClearResults={() => {
+          this.#clearResults();
+        }}
+        handleUpdateListToolsMode={(newMode) => {
+          this.setState({ listToolsMode: newMode });
+        }}
+      />
+    );
+  };
+
+  //TODO - these buttons are temporary, while Kubb data is being mocked by buttons instead of received by SignalR events.
+  //These will be removed.
+  renderTemporaryDummyButtons = () => {
+    return (
+      <div>
+        {this.state.mode === "realEstate" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testRealEstatesFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa fastigheter
+            </Button>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.startDrawCopyPoint(this.state.mode);
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-kopiera: Testa kopiera fastighet
+            </Button>
+          </ListItem>
+        ) : null}
+        {this.state.mode === "coordinate" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testCoordinatesFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa koordinater
+            </Button>
+          </ListItem>
+        ) : null}
+        {this.state.mode === "area" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testAreasFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa områden
+            </Button>
+          </ListItem>
+        ) : null}
+        {this.state.mode === "survey" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testSurveysFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa undersökningar
+            </Button>
+          </ListItem>
+        ) : null}
+        {this.state.mode === "contamination" ? (
+          <ListItem style={{ paddingLeft: "0px" }}>
+            <Button
+              startIcon={<CancelOutlinedIcon />}
+              onClick={() => {
+                this.props.model.testContaminationsFromKUBB();
+              }}
+              color="primary"
+              variant="contained"
+            >
+              Fejk-KUBB: Testa föroreningar
+            </Button>
+          </ListItem>
+        ) : null}
+      </div>
+    );
+  };
+
+  componentDidUpdate(prevProps, prevState) {
+    //keep track of the mode that the list tools are in.
+    if (prevState.listToolsMode !== this.state.listToolsMode) {
+      let previousMode = prevState.listToolsMode;
+      this.#endListToolsMode(previousMode);
+      this.#startListToolsMode(this.state.listToolsMode);
+    }
+  }
 
   render() {
     const { classes } = this.props;
     const { mode } = this.state;
     return (
-      <>
-        <Typography>{informationText}</Typography>
-        <br />
-        <div style={{ marginBottom: 20 }}>
-          <FormControl className={classes.dropdown}>
-            <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
-            <Select
-              id="modeSelection"
-              value={mode}
-              onChange={(e) => {
-                this.#toggleMode(e.target.value);
-              }}
-            >
-              <MenuItem value={"realEstate"}>Fastigheter</MenuItem>
-              <MenuItem value={"coordinate"}>Koordinater</MenuItem>
-              <MenuItem value={"geometry"}>Geometrier</MenuItem>
-              <MenuItem value={"controlObject"}>Tillsynsobjekt</MenuItem>
-            </Select>
-          </FormControl>
-        </div>
-        <div style={{ marginBottom: 20, cursor: "pointer" }}>
-          <Typography variant="subtitle1" className={classes.listHeading}>
-            {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
-            {this.state.currentListResults[mode].length > 0
-              ? ` (${this.state.currentListResults[mode].length})`
-              : null}
-          </Typography>
-          <div>
-            {this.state.currentListResults[mode].length > 0 ? (
-              <div className={classes.itemList}>
-                {this.state.currentListResults[mode].map((item) => (
-                  <ItemList
-                    key={item.id}
-                    item={item}
-                    listMode={mode}
-                    handleClickItem={(clickedItem, mode) => {
-                      this.#clickRow(clickedItem, mode);
-                    }}
-                    handleRemoveItem={(item, mode) => {
-                      this.#removeFromResults(item, mode);
-                    }}
-                    handleToggleItemVisibilty={(item, mode) => {
-                      this.toggleResultItemVisibility(item, mode);
-                    }}
-                  />
-                ))}
-              </div>
-            ) : (
-              `Inga ${modeDisplay[mode]["displayNamePlural"]} valda.`
-            )}
-          </div>
-        </div>
-        <div>
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<TouchAppIcon />}
-              onClick={() => {
-                this.props.model.drawPoint();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Markera/Avmarkera
-            </Button>
-          </ListItem>
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<Crop32Icon />}
-              onClick={() => {
-                this.props.model.drawPolygon();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Markera med polygon
-            </Button>
-          </ListItem>
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.#clearResults();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Ta bort alla markeringar
-            </Button>
-          </ListItem>
-          {this.state.mode === "realEstate" ? (
-            <ListItem style={{ paddingLeft: "0px" }}>
-              <Button
-                startIcon={<CancelOutlinedIcon />}
-                onClick={() => {
-                  this.props.model.testRealEstatesFromKUBB();
+      <Container disableGutters>
+        <Grid container spacing={(1, 1)}>
+          <Grid item xs={12}>
+            <Typography>{informationText}</Typography>
+          </Grid>
+          <Grid item xs={12}>
+            <FormControl className={classes.dropdown}>
+              <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
+              <Select
+                id="modeSelection"
+                value={mode}
+                onChange={(e) => {
+                  this.#toggleMode(e.target.value);
                 }}
-                color="primary"
-                variant="contained"
               >
-                Fejk-KUBB: Testa fastigheter
-              </Button>
-            </ListItem>
-          ) : null}
-          {this.state.mode === "coordinate" ? (
-            <ListItem style={{ paddingLeft: "0px" }}>
-              <Button
-                startIcon={<CancelOutlinedIcon />}
-                onClick={() => {
-                  this.props.model.testCoordinatesFromKUBB();
-                }}
-                color="primary"
-                variant="contained"
-              >
-                Fejk-KUBB: Testa koordinater
-              </Button>
-            </ListItem>
-          ) : null}
-        </div>
-      </>
+                <MenuItem value={"realEstate"}>Fastigheter</MenuItem>
+                <MenuItem value={"coordinate"}>Koordinater</MenuItem>
+                <MenuItem value={"area"}>Områden</MenuItem>
+                <MenuItem value={"survey"}>Undersökningar</MenuItem>
+                <MenuItem value={"contamination"}>Föroreningar</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" className={classes.listHeading}>
+              {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
+              {this.state.currentListResults[mode].length > 0
+                ? ` (${this.state.currentListResults[mode].length})`
+                : null}
+            </Typography>
+          </Grid>
+          {this.renderListTools()}
+          <Grid item xs={12}>
+            <div>
+              {this.state.currentListResults[mode].length > 0 ? (
+                <div className={classes.itemList}>
+                  {this.state.currentListResults[mode].map((item) => (
+                    <ListResult
+                      key={item.id}
+                      item={item}
+                      listMode={mode}
+                      handleClickItem={(clickedItem, mode) => {
+                        this.#clickRow(clickedItem, mode);
+                      }}
+                      handleRemoveItem={(item, mode) => {
+                        this.#removeFromResults(item, mode);
+                      }}
+                      handleToggleItemVisibilty={(item, mode) => {
+                        this.toggleResultItemVisibility(item, mode);
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                `Inga ${modeDisplay[mode]["displayNamePlural"]} valda.`
+              )}
+            </div>
+          </Grid>
+          {showDevelopmentOnlyButtons && (
+            <Grid item xs={12}>
+              {this.renderTemporaryDummyButtons()}
+            </Grid>
+          )}
+          <Grid container item xs={12} style={{ marginTop: "16px" }}>
+            {this.renderEditMenu()}
+          </Grid>
+        </Grid>
+      </Container>
     );
   }
 }

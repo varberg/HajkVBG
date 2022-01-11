@@ -54,7 +54,7 @@ class MFIntegration extends React.PureComponent {
           color: this.state.color,
           description: this.state.description,
           height: 800,
-          width: 400,
+          width: 500,
           onWindowShow: this.onWindowShow,
         }}
       >
