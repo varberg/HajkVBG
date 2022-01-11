@@ -552,16 +552,6 @@ class IntegrationView extends React.PureComponent {
             >
               Fejk-KUBB: Testa fastigheter
             </Button>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.startDrawCopyPoint(this.state.mode);
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-kopiera: Testa kopiera fastighet
-            </Button>
           </ListItem>
         ) : null}
         {this.state.mode === "coordinate" ? (
