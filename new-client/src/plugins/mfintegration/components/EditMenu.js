@@ -513,7 +513,7 @@ class EditMenu extends React.PureComponent {
                     className={classes.tabs}
                     value={this.state.editTab}
                     variant="fullWidth"
-                    indicatorColor="primary"
+                    indicatorColor="secondary"
                     textColor="primary"
                     onChange={(e, newValue) => {
                       this.setState({ editTab: newValue });

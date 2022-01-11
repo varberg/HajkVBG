@@ -96,7 +96,6 @@ class IntegrationView extends React.PureComponent {
 
   #bindSubscriptions = () => {
     this.localObserver.subscribe("window-opened", () => {
-      console.log("IntegrationView - window-opened");
       this.#initDrawingSupport();
     });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
@@ -110,6 +109,9 @@ class IntegrationView extends React.PureComponent {
     });
     this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
       this.newGeometryFunctions[this.state.mode]();
+    });
+    this.localObserver.subscribe("mf-new-feature-created", (feature) => {
+      this.#addNewItemToList(feature);
     });
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
@@ -230,6 +232,11 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #addNewItemToList = (data) => {
+    data.type = this.state.mode;
+    this.#updateList(data);
+  };
+
   #updateList = (props) => {
     this.updateListFunctions[props.type](props);
   };
@@ -302,9 +309,11 @@ class IntegrationView extends React.PureComponent {
     let id = -1;
     const areaData = props.features.map((feature) => {
       const properties = feature.getProperties();
+      const name = props.isNew ? "Nytt område" : properties.omrade;
+
       return {
         id: ++id,
-        name: properties.omrade,
+        name: name,
         information: [
           {
             description: "saknas",

@@ -325,6 +325,9 @@ class IntegrationModel {
     this.map.clickLock.delete("new");
     this.editSources.new.addFeature(e.feature);
     this.#clearSource(this.drawingToolFunctions.new.source);
+
+    const data = { features: [e.feature], isNew: true };
+    this.localObserver.publish("mf-new-feature-created", data);
   };
 
   #handleDrawSearchFeatureAdded = (e) => {
