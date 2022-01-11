@@ -112,6 +112,10 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
       this.newGeometryFunctions[this.state.mode]();
     });
+    this.localObserver.subscribe("mf-end-draw-new-geometry", (editMode) => {
+      // const drawType = editMode + this.drawTypes[this.state.mode];
+      // this.drawFunctions[drawType].end();
+    });
     this.localObserver.subscribe("mf-snap-supportLayer", (snapTarget) => {
       this.#showDrawingSupport(snapTarget.layerId);
       this.model.addSnapInteraction(snapTarget.sourceName);
@@ -133,6 +137,7 @@ class IntegrationView extends React.PureComponent {
     this.#initClearFunctions();
     this.#initDrawFunctions();
     this.#initNewGeometryFunctions();
+    this.#initDrawTypes();
     this.#initPublishDefaultMode();
   };
 
@@ -196,6 +201,16 @@ class IntegrationView extends React.PureComponent {
       area: this.drawFunctions.polygondraw.start,
       survey: this.drawFunctions.polygondraw.start,
       contamination: this.drawFunctions.polygondraw.start,
+    };
+  };
+
+  #initDrawTypes = () => {
+    this.drawTypes = {
+      realEstate: "polygon",
+      coordinate: "point",
+      area: "polygon",
+      survey: "polygon",
+      contamination: "polygon",
     };
   };
 

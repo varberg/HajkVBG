@@ -20,7 +20,6 @@ class SnappingControl extends React.PureComponent {
 
   constructor(props) {
     super(props);
-    console.log("props", props);
     this.localObserver = props.localObserver;
   }
 
@@ -33,13 +32,11 @@ class SnappingControl extends React.PureComponent {
 
   #toggleCheckedCallback = () => {
     if (!this.state.snapTarget) return;
-    if (this.state.checked)
+    if (this.state.checked) {
       this.localObserver.publish("mf-snap-supportLayer", this.state.snapTarget);
-    if (!this.state.checked)
-      this.localObserver.publish(
-        "mf-snap-noSupportLayer",
-        this.state.snapTarget
-      );
+      return;
+    }
+    this.localObserver.publish("mf-snap-noSupportLayer", this.state.snapTarget);
   };
 
   #handleChangeSnapLayer = (snapTarget) => {
