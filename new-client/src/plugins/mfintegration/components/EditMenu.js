@@ -175,7 +175,7 @@ class EditMenu extends React.PureComponent {
   };
 
   renderStepOne = () => {
-    const { classes } = this.props;
+    const { classes, localObserver } = this.props;
     return (
       <Grid container item xs={12}>
         <ButtonGroup style={{ width: "100%" }}>
@@ -187,6 +187,9 @@ class EditMenu extends React.PureComponent {
                 this.setState({
                   activeStep: 1,
                   editMode: "draw",
+                });
+                this.setState({ drawActive: true }, () => {
+                  localObserver.publish("mf-start-draw-new-geometry");
                 });
               }}
             >
@@ -235,25 +238,6 @@ class EditMenu extends React.PureComponent {
             <Typography>Rita ut det nya objektet i kartan.</Typography>
           </Grid>
           <Grid item xs={12}>
-            <TooltipToggleButton
-              size="small"
-              title="Börja rita i kartan"
-              aria-label="Börja rita i kartan"
-              selected={this.state.drawActive}
-              value={"drawActive"}
-              onChange={() => {
-                this.setState({ drawActive: !this.state.drawActive }, () => {
-                  if (this.state.drawActive) {
-                    localObserver.publish("mf-start-draw-new-geometry");
-                  }
-                });
-              }}
-            >
-              <EditIcon size="small" />
-              <Typography variant="button">&nbsp; Rita</Typography>
-            </TooltipToggleButton>
-          </Grid>
-          <Grid item xs={12}>
             <SnappingControl
               enabled={true}
               availableSnapLayers={this.#getAvailableSnapLayers()}
@@ -272,6 +256,10 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      localObserver.publish(
+                        "mf-end-draw-new-geometry",
+                        editMode
+                      );
                     }}
                     aria-label="Tillbaka"
                   >
@@ -282,6 +270,7 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    localObserver.publish("mf-end-draw-new-geometry", editMode);
                   }}
                   aria-label="OK"
                 >

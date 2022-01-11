@@ -9,11 +9,12 @@ import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import Transform from "./Transformation/Transform";
 import {
+  drawCopyStyle,
   drawNewStyle,
+  drawSearchStyle,
   highLightStyle,
-  layerStyle,
   newGeometryStyle,
-  searchStyle,
+  newSearchStyle,
   snapStyle,
 } from "./mockdata/mockdataStyle";
 import { wfsConfig } from "./mockdata/mockdataWFS";
@@ -114,7 +115,7 @@ class IntegrationModel {
 
   startDrawCopyPoint = (mode) => {
     this.drawingToolFunctions.copy.source.mode = mode;
-    this.#drawGeometry("copy", "Point", drawNewStyle());
+    this.#drawGeometry("copy", "Point", drawCopyStyle());
   };
 
   startDrawNewPoint = (mode) => {
@@ -129,12 +130,12 @@ class IntegrationModel {
 
   startDrawSearchPoint = (mode) => {
     this.drawingToolFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Point", searchStyle());
+    this.#drawGeometry("search", "Point", drawSearchStyle());
   };
 
   startDrawSearchPolygon = (mode) => {
     this.drawingToolFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Polygon", searchStyle());
+    this.#drawGeometry("search", "Polygon", drawSearchStyle());
   };
 
   addSnapInteraction = (mode) => {
@@ -225,7 +226,7 @@ class IntegrationModel {
   #addSearchLayer = () => {
     const searchLayer = this.#createNewVectorLayer(
       this.drawingToolFunctions.search.source,
-      this.#createLayerStyle(searchStyle())
+      this.#createLayerStyle(drawSearchStyle())
     );
     this.map.addLayer(searchLayer);
   };
@@ -327,23 +328,23 @@ class IntegrationModel {
     this.dataLayers = {
       realEstate: this.#createNewVectorLayer(
         this.dataSources.realEstate,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       coordinate: this.#createNewVectorLayer(
         this.dataSources.coordinate,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       area: this.#createNewVectorLayer(
         this.dataSources.area,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       survey: this.#createNewVectorLayer(
         this.dataSources.survey,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       contamination: this.#createNewVectorLayer(
         this.dataSources.contamination,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
     };
     this.#addArrayToObject(this.dataLayers);
@@ -406,20 +407,18 @@ class IntegrationModel {
   };
 
   #handleDrawCopyFeatureAdded = (e) => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("copy");
+    this.searchResponseTool = "copy";
     this.searchModelFunctions[e.target.mode](e.feature);
     this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
   #handleDrawNewFeatureAdded = (e) => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("new");
     this.editSources.new.addFeature(e.feature);
     this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
   #handleDrawSearchFeatureAdded = (e) => {
+    this.searchResponseTool = "search";
     this.searchModelFunctions[e.target.mode](e.feature);
     this.#clearSource(this.drawingToolFunctions.search.source);
   };
