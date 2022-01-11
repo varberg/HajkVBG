@@ -15,21 +15,39 @@ const styles = (theme) => {
 class SnappingControl extends React.PureComponent {
   state = {
     checked: false,
-    snapLayerId: "",
+    snapTarget: "",
   };
+
+  constructor(props) {
+    super(props);
+    this.localObserver = props.localObserver;
+  }
 
   #toggleChecked = () => {
-    this.setState({ checked: !this.state.checked });
+    this.setState(
+      { checked: !this.state.checked },
+      this.#toggleCheckedCallback
+    );
   };
 
-  #handleChangeSnapLayer = (value) => {
-    this.setState({ snapLayerId: value });
+  #toggleCheckedCallback = () => {
+    if (!this.state.snapTarget) return;
+    if (this.state.checked) {
+      this.localObserver.publish("mf-snap-supportLayer", this.state.snapTarget);
+      return;
+    }
+    this.localObserver.publish("mf-snap-noSupportLayer", this.state.snapTarget);
+  };
+
+  #handleChangeSnapLayer = (snapTarget) => {
+    this.setState({ snapTarget: snapTarget });
+    this.localObserver.publish("mf-snap-supportLayer", snapTarget);
   };
 
   #createMenuOptions = (availableSnapLayers) => {
-    return availableSnapLayers.map((layer) => {
+    return availableSnapLayers.map((layer, id) => {
       return (
-        <MenuItem key={layer.id} value={layer.id}>
+        <MenuItem key={id} value={layer}>
           {layer.name}
         </MenuItem>
       );
@@ -65,8 +83,10 @@ class SnappingControl extends React.PureComponent {
               style={{ minWidth: 120 }}
               labelId="snap-layer-select-label"
               id="snap-layer-select"
-              value={this.state.snapLayerId}
-              onChange={(e) => this.#handleChangeSnapLayer(e.target.value)}
+              value={this.state.snapTarget}
+              onChange={(e) => {
+                this.#handleChangeSnapLayer(e.target.value);
+              }}
             >
               {this.#createMenuOptions(availableSnapLayers)}
             </Select>
@@ -77,13 +97,5 @@ class SnappingControl extends React.PureComponent {
     );
   }
 }
-
-SnappingControl.defaultProps = {
-  enabled: true,
-  availableSnapLayers: [
-    { id: 1, name: "Fastigheter" },
-    { id: 2, name: "Tillsynsobjekt" },
-  ],
-};
 
 export default withStyles(styles)(SnappingControl);

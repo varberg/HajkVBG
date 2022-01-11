@@ -87,6 +87,7 @@ class IntegrationView extends React.PureComponent {
 
     this.globalObserver = props.globalObserver;
     this.localObserver = props.localObserver;
+    this.model = props.model;
     this.app = props.app;
     this.title = props.title;
 
@@ -113,6 +114,18 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-new-feature-created", (feature) => {
       this.#addNewItemToList(feature);
     });
+    this.localObserver.subscribe("mf-end-draw-new-geometry", (editMode) => {
+      // const drawType = editMode + this.drawTypes[this.state.mode];
+      // this.drawFunctions[drawType].end();
+    });
+    this.localObserver.subscribe("mf-snap-supportLayer", (snapTarget) => {
+      this.#showDrawingSupport(snapTarget.layerId);
+      this.model.addSnapInteraction(snapTarget.sourceName);
+    });
+    this.localObserver.subscribe("mf-snap-noSupportLayer", (snapTarget) => {
+      this.#hideDrawingSupport(snapTarget.layerId);
+      this.model.endSnapInteraction(snapTarget.sourceName);
+    });
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
       this.#clearDrawingSupport();
@@ -126,6 +139,7 @@ class IntegrationView extends React.PureComponent {
     this.#initClearFunctions();
     this.#initDrawFunctions();
     this.#initNewGeometryFunctions();
+    this.#initDrawTypes();
     this.#initPublishDefaultMode();
   };
 
@@ -147,28 +161,29 @@ class IntegrationView extends React.PureComponent {
       survey: this.#clearResultsSurvey,
       contamination: this.#clearResultsContamination,
     };
-    this.clearFunctions.array = [
-      this.clearFunctions.realEstate,
-      this.clearFunctions.coordinate,
-      this.clearFunctions.area,
-      this.clearFunctions.survey,
-      this.clearFunctions.contamination,
-    ];
+    this.#addArrayToObject(this.clearFunctions);
+  };
+
+  #addArrayToObject = (object) => {
+    const array = Object.keys(object).map((key) => {
+      return object[key];
+    });
+    object.array = array;
   };
 
   #initDrawFunctions = () => {
     this.drawFunctions = {
       pointcopy: {
         start: this.props.model.startDrawCopyPoint,
-        end: this.props.model.endDrawCopy,
+        end: this.props.model.endDraw,
       },
       pointdraw: {
         start: this.props.model.startDrawNewPoint,
-        end: this.props.model.endDrawNew,
+        end: this.props.model.endDraw,
       },
       polygondraw: {
         start: this.props.model.startDrawNewPolygon,
-        end: this.props.model.endDrawNew,
+        end: this.props.model.endDraw,
       },
       pointselect: {
         start: this.props.model.startDrawSearchPoint,
@@ -188,6 +203,16 @@ class IntegrationView extends React.PureComponent {
       area: this.drawFunctions.polygondraw.start,
       survey: this.drawFunctions.polygondraw.start,
       contamination: this.drawFunctions.polygondraw.start,
+    };
+  };
+
+  #initDrawTypes = () => {
+    this.drawTypes = {
+      realEstate: "polygon",
+      coordinate: "point",
+      area: "polygon",
+      survey: "polygon",
+      contamination: "polygon",
     };
   };
 

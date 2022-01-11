@@ -31,7 +31,7 @@ export default class SearchModel {
 
     hfetch(this.wfsConfigRealEstate.url, wfsRequest).then((response) => {
       response.json().then((featureCollection) => {
-        let answer = this.#createRespone(
+        let answer = this.#createResponse(
           featureCollection,
           this.wfsConfigRealEstate.geometryField,
           this.#getTransformationWfsToMap(this.wfsConfigRealEstate),
@@ -53,7 +53,7 @@ export default class SearchModel {
 
     hfetch(this.wfsConfigRealEstate.url, wfsRequest).then((response) => {
       response.json().then((featureCollection) => {
-        let answer = this.#createRespone(
+        let answer = this.#createResponse(
           featureCollection,
           this.wfsConfigRealEstate.geometryField,
           this.#getTransformationWfsToMap(this.wfsConfigRealEstate),
@@ -88,7 +88,7 @@ export default class SearchModel {
     });
     const simulatedFeatureCollection = { features: features };
 
-    let answer = this.#createRespone(
+    let answer = this.#createResponse(
       simulatedFeatureCollection,
       this.wfsConfigCoordinates.geometryField,
       this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
@@ -123,7 +123,7 @@ export default class SearchModel {
 
     const simulatedFeatureCollection = { features: features };
 
-    let answer = this.#createRespone(
+    let answer = this.#createResponse(
       simulatedFeatureCollection,
       this.wfsConfigCoordinates.geometryField,
       this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
@@ -157,7 +157,7 @@ export default class SearchModel {
 
     const simulatedFeatureCollection = { features: features };
 
-    let answer = this.#createRespone(
+    let answer = this.#createResponse(
       simulatedFeatureCollection,
       this.wfsConfigCoordinates.geometryField,
       this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
@@ -191,7 +191,7 @@ export default class SearchModel {
 
     const simulatedFeatureCollection = { features: features };
 
-    let answer = this.#createRespone(
+    let answer = this.#createResponse(
       simulatedFeatureCollection,
       this.wfsConfigCoordinates.geometryField,
       this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
@@ -248,7 +248,7 @@ export default class SearchModel {
     return this.map.getView().getProjection().getCode();
   };
 
-  #createRespone = (
+  #createResponse = (
     featureCollection,
     geometryField,
     transformation,
