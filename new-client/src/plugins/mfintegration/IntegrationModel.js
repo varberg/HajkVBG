@@ -181,6 +181,10 @@ class IntegrationModel {
     this.#setFeatureStyle(feature, featureStyle);
   };
 
+  deleteNewGeometry = (feature, source) => {
+    this.editSources[source].removeFeature(feature);
+  };
+
   #clearSource = (source) => {
     source.clear();
   };
@@ -257,12 +261,6 @@ class IntegrationModel {
   };
 
   #addSources = () => {
-    this.editSources = {
-      new: this.#createNewVectorSource(),
-      copy: this.#createNewVectorSource(),
-      combine: this.#createNewVectorSource(),
-    };
-
     this.dataSources = {
       realEstate: this.#createNewVectorSource(),
       coordinate: this.#createNewVectorSource(),
@@ -271,8 +269,21 @@ class IntegrationModel {
       contamination: this.#createNewVectorSource(),
     };
 
+    this.editSources = {
+      new: this.#createNewVectorSource(),
+      copy: this.#createNewVectorSource(),
+      combine: this.#createNewVectorSource(),
+    };
+
     this.snapSources = {
       realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
+    };
+
+    this.newSources = {
       coordinate: this.#createNewVectorSource(),
       area: this.#createNewVectorSource(),
       survey: this.#createNewVectorSource(),
@@ -407,14 +418,49 @@ class IntegrationModel {
   };
 
   #handleDrawCopyFeatureAdded = (e) => {
+    this.#clearSource(this.editSources.copy);
     this.searchResponseTool = "copy";
     this.searchModelFunctions[e.target.mode](e.feature);
     this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
   #handleDrawNewFeatureAdded = (e) => {
-    this.editSources.new.addFeature(e.feature);
+    this.#clearSource(this.editSources.new);
+    const data = this.#createDataset(e.feature);
+    // TODO: I krav 3.6 kan även snap betyde källa combine
+    this.#addAndPublishNewFeature(data, this.editSources.new);
+
     this.#clearSource(this.drawingToolFunctions.new.source);
+  };
+
+  #createDataset = (feature) => {
+    let pairs = [];
+    for (let i = 0; i < feature.getGeometry().flatCoordinates.length; i += 2) {
+      pairs.push([
+        feature.getGeometry().flatCoordinates[i],
+        feature.getGeometry().flatCoordinates[i + 1],
+      ]);
+    }
+    const coordinates = [pairs];
+    const features = [
+      {
+        geometry: {
+          type: "Polygon",
+          coordinates: coordinates,
+        },
+        id: "område.0",
+        geometry_name: null,
+        properties: null,
+        type: "Feature",
+      },
+    ];
+    const simulatedFeatureCollection = { features: features };
+    return {
+      searchType: "none",
+      geometryField: null,
+      featureCollection: simulatedFeatureCollection,
+      transformation: null,
+    };
   };
 
   #handleDrawSearchFeatureAdded = (e) => {
@@ -569,7 +615,18 @@ class IntegrationModel {
   };
 
   #copyWfsSearch = (data) => {
-    this.#addFeaturesToSource(this.editSources.copy, data);
+    this.#addAndPublishNewFeature(data, this.editSources.copy);
+  };
+
+  #addAndPublishNewFeature = (data, source) => {
+    const previousFeatures = source.getFeatures();
+    this.#addFeaturesToSource(source, data);
+    const presentFeatures = source.getFeatures();
+
+    const newFeature = presentFeatures.filter((feature) => {
+      return previousFeatures.indexOf(feature) === -1;
+    });
+    this.localObserver.publish("mf-new-feature-added-to-source", newFeature[0]);
   };
 
   #snapWfsSearch = (data) => {

@@ -15,7 +15,7 @@ const styles = (theme) => {
 class SnappingControl extends React.PureComponent {
   state = {
     checked: false,
-    snapTarget: "",
+    snapTargetName: "",
   };
 
   constructor(props) {
@@ -31,23 +31,35 @@ class SnappingControl extends React.PureComponent {
   };
 
   #toggleCheckedCallback = () => {
-    if (!this.state.snapTarget) return;
+    if (!this.state.snapTargetName) return;
     if (this.state.checked) {
-      this.localObserver.publish("mf-snap-supportLayer", this.state.snapTarget);
+      this.localObserver.publish(
+        "mf-edit-supportLayer",
+        this.state.snapTargetName
+      );
       return;
     }
-    this.localObserver.publish("mf-snap-noSupportLayer", this.state.snapTarget);
+    this.localObserver.publish(
+      "mf-edit-noSupportLayer",
+      this.state.snapTargetName
+    );
   };
 
-  #handleChangeSnapLayer = (snapTarget) => {
-    this.setState({ snapTarget: snapTarget });
-    this.localObserver.publish("mf-snap-supportLayer", snapTarget);
+  #handleChangeSnapLayer = (snapTargetName) => {
+    let snapLayer = this.availableSnapLayers.find(
+      (item) => item.name === snapTargetName
+    );
+    snapLayer.type = "snap";
+    this.setState({ snapTarget: snapTargetName }, () => {
+      this.localObserver.publish("mf-edit-supportLayer", snapLayer);
+    });
   };
 
   #createMenuOptions = (availableSnapLayers) => {
+    this.availableSnapLayers = availableSnapLayers;
     return availableSnapLayers.map((layer, id) => {
       return (
-        <MenuItem key={id} value={layer}>
+        <MenuItem key={id} value={layer.name}>
           {layer.name}
         </MenuItem>
       );
@@ -83,7 +95,7 @@ class SnappingControl extends React.PureComponent {
               style={{ minWidth: 120 }}
               labelId="snap-layer-select-label"
               id="snap-layer-select"
-              value={this.state.snapTarget}
+              value={this.state.snapTargetName}
               onChange={(e) => {
                 this.#handleChangeSnapLayer(e.target.value);
               }}
