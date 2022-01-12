@@ -74,7 +74,7 @@ const defaultState = {
   activeStep: 0,
   editOpen: false,
   editTab: "create",
-  editMode: "none", //draw, copy, combine
+  editMode: "none", //new, copy, combine
   changeEditMode: null, //edit, move, delete
   drawActive: false,
   isNewEdit: false,
@@ -88,7 +88,7 @@ class EditMenu extends React.PureComponent {
     activeStep: 0,
     editOpen: false,
     editTab: "create",
-    editMode: "none", //draw, copy, combine
+    editMode: "none", //new, copy, combine
     changeEditMode: null, //edit, move, delete
     drawActive: false,
     isNewEdit: false,
@@ -109,6 +109,9 @@ class EditMenu extends React.PureComponent {
     this.localObserver.subscribe("mf-new-feature-added-to-source", () => {
       const newValue = true;
       this.setState({ isNewEdit: newValue });
+    });
+    this.localObserver.subscribe("mf-edit-supportLayer", (layer) => {
+      this.supportLayer = layer;
     });
   };
 
@@ -278,6 +281,10 @@ class EditMenu extends React.PureComponent {
                         "mf-end-draw-new-geometry",
                         editMode
                       );
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >
@@ -320,6 +327,14 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      localObserver.publish(
+                        "mf-end-draw-new-geometry",
+                        editMode
+                      );
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >
@@ -405,6 +420,14 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      localObserver.publish(
+                        "mf-end-draw-new-geometry",
+                        editMode
+                      );
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >

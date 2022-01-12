@@ -152,6 +152,16 @@ class IntegrationModel {
     this.drawingTool = "none";
   };
 
+  endDrawCopy = () => {
+    this.map.clickLock.delete("copy");
+    this.endDraw();
+  };
+
+  endDrawNew = () => {
+    this.map.clickLock.delete("new");
+    this.endDraw();
+  };
+
   endSnapInteraction = () => {
     this.searchResponseTool = "snap";
     this.activeSnapSource = null;
