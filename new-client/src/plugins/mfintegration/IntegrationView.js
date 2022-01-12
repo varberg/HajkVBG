@@ -112,7 +112,7 @@ class IntegrationView extends React.PureComponent {
       this.newGeometryFunctions[this.state.mode]();
     });
     this.localObserver.subscribe("mf-end-draw-new-geometry", (editMode) => {
-      const drawType = this.drawTypes[this.state.mode] + editMode;
+      const drawType = this.drawTypes[editMode][this.state.mode] + editMode;
       this.drawFunctions[drawType].end();
     });
 
@@ -183,15 +183,15 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions = {
       pointcopy: {
         start: this.props.model.startDrawCopyPoint,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawCopy,
       },
-      pointdraw: {
+      pointnew: {
         start: this.props.model.startDrawNewPoint,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawNew,
       },
-      polygondraw: {
+      polygonnew: {
         start: this.props.model.startDrawNewPolygon,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawNew,
       },
       pointselect: {
         start: this.props.model.startDrawSearchPoint,
@@ -206,11 +206,11 @@ class IntegrationView extends React.PureComponent {
 
   #initNewGeometryFunctions = () => {
     this.newGeometryFunctions = {
-      realEstate: this.drawFunctions.polygondraw.start,
-      coordinate: this.drawFunctions.pointdraw.start,
-      area: this.drawFunctions.polygondraw.start,
-      survey: this.drawFunctions.polygondraw.start,
-      contamination: this.drawFunctions.polygondraw.start,
+      realEstate: this.drawFunctions.polygonnew.start,
+      coordinate: this.drawFunctions.pointnew.start,
+      area: this.drawFunctions.polygonnew.start,
+      survey: this.drawFunctions.polygonnew.start,
+      contamination: this.drawFunctions.polygonnew.start,
     };
   };
 
@@ -234,11 +234,20 @@ class IntegrationView extends React.PureComponent {
 
   #initDrawTypes = () => {
     this.drawTypes = {
-      realEstate: "polygon",
-      coordinate: "point",
-      area: "polygon",
-      survey: "polygon",
-      contamination: "polygon",
+      copy: {
+        realEstate: "point",
+        coordinate: "point",
+        area: "point",
+        survey: "point",
+        contamination: "point",
+      },
+      new: {
+        realEstate: "polygon",
+        coordinate: "point",
+        area: "polygon",
+        survey: "polygon",
+        contamination: "polygon",
+      },
     };
   };
 
