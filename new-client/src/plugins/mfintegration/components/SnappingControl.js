@@ -45,12 +45,12 @@ class SnappingControl extends React.PureComponent {
     );
   };
 
-  #handleChangeSnapLayer = (snapTargetName) => {
+  #handleChangeSnapLayer = (snapLayerName) => {
     let snapLayer = this.availableSnapLayers.find(
-      (item) => item.name === snapTargetName
+      (item) => item.name === snapLayerName
     );
     snapLayer.type = "snap";
-    this.setState({ snapTarget: snapTargetName }, () => {
+    this.setState({ snapTargetName: snapLayerName }, () => {
       this.localObserver.publish("mf-edit-supportLayer", snapLayer);
     });
   };

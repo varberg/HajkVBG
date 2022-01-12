@@ -37,7 +37,7 @@ class Copyingontrol extends React.PureComponent {
     this.availableCopyLayers = availableCopyLayers;
     return availableCopyLayers.map((layer, id) => {
       return (
-        <MenuItem key={id} value={layer.name} type={"copy"}>
+        <MenuItem key={id} value={layer.name}>
           {layer.name}
         </MenuItem>
       );
@@ -56,7 +56,7 @@ class Copyingontrol extends React.PureComponent {
         </Grid>
         <Grid item xs={12}>
           <FormControl margin="none">
-            <InputLabel disableAnimation>Från lager</InputLabel>
+            <InputLabel disableAnimation>Välj lager</InputLabel>
             <Select
               style={{ minWidth: 200 }}
               value={this.state.copyTargetName}
