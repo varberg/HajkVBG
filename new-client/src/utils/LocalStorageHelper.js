@@ -33,7 +33,17 @@
  * This can do one of two things:
  * - if there was a key named "foobar" for current entry, we'll get the JSON.parsed results
  * - if there was no entry named "foobar", we'll get "default value" back
+ * 
+ * === Listening for changes in LocalStorage ===
+ * We will emit an event called "localStorageChanged" on the document itself.
+ * In order to listen for this event, add something like this to your code:
+    document.addEventListener(
+      "localStorageChanged",
+      localStorageSetHandler, // The handler function
+      false
+    );
  */
+
 class LocalStorageHelper {
   mapName = "map_options_unknown_map";
   constructor() {
