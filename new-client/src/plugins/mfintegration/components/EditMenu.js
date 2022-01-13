@@ -25,7 +25,6 @@ import {
 import { ToggleButton, ToggleButtonGroup } from "@material-ui/lab";
 import ExpandMore from "@material-ui/icons/ExpandMore";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
-import EditIcon from "@material-ui/icons/Edit";
 import OpenWithIcon from "@material-ui/icons/OpenWith";
 import DeleteIcon from "@material-ui/icons/Delete";
 import FileCopyOutlinedIcon from "@material-ui/icons/FileCopyOutlined";

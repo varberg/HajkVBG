@@ -170,8 +170,17 @@ class IntegrationModel {
   removeItemFromActiveSource = (clickedItem) => {
     if (this.#isFeatureHighlighted(clickedItem.feature))
       this.highlightSource.removeFeature(clickedItem.feature);
-
     this.activeSource.removeFeature(clickedItem.feature);
+  };
+
+  removeItemFromNewSource = (clickedItem) => {
+    if (this.#isFeatureHighlighted(clickedItem.feature))
+      this.highlightSource.removeFeature(clickedItem.feature);
+    this.activeNewSource.removeFeature(clickedItem.feature);
+  };
+
+  addFeatureToNewSource = (feature, mode) => {
+    this.newSources[mode].addFeature(feature);
   };
 
   toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
@@ -257,12 +266,6 @@ class IntegrationModel {
   };
 
   #addSources = () => {
-    this.editSources = {
-      new: this.#createNewVectorSource(),
-      copy: this.#createNewVectorSource(),
-      combine: this.#createNewVectorSource(),
-    };
-
     this.dataSources = {
       realEstate: this.#createNewVectorSource(),
       coordinate: this.#createNewVectorSource(),
@@ -271,8 +274,21 @@ class IntegrationModel {
       contamination: this.#createNewVectorSource(),
     };
 
+    this.editSources = {
+      new: this.#createNewVectorSource(),
+      copy: this.#createNewVectorSource(),
+      combine: this.#createNewVectorSource(),
+    };
+
     this.snapSources = {
       realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
+    };
+
+    this.newSources = {
       coordinate: this.#createNewVectorSource(),
       area: this.#createNewVectorSource(),
       survey: this.#createNewVectorSource(),
@@ -593,6 +609,7 @@ class IntegrationModel {
     this.#hideAllLayers();
     this.#showAcitveLayer(mode);
     this.#setActiveSource(mode);
+    this.#setActiveNewSource(mode);
   };
 
   #hideAllLayers = () => {
@@ -605,6 +622,10 @@ class IntegrationModel {
 
   #setActiveSource = (mode) => {
     this.activeSource = this.dataSources[mode];
+  };
+
+  #setActiveNewSource = (mode) => {
+    this.activeNewSource = this.newSources[mode];
   };
 
   #highlightItem = (item) => {

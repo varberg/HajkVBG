@@ -112,11 +112,12 @@ class IntegrationView extends React.PureComponent {
       this.newGeometryFunctions[this.state.mode]();
     });
     this.localObserver.subscribe("mf-new-feature-created", (feature) => {
-      this.#addNewItemToList(feature);
+      this.newFeature = feature;
     });
     this.localObserver.subscribe("mf-end-draw-new-geometry", (editMode) => {
-      // const drawType = editMode + this.drawTypes[this.state.mode];
-      // this.drawFunctions[drawType].end();
+      this.#addNewItemToList(this.newFeature);
+      this.#addNewItemToSource(this.newFeature);
+      this.newFeature = null;
     });
     this.localObserver.subscribe("mf-snap-supportLayer", (snapTarget) => {
       this.#showDrawingSupport(snapTarget.layerId);
@@ -262,11 +263,19 @@ class IntegrationView extends React.PureComponent {
     this.#updateList(data);
   };
 
+  #addNewItemToSource = (data) => {
+    console.log(data);
+    //debugger;
+    const feature = data?.features[0];
+    this.props.model.addFeatureToNewSource(feature, this.state.mode);
+  };
+
   #updateList = (props) => {
     this.updateListFunctions[props.type](props);
   };
 
   #updateRealEstateList = (props) => {
+    //not allowed to add new real estate items.
     let id = -1;
     const realEstateData = props.features.map((feature) => {
       const properties = feature.getProperties();
@@ -297,7 +306,10 @@ class IntegrationView extends React.PureComponent {
 
   #updateCoordinateList = (props) => {
     let id = -1;
-    const coordinateData = props.features.map((coordinate) => {
+    if (props.isNew) {
+      id = this.state.currentListResults.coordinate.length - 1;
+    }
+    let coordinateData = props.features.map((coordinate) => {
       const properties = coordinate.getProperties();
       const coordinateText =
         "(" +
@@ -305,23 +317,34 @@ class IntegrationView extends React.PureComponent {
         "; " +
         coordinate.getGeometry().flatCoordinates[1] +
         ")";
-      const name =
-        properties.label.length > 0 ? properties.label : coordinateText;
+      const name = props.isNew
+        ? "Ny koordinat"
+        : properties?.label?.length > 0
+        ? properties.label
+        : coordinateText;
       return {
         id: ++id,
         name: name,
         information: [
           {
             description: "Label",
-            value: properties.label.length > 0 ? properties.label : "-",
+            value: properties?.label?.length > 0 ? properties?.label : "-",
           },
           { description: "Koordinat", value: coordinateText },
         ],
         visible: true,
         selected: false,
         feature: coordinate,
+        isNew: props.isNew,
       };
     });
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.coordinate;
+      coordinateData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      coordinateData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -332,10 +355,12 @@ class IntegrationView extends React.PureComponent {
 
   #updateAreaList = (props) => {
     let id = -1;
-    const areaData = props.features.map((feature) => {
+    if (props.isNew) {
+      id = this.state.currentListResults.area.length - 1;
+    }
+    let areaData = props.features.map((feature) => {
       const properties = feature.getProperties();
-      const name = props.isNew ? "Nytt område" : properties.omrade;
-
+      const name = props.isNew ? `Nytt område` : properties.omrade;
       return {
         id: ++id,
         name: name,
@@ -348,8 +373,18 @@ class IntegrationView extends React.PureComponent {
         visible: true,
         selected: false,
         feature: feature,
+        isNew: props.isNew,
       };
     });
+
+    //If we are adding a newly drawn area (not a search), the existing list items should remain.
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.area;
+      areaData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      areaData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -360,11 +395,13 @@ class IntegrationView extends React.PureComponent {
 
   #updateSurveyList = (props) => {
     let id = -1;
-    const surveyData = props.features.map((feature) => {
+    if (props.isNew) id = this.state.currentListResults.survey.length - 1;
+    let surveyData = props.features.map((feature) => {
       const properties = feature.getProperties();
+      const name = props.isNew ? "Ny undersökning" : properties.omrade;
       return {
         id: ++id,
-        name: properties.omrade,
+        name: name,
         information: [
           {
             description: "saknas",
@@ -374,8 +411,17 @@ class IntegrationView extends React.PureComponent {
         visible: true,
         selected: false,
         feature: feature,
+        isNew: props.isNew,
       };
     });
+
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.survey;
+      surveyData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      surveyData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -388,9 +434,10 @@ class IntegrationView extends React.PureComponent {
     let id = -1;
     const contaminationData = props.features.map((feature) => {
       const properties = feature.getProperties();
+      const name = props.isNew ? "Ny undersökning" : properties.omrade;
       return {
         id: ++id,
-        name: properties.omrade,
+        name: name,
         information: [
           {
             description: "saknas",
@@ -400,6 +447,7 @@ class IntegrationView extends React.PureComponent {
         visible: true,
         selected: false,
         feature: feature,
+        isNew: props.isNew,
       };
     });
     this.setState({
@@ -446,6 +494,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #removeFromResults = (item, mode) => {
+    debugger;
     let updateList = { ...this.state.currentListResults };
     const updatedResults = updateList[mode].filter(
       (listItem) => listItem.id !== item.id
@@ -455,6 +504,18 @@ class IntegrationView extends React.PureComponent {
     this.setState({ currentListResults: updateList });
 
     this.props.model.removeItemFromActiveSource(item);
+  };
+
+  #removeCreatedItemFromResults = (item, mode) => {
+    console.log("#removeCreatedItemFromResults");
+    let updateList = { ...this.state.currentListResults };
+    const updatedResults = updateList[mode].filter(
+      (listItem) => listItem.id !== item.id
+    );
+
+    updateList[mode] = updatedResults;
+    this.setState({ currentListResults: updateList });
+    this.props.model.removeItemFromNewSource(item);
   };
 
   #clearResults = () => {
@@ -707,6 +768,9 @@ class IntegrationView extends React.PureComponent {
                       }}
                       handleRemoveItem={(item, mode) => {
                         this.#removeFromResults(item, mode);
+                      }}
+                      handleRemoveCreatedItem={(item, mode) => {
+                        this.#removeCreatedItemFromResults(item, mode);
                       }}
                       handleToggleItemVisibilty={(item, mode) => {
                         this.toggleResultItemVisibility(item, mode);
