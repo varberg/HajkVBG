@@ -115,6 +115,7 @@ class IntegrationView extends React.PureComponent {
       if (status.saveGeometry) {
         this.#addNewItemToList(this.newFeature);
         this.#addNewItemToSource(this.newFeature);
+        this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
       }
       if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
 
@@ -307,6 +308,11 @@ class IntegrationView extends React.PureComponent {
     this.props.model.addFeatureToNewSource(feature, this.state.mode);
   };
 
+  #removeOldEditItemFromSource = (data, editMode) => {
+    const feature = data?.features[0];
+    this.props.model.removeFeatureFromEditSource(feature, editMode);
+  };
+
   #updateList = (props) => {
     this.updateListFunctions[props.type](props);
   };
@@ -392,9 +398,7 @@ class IntegrationView extends React.PureComponent {
 
   #updateAreaList = (props) => {
     let id = -1;
-    if (props.isNew) {
-      id = this.state.currentListResults.area.length - 1;
-    }
+    if (props.isNew) id = this.state.currentListResults.area.length - 1;
     let areaData = props.features.map((feature) => {
       const properties = feature.getProperties();
       const name = props.isNew ? `Nytt område` : properties.omrade;
@@ -469,9 +473,11 @@ class IntegrationView extends React.PureComponent {
 
   #updateContaminationList = (props) => {
     let id = -1;
-    const contaminationData = props.features.map((feature) => {
+    if (props.isNew)
+      id = this.state.currentListResults.contamination.length - 1;
+    let contaminationData = props.features.map((feature) => {
       const properties = feature.getProperties();
-      const name = props.isNew ? "Ny undersökning" : properties.omrade;
+      const name = props.isNew ? "Ny förorening" : properties.omrade;
       return {
         id: ++id,
         name: name,
@@ -487,6 +493,14 @@ class IntegrationView extends React.PureComponent {
         isNew: props.isNew,
       };
     });
+
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.contamination;
+      contaminationData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      contaminationData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,

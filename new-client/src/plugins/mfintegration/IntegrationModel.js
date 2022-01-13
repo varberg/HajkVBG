@@ -193,6 +193,10 @@ class IntegrationModel {
     this.newSources[mode].addFeature(feature);
   };
 
+  removeFeatureFromEditSource = (feature, editMode) => {
+    this.editSources[editMode].removeFeature(feature);
+  };
+
   abortDrawFeature = (editMode) => {
     this.#clearSource(this.editSources[editMode]);
   };
@@ -283,6 +287,9 @@ class IntegrationModel {
 
     this.#addDataLayers();
     this.#addLayersToMap(this.dataLayers.array);
+
+    this.#addNewLayers();
+    this.#addLayersToMap(this.newLayers.array);
   };
 
   #addSources = () => {
@@ -384,6 +391,28 @@ class IntegrationModel {
       ),
     };
     this.#addArrayToObject(this.dataLayers);
+  };
+
+  #addNewLayers = () => {
+    this.newLayers = {
+      coordinate: this.#createNewVectorLayer(
+        this.newSources.coordinate,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      area: this.#createNewVectorLayer(
+        this.newSources.area,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      survey: this.#createNewVectorLayer(
+        this.newSources.survey,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      contamination: this.#createNewVectorLayer(
+        this.newSources.contamination,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+    };
+    this.#addArrayToObject(this.newLayers);
   };
 
   #addArrayToObject = (object) => {
@@ -678,10 +707,19 @@ class IntegrationModel {
 
   #hideAllLayers = () => {
     for (const layer of this.dataLayers.array) layer.setVisible(false);
+    for (const layer of this.newLayers.array) layer.setVisible(false);
+
+    this.#hideLayers(this.dataLayers.array);
+    this.#hideLayers(this.newLayers.array);
+  };
+
+  #hideLayers = (mapLayersArray) => {
+    for (const layer of mapLayersArray) layer.setVisible(false);
   };
 
   #showAcitveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
+    this.newLayers[mode].setVisible(true);
   };
 
   #setActiveSource = (mode) => {
