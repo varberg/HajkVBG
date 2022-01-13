@@ -448,11 +448,7 @@ class IntegrationModel {
     const data = this.#createDataset(e.feature);
     // TODO: I krav 3.6 kan även snap betyde källa combine
     this.#addAndPublishNewFeature(data, this.editSources.new);
-
     this.#clearSource(this.drawingToolFunctions.new.source);
-
-    const data = { features: [e.feature], isNew: true };
-    this.localObserver.publish("mf-new-feature-created", data);
   };
 
   #createDataset = (feature) => {
@@ -637,7 +633,8 @@ class IntegrationModel {
   };
 
   #copyWfsSearch = (data) => {
-    this.#addAndPublishNewFeature(data, this.editSources.copy);
+    // TODO: I krav 3.6 kan även snap betyde källa combine
+    this.#addAndPublishNewFeature(data, this.editSources.new);
   };
 
   #addAndPublishNewFeature = (data, source) => {
@@ -648,7 +645,7 @@ class IntegrationModel {
     const newFeature = presentFeatures.filter((feature) => {
       return previousFeatures.indexOf(feature) === -1;
     });
-    this.localObserver.publish("mf-new-feature-added-to-source", newFeature[0]);
+    this.localObserver.publish("mf-new-feature-created", newFeature[0]);
   };
 
   #snapWfsSearch = (data) => {

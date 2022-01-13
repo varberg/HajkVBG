@@ -111,14 +111,16 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
       this.newGeometryFunctions[this.state.mode]();
     });
-    this.localObserver.subscribe("mf-new-feature-created", (feature) => {
-      this.newFeature = feature;
-    });
-    this.localObserver.subscribe("mf-end-draw-new-geometry", (editMode) => {
+    this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
+      // TODO: Skall inte spara geometrin i modellen innan användaren har tryckt på spara som idag.
+      // if (status.saveGeometry) {
+      //   return;
+      // }
       this.#addNewItemToList(this.newFeature);
       this.#addNewItemToSource(this.newFeature);
       this.newFeature = null;
-      const drawType = this.drawTypes[editMode][this.state.mode] + editMode;
+      const drawType =
+        this.drawTypes[status.editMode][this.state.mode] + status.editMode;
       this.drawFunctions[drawType].end();
     });
 
@@ -131,12 +133,9 @@ class IntegrationView extends React.PureComponent {
       this.editFunctions[editTarget.type].end(editTarget.sourceName);
     });
 
-    this.localObserver.subscribe(
-      "mf-new-feature-added-to-source",
-      (feature) => {
-        this.newFeature = feature;
-      }
-    );
+    this.localObserver.subscribe("mf-new-feature-created", (feature) => {
+      this.newFeature = { features: [feature], isNew: true };
+    });
 
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
@@ -534,7 +533,6 @@ class IntegrationView extends React.PureComponent {
   };
 
   #removeFromResults = (item, mode) => {
-    debugger;
     let updateList = { ...this.state.currentListResults };
     const updatedResults = updateList[mode].filter(
       (listItem) => listItem.id !== item.id

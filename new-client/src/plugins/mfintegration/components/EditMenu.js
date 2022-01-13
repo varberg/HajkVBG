@@ -106,7 +106,7 @@ class EditMenu extends React.PureComponent {
   }
 
   #bindSubscriptions = () => {
-    this.localObserver.subscribe("mf-new-feature-added-to-source", () => {
+    this.localObserver.subscribe("mf-new-feature-created", () => {
       const newValue = true;
       this.setState({ isNewEdit: newValue });
     });
@@ -277,10 +277,10 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
-                      localObserver.publish(
-                        "mf-end-draw-new-geometry",
-                        editMode
-                      );
+                      localObserver.publish("mf-end-draw-new-geometry", {
+                        editMode: editMode,
+                        saveGeometry: false,
+                      });
                       localObserver.publish(
                         "mf-edit-noSupportLayer",
                         this.supportLayer
@@ -295,7 +295,10 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
-                    localObserver.publish("mf-end-draw-new-geometry", editMode);
+                    localObserver.publish("mf-end-draw-new-geometry", {
+                      editMode: editMode,
+                      saveGeometry: true,
+                    });
                   }}
                   aria-label="OK"
                 >
@@ -327,10 +330,10 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
-                      localObserver.publish(
-                        "mf-end-draw-new-geometry",
-                        editMode
-                      );
+                      localObserver.publish("mf-end-draw-new-geometry", {
+                        editMode: editMode,
+                        saveGeometry: false,
+                      });
                       localObserver.publish(
                         "mf-edit-noSupportLayer",
                         this.supportLayer
@@ -345,6 +348,10 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    localObserver.publish("mf-end-draw-new-geometry", {
+                      editMode: editMode,
+                      saveGeometry: true,
+                    });
                   }}
                   aria-label="OK"
                 >
