@@ -4,7 +4,9 @@ import { withStyles, Typography, IconButton } from "@material-ui/core";
 import VisibilityIcon from "@material-ui/icons/Visibility";
 import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
+import DeleteIcon from "@material-ui/icons/Delete";
 import InfoIcon from "@material-ui/icons/Info";
+import StarBorderIcon from "@material-ui/icons/StarBorder";
 import clsx from "clsx";
 
 const styles = (theme) => ({
@@ -92,6 +94,7 @@ class ListResult extends React.PureComponent {
       listMode,
       handleClickItem,
       handleRemoveItem,
+      handleRemoveCreatedItem,
       handleToggleItemVisibilty,
     } = this.props;
     return (
@@ -110,6 +113,7 @@ class ListResult extends React.PureComponent {
               className={classes.listItemText}
               onClick={(e) => handleClickItem(item, listMode)}
             >
+              {item.isNew && <StarBorderIcon />}
               <Typography noWrap>{item.name}</Typography>
             </div>
             <div className={classes.itemButtons}>
@@ -133,15 +137,27 @@ class ListResult extends React.PureComponent {
                   {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </StyledIconButton>
               </div>
+              {/* If the item is a newly created item (that is still temporary), it uses a different delete method. */}
               <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={(e) => {
-                    handleRemoveItem(item, listMode);
-                  }}
-                  aria-label="välj bort"
-                >
-                  <CancelOutlinedIcon />
-                </StyledIconButton>
+                {item.isNew ? (
+                  <StyledIconButton
+                    onClick={(e) => {
+                      handleRemoveCreatedItem(item, listMode);
+                    }}
+                    aria-label="välj bort"
+                  >
+                    <DeleteIcon />
+                  </StyledIconButton>
+                ) : (
+                  <StyledIconButton
+                    onClick={(e) => {
+                      handleRemoveItem(item, listMode);
+                    }}
+                    aria-label="välj bort"
+                  >
+                    <CancelOutlinedIcon />
+                  </StyledIconButton>
+                )}
               </div>
             </div>
           </div>

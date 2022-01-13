@@ -180,8 +180,17 @@ class IntegrationModel {
   removeItemFromActiveSource = (clickedItem) => {
     if (this.#isFeatureHighlighted(clickedItem.feature))
       this.highlightSource.removeFeature(clickedItem.feature);
-
     this.activeSource.removeFeature(clickedItem.feature);
+  };
+
+  removeItemFromNewSource = (clickedItem) => {
+    if (this.#isFeatureHighlighted(clickedItem.feature))
+      this.highlightSource.removeFeature(clickedItem.feature);
+    this.activeNewSource.removeFeature(clickedItem.feature);
+  };
+
+  addFeatureToNewSource = (feature, mode) => {
+    this.newSources[mode].addFeature(feature);
   };
 
   toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
@@ -439,7 +448,6 @@ class IntegrationModel {
     const data = this.#createDataset(e.feature);
     // TODO: I krav 3.6 kan även snap betyde källa combine
     this.#addAndPublishNewFeature(data, this.editSources.new);
-
     this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
@@ -625,7 +633,8 @@ class IntegrationModel {
   };
 
   #copyWfsSearch = (data) => {
-    this.#addAndPublishNewFeature(data, this.editSources.copy);
+    // TODO: I krav 3.6 kan även snap betyde källa combine
+    this.#addAndPublishNewFeature(data, this.editSources.new);
   };
 
   #addAndPublishNewFeature = (data, source) => {
@@ -636,7 +645,7 @@ class IntegrationModel {
     const newFeature = presentFeatures.filter((feature) => {
       return previousFeatures.indexOf(feature) === -1;
     });
-    this.localObserver.publish("mf-new-feature-added-to-source", newFeature[0]);
+    this.localObserver.publish("mf-new-feature-created", newFeature[0]);
   };
 
   #snapWfsSearch = (data) => {
@@ -657,6 +666,7 @@ class IntegrationModel {
     this.#hideAllLayers();
     this.#showAcitveLayer(mode);
     this.#setActiveSource(mode);
+    this.#setActiveNewSource(mode);
   };
 
   #hideAllLayers = () => {
@@ -669,6 +679,10 @@ class IntegrationModel {
 
   #setActiveSource = (mode) => {
     this.activeSource = this.dataSources[mode];
+  };
+
+  #setActiveNewSource = (mode) => {
+    this.activeNewSource = this.newSources[mode];
   };
 
   #highlightItem = (item) => {
