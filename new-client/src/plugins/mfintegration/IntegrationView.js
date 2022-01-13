@@ -7,11 +7,11 @@ import {
   Typography,
   Button,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   ListItem,
   Grid,
+  FormLabel,
 } from "@material-ui/core";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ListResult from "./components/ListResult";
@@ -699,13 +699,15 @@ class IntegrationView extends React.PureComponent {
       <Container disableGutters>
         <Grid container spacing={(1, 1)}>
           <Grid item xs={12}>
-            <Typography>{informationText}</Typography>
+            <Typography paragraph>{informationText}</Typography>
           </Grid>
           <Grid item xs={12}>
             <FormControl className={classes.dropdown}>
-              <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
+              <FormLabel>Välj kartobjekt</FormLabel>
               <Select
+                style={{ marginTop: "0px" }}
                 id="modeSelection"
+                displayEmpty
                 value={mode}
                 onChange={(e) => {
                   this.#toggleMode(e.target.value);
@@ -719,15 +721,17 @@ class IntegrationView extends React.PureComponent {
               </Select>
             </FormControl>
           </Grid>
+          {this.renderListTools()}
           <Grid item xs={12}>
             <Typography variant="subtitle1" className={classes.listHeading}>
-              {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
+              {`Markerade ${modeDisplay[mode][
+                "displayNamePlural"
+              ].toLowerCase()}`}
               {this.state.currentListResults[mode].length > 0
                 ? ` (${this.state.currentListResults[mode].length})`
                 : null}
             </Typography>
           </Grid>
-          {this.renderListTools()}
           <Grid item xs={12}>
             <div>
               {this.state.currentListResults[mode].length > 0 ? (

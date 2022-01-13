@@ -1,6 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { withStyles, Typography, IconButton } from "@material-ui/core";
+import { withStyles, Typography, IconButton, Tooltip } from "@material-ui/core";
 import VisibilityIcon from "@material-ui/icons/Visibility";
 import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
@@ -114,34 +114,40 @@ class ListResult extends React.PureComponent {
             </div>
             <div className={classes.itemButtons}>
               <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={() => {
-                    this.toggleInfo();
-                  }}
-                  aria-label="visa information"
-                >
-                  <InfoIcon />
-                </StyledIconButton>
+                <Tooltip title="Information om objektet">
+                  <StyledIconButton
+                    onClick={() => {
+                      this.toggleInfo();
+                    }}
+                    aria-label="visa information"
+                  >
+                    <InfoIcon />
+                  </StyledIconButton>
+                </Tooltip>
               </div>
               <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={() => {
-                    handleToggleItemVisibilty(item, listMode);
-                  }}
-                  aria-label="växla synlighet"
-                >
-                  {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                </StyledIconButton>
+                <Tooltip title="Visa/dölj objekt i kartan">
+                  <StyledIconButton
+                    onClick={() => {
+                      handleToggleItemVisibilty(item, listMode);
+                    }}
+                    aria-label="växla synlighet"
+                  >
+                    {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                  </StyledIconButton>
+                </Tooltip>
               </div>
               <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={(e) => {
-                    handleRemoveItem(item, listMode);
-                  }}
-                  aria-label="välj bort"
-                >
-                  <CancelOutlinedIcon />
-                </StyledIconButton>
+                <Tooltip title="Ta bort markering">
+                  <StyledIconButton
+                    onClick={(e) => {
+                      handleRemoveItem(item, listMode);
+                    }}
+                    aria-label="välj bort"
+                  >
+                    <CancelOutlinedIcon />
+                  </StyledIconButton>
+                </Tooltip>
               </div>
             </div>
           </div>
