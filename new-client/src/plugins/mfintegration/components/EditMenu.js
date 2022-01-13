@@ -106,7 +106,7 @@ class EditMenu extends React.PureComponent {
   }
 
   #bindSubscriptions = () => {
-    this.localObserver.subscribe("mf-new-feature-created", () => {
+    this.localObserver.subscribe("mf-new-feature-pending", () => {
       const newValue = true;
       this.setState({ isNewEdit: newValue });
     });
@@ -131,69 +131,69 @@ class EditMenu extends React.PureComponent {
     return drawingSupportLayersArray();
   };
 
-  renderStepTwoControls = () => {
-    const { classes, handleUpdateEditToolsMode } = this.props;
-    return (
-      <ToggleButtonGroup
-        style={{ width: "100%" }}
-        exclusive
-        value={this.state.changeEditMode}
-        onChange={(e, newValue) => {
-          e.preventDefault();
-          if (!newValue) {
-            handleUpdateEditToolsMode(
-              this.state.changeEditMode,
-              this.state.editMode
-            );
-            return;
-          }
-          this.setState({ changeEditMode: newValue }, () => {
-            handleUpdateEditToolsMode(newValue, this.state.editMode);
-          });
-        }}
-      >
-        <TooltipToggleButton
-          disabled={!this.state.isNewEdit}
-          className={classes.stepButtonGroup}
-          size="small"
-          value="edit"
-          title="Omforma befintlig redigering"
-          aria-label="Omforma befintlig redigering"
-        >
-          <FormatShapesIcon size="small" />
-          <Typography noWrap variant="button">
-            &nbsp; Omforma
-          </Typography>
-        </TooltipToggleButton>
-        <TooltipToggleButton
-          disabled={!this.state.isNewEdit}
-          className={classes.stepButtonGroup}
-          size="small"
-          value="move"
-          title="Flytta befintlig redigering"
-          aria-label="Flytta befintlig redigering"
-        >
-          <OpenWithIcon size="small" />
-          <Typography noWrap variant="button">
-            &nbsp; Flytta
-          </Typography>
-        </TooltipToggleButton>
-        <TooltipToggleButton
-          disabled={!this.state.isNewEdit}
-          className={classes.stepButtonGroup}
-          size="small"
-          value="delete"
-          title="Radera befintlig redigering"
-          aria-label="Radera befintlig redigering"
-        >
-          <DeleteIcon size="small" />
-          <Typography noWrap variant="button">
-            &nbsp; Radera
-          </Typography>
-        </TooltipToggleButton>
-      </ToggleButtonGroup>
-    );
-  };
+  // renderStepTwoControls = () => {
+  //   const { classes, handleUpdateEditToolsMode } = this.props;
+  //   return (
+  //     <ToggleButtonGroup
+  //       style={{ width: "100%" }}
+  //       exclusive
+  //       value={this.state.changeEditMode}
+  //       onChange={(e, newValue) => {
+  //         e.preventDefault();
+  //         if (!newValue) {
+  //           handleUpdateEditToolsMode(
+  //             this.state.changeEditMode,
+  //             this.state.editMode
+  //           );
+  //           return;
+  //         }
+  //         this.setState({ changeEditMode: newValue }, () => {
+  //           handleUpdateEditToolsMode(newValue, this.state.editMode);
+  //         });
+  //       }}
+  //     >
+  //       <TooltipToggleButton
+  //         disabled={!this.state.isNewEdit}
+  //         className={classes.stepButtonGroup}
+  //         size="small"
+  //         value="edit"
+  //         title="Omforma befintlig redigering"
+  //         aria-label="Omforma befintlig redigering"
+  //       >
+  //         <FormatShapesIcon size="small" />
+  //         <Typography noWrap variant="button">
+  //           &nbsp; Omforma
+  //         </Typography>
+  //       </TooltipToggleButton>
+  //       <TooltipToggleButton
+  //         disabled={!this.state.isNewEdit}
+  //         className={classes.stepButtonGroup}
+  //         size="small"
+  //         value="move"
+  //         title="Flytta befintlig redigering"
+  //         aria-label="Flytta befintlig redigering"
+  //       >
+  //         <OpenWithIcon size="small" />
+  //         <Typography noWrap variant="button">
+  //           &nbsp; Flytta
+  //         </Typography>
+  //       </TooltipToggleButton>
+  //       <TooltipToggleButton
+  //         disabled={!this.state.isNewEdit}
+  //         className={classes.stepButtonGroup}
+  //         size="small"
+  //         value="delete"
+  //         title="Radera befintlig redigering"
+  //         aria-label="Radera befintlig redigering"
+  //       >
+  //         <DeleteIcon size="small" />
+  //         <Typography noWrap variant="button">
+  //           &nbsp; Radera
+  //         </Typography>
+  //       </TooltipToggleButton>
+  //     </ToggleButtonGroup>
+  //   );
+  // };
 
   renderStepOne = () => {
     const { classes, localObserver } = this.props;
@@ -277,6 +277,7 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      this.setState({ isNewEdit: false });
                       localObserver.publish("mf-end-draw-new-geometry", {
                         editMode: editMode,
                         saveGeometry: false,
@@ -295,10 +296,15 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    this.setState({ isNewEdit: false });
                     localObserver.publish("mf-end-draw-new-geometry", {
                       editMode: editMode,
                       saveGeometry: true,
                     });
+                    localObserver.publish(
+                      "mf-edit-noSupportLayer",
+                      this.supportLayer
+                    );
                   }}
                   aria-label="OK"
                 >
@@ -330,6 +336,7 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      this.setState({ isNewEdit: false });
                       localObserver.publish("mf-end-draw-new-geometry", {
                         editMode: editMode,
                         saveGeometry: false,
@@ -348,6 +355,7 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    this.setState({ isNewEdit: false });
                     localObserver.publish("mf-end-draw-new-geometry", {
                       editMode: editMode,
                       saveGeometry: true,
@@ -427,6 +435,7 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      this.setState({ isNewEdit: false });
                       localObserver.publish(
                         "mf-end-draw-new-geometry",
                         editMode
@@ -445,6 +454,7 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    this.setState({ isNewEdit: false });
                   }}
                   aria-label="OK"
                 >
@@ -456,6 +466,107 @@ class EditMenu extends React.PureComponent {
         </Grid>
       );
     }
+  };
+
+  renderStepTwoControls = () => {
+    const { classes, handleUpdateEditToolsMode } = this.props;
+    return (
+      <Box display="flex">
+        <Box>
+          <Box style={{ marginLeft: "0px" }}>
+            <Tooltip
+              title="Omforma befintlig redigering"
+              aria-label="Omforma befintlig redigering"
+            >
+              <ToggleButton
+                disabled={!this.state.isNewEdit}
+                value="edit"
+                onChange={(e, newValue) => {
+                  e.preventDefault();
+                  if (!newValue) {
+                    handleUpdateEditToolsMode(
+                      this.state.changeEditMode,
+                      this.state.editMode
+                    );
+                    return;
+                  }
+                  this.setState({ changeEditMode: newValue }, () => {
+                    handleUpdateEditToolsMode(newValue, this.state.editMode);
+                  });
+                }}
+              >
+                <FormatShapesIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Omforma{" "}
+                </Typography>
+              </ToggleButton>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box>
+          <Box style={{ marginLeft: "0px" }}>
+            <Tooltip
+              title="Flytta befintlig redigering"
+              aria-label="Flytta befintlig redigering"
+            >
+              <ToggleButton
+                disabled={!this.state.isNewEdit}
+                value="move"
+                onChange={(e, newValue) => {
+                  e.preventDefault();
+                  if (!newValue) {
+                    handleUpdateEditToolsMode(
+                      this.state.changeEditMode,
+                      this.state.editMode
+                    );
+                    return;
+                  }
+                  this.setState({ changeEditMode: newValue }, () => {
+                    handleUpdateEditToolsMode(newValue, this.state.editMode);
+                  });
+                }}
+              >
+                <FormatShapesIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Flytta{" "}
+                </Typography>
+              </ToggleButton>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box>
+          <Box style={{ marginLeft: "0px" }}>
+            <Tooltip
+              title="Radera befintlig redigering"
+              aria-label="Radera befintlig redigering"
+            >
+              <ToggleButton
+                disabled={!this.state.isNewEdit}
+                value="delete"
+                onChange={(e, newValue) => {
+                  e.preventDefault();
+                  if (!newValue) {
+                    handleUpdateEditToolsMode(
+                      this.state.changeEditMode,
+                      this.state.editMode
+                    );
+                    return;
+                  }
+                  this.setState({ changeEditMode: newValue }, () => {
+                    handleUpdateEditToolsMode(newValue, this.state.editMode);
+                  });
+                }}
+              >
+                <DeleteIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Radera{" "}
+                </Typography>
+              </ToggleButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </Box>
+    );
   };
 
   renderStepThree = () => {

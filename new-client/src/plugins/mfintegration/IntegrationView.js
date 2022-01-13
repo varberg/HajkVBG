@@ -112,12 +112,13 @@ class IntegrationView extends React.PureComponent {
       this.newGeometryFunctions[this.state.mode]();
     });
     this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
-      // TODO: Skall inte spara geometrin i modellen innan användaren har tryckt på spara som idag.
-      // if (status.saveGeometry) {
-      //   return;
-      // }
-      this.#addNewItemToList(this.newFeature);
-      this.#addNewItemToSource(this.newFeature);
+      if (status.saveGeometry) {
+        this.#addNewItemToList(this.newFeature);
+        this.#addNewItemToSource(this.newFeature);
+        this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
+      }
+      if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
+
       this.newFeature = null;
       const drawType =
         this.drawTypes[status.editMode][this.state.mode] + status.editMode;
@@ -133,7 +134,7 @@ class IntegrationView extends React.PureComponent {
       this.editFunctions[editTarget.type].end(editTarget.sourceName);
     });
 
-    this.localObserver.subscribe("mf-new-feature-created", (feature) => {
+    this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
       this.newFeature = { features: [feature], isNew: true };
     });
 
@@ -303,10 +304,13 @@ class IntegrationView extends React.PureComponent {
   };
 
   #addNewItemToSource = (data) => {
-    console.log(data);
-    //debugger;
     const feature = data?.features[0];
     this.props.model.addFeatureToNewSource(feature, this.state.mode);
+  };
+
+  #removeOldEditItemFromSource = (data, editMode) => {
+    const feature = data?.features[0];
+    this.props.model.removeFeatureFromEditSource(feature, editMode);
   };
 
   #updateList = (props) => {
@@ -394,9 +398,7 @@ class IntegrationView extends React.PureComponent {
 
   #updateAreaList = (props) => {
     let id = -1;
-    if (props.isNew) {
-      id = this.state.currentListResults.area.length - 1;
-    }
+    if (props.isNew) id = this.state.currentListResults.area.length - 1;
     let areaData = props.features.map((feature) => {
       const properties = feature.getProperties();
       const name = props.isNew ? `Nytt område` : properties.omrade;
@@ -471,9 +473,11 @@ class IntegrationView extends React.PureComponent {
 
   #updateContaminationList = (props) => {
     let id = -1;
-    const contaminationData = props.features.map((feature) => {
+    if (props.isNew)
+      id = this.state.currentListResults.contamination.length - 1;
+    let contaminationData = props.features.map((feature) => {
       const properties = feature.getProperties();
-      const name = props.isNew ? "Ny undersökning" : properties.omrade;
+      const name = props.isNew ? "Ny förorening" : properties.omrade;
       return {
         id: ++id,
         name: name,
@@ -489,6 +493,14 @@ class IntegrationView extends React.PureComponent {
         isNew: props.isNew,
       };
     });
+
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.contamination;
+      contaminationData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      contaminationData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,

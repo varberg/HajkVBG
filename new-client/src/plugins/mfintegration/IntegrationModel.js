@@ -193,6 +193,14 @@ class IntegrationModel {
     this.newSources[mode].addFeature(feature);
   };
 
+  removeFeatureFromEditSource = (feature, editMode) => {
+    this.editSources[editMode].removeFeature(feature);
+  };
+
+  abortDrawFeature = (editMode) => {
+    this.#clearSource(this.editSources[editMode]);
+  };
+
   toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
     let featureStyle = new Style();
     if (shouldBeVisible) featureStyle = null;
@@ -200,8 +208,10 @@ class IntegrationModel {
     this.#setFeatureStyle(feature, featureStyle);
   };
 
-  deleteNewGeometry = (feature, source) => {
-    this.editSources[source].removeFeature(feature);
+  deleteNewGeometry = (featureCollection, source) => {
+    featureCollection.features.forEach((feature) => {
+      this.editSources[source].removeFeature(feature);
+    });
   };
 
   #clearSource = (source) => {
@@ -277,6 +287,9 @@ class IntegrationModel {
 
     this.#addDataLayers();
     this.#addLayersToMap(this.dataLayers.array);
+
+    this.#addNewLayers();
+    this.#addLayersToMap(this.newLayers.array);
   };
 
   #addSources = () => {
@@ -378,6 +391,28 @@ class IntegrationModel {
       ),
     };
     this.#addArrayToObject(this.dataLayers);
+  };
+
+  #addNewLayers = () => {
+    this.newLayers = {
+      coordinate: this.#createNewVectorLayer(
+        this.newSources.coordinate,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      area: this.#createNewVectorLayer(
+        this.newSources.area,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      survey: this.#createNewVectorLayer(
+        this.newSources.survey,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+      contamination: this.#createNewVectorLayer(
+        this.newSources.contamination,
+        this.#createLayerStyle(newGeometryStyle())
+      ),
+    };
+    this.#addArrayToObject(this.newLayers);
   };
 
   #addArrayToObject = (object) => {
@@ -634,7 +669,8 @@ class IntegrationModel {
 
   #copyWfsSearch = (data) => {
     // TODO: I krav 3.6 kan även snap betyde källa combine
-    this.#addAndPublishNewFeature(data, this.editSources.new);
+    this.#clearSource(this.editSources.copy);
+    this.#addAndPublishNewFeature(data, this.editSources.copy);
   };
 
   #addAndPublishNewFeature = (data, source) => {
@@ -645,7 +681,7 @@ class IntegrationModel {
     const newFeature = presentFeatures.filter((feature) => {
       return previousFeatures.indexOf(feature) === -1;
     });
-    this.localObserver.publish("mf-new-feature-created", newFeature[0]);
+    this.localObserver.publish("mf-new-feature-pending", newFeature[0]);
   };
 
   #snapWfsSearch = (data) => {
@@ -671,10 +707,19 @@ class IntegrationModel {
 
   #hideAllLayers = () => {
     for (const layer of this.dataLayers.array) layer.setVisible(false);
+    for (const layer of this.newLayers.array) layer.setVisible(false);
+
+    this.#hideLayers(this.dataLayers.array);
+    this.#hideLayers(this.newLayers.array);
+  };
+
+  #hideLayers = (mapLayersArray) => {
+    for (const layer of mapLayersArray) layer.setVisible(false);
   };
 
   #showAcitveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
+    this.newLayers[mode].setVisible(true);
   };
 
   #setActiveSource = (mode) => {
