@@ -49,6 +49,7 @@ class IntegrationModel {
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
     this.#addLayers();
+    this.#initActiveSource();
   };
 
   #initSnap = (mode) => {
@@ -300,6 +301,7 @@ class IntegrationModel {
       survey: this.#createNewVectorSource(),
       contamination: this.#createNewVectorSource(),
     };
+    this.#addArrayToObject(this.dataSources);
 
     this.editSources = {
       new: this.#createNewVectorSource(),
@@ -434,6 +436,10 @@ class IntegrationModel {
       this.#createLayerStyle(highLightStyle())
     );
     this.map.addLayer(this.highlightLayer);
+  };
+
+  #initActiveSource = () => {
+    this.activeSource = this.dataSources.array[0];
   };
 
   #drawGeometry = (drawingTool, drawType, style) => {
