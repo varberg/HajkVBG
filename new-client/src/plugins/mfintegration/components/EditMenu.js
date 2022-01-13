@@ -27,10 +27,10 @@ import ExpandMore from "@material-ui/icons/ExpandMore";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
 import OpenWithIcon from "@material-ui/icons/OpenWith";
 import DeleteIcon from "@material-ui/icons/Delete";
-import FileCopyOutlinedIcon from "@material-ui/icons/FileCopyOutlined";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
+import CopyingControl from "./CopyingControl";
 import SnappingControl from "./SnappingControl";
-import { drawingSupportSnapLayers } from "./../mockdata/mockdataLayers";
+import { drawingSupportLayersArray } from "./../mockdata/mockdataLayers";
 
 const styles = (theme) => {
   return {
@@ -74,13 +74,12 @@ const defaultState = {
   activeStep: 0,
   editOpen: false,
   editTab: "create",
-  editMode: "none", //draw, copy, combine
+  editMode: "none", //new, copy, combine
   changeEditMode: null, //edit, move, delete
   drawActive: false,
   isNewEdit: false,
   selectCopyActive: false,
   selectCombineActive: false,
-  activeCopyLayer: "",
   activeCombineLayer: "",
 };
 
@@ -89,14 +88,31 @@ class EditMenu extends React.PureComponent {
     activeStep: 0,
     editOpen: false,
     editTab: "create",
-    editMode: "none", //draw, copy, combine
+    editMode: "none", //new, copy, combine
     changeEditMode: null, //edit, move, delete
     drawActive: false,
     isNewEdit: false,
     selectCopyActive: false,
     selectCombineActive: false,
-    activeCopyLayer: "",
     activeCombineLayer: "",
+  };
+
+  constructor(props) {
+    super(props);
+
+    this.localObserver = props.localObserver;
+
+    this.#bindSubscriptions();
+  }
+
+  #bindSubscriptions = () => {
+    this.localObserver.subscribe("mf-new-feature-added-to-source", () => {
+      const newValue = true;
+      this.setState({ isNewEdit: newValue });
+    });
+    this.localObserver.subscribe("mf-edit-supportLayer", (layer) => {
+      this.supportLayer = layer;
+    });
   };
 
   #resetEditMenu = () => {
@@ -107,27 +123,33 @@ class EditMenu extends React.PureComponent {
     this.setState({ editOpen: !this.state.editOpen });
   };
 
-  #handleChangeCopyLayer = (layerId) => {
-    this.setState({ activeCopyLayer: layerId });
-  };
-
   #handleChangeCombineLayer = (layerId) => {
     this.setState({ activeCombineLayer: layerId });
   };
 
-  #getAvailableSnapLayers = () => {
-    return drawingSupportSnapLayers();
+  #getAvailableWfsLayers = () => {
+    return drawingSupportLayersArray();
   };
 
   renderStepTwoControls = () => {
-    const { classes } = this.props;
+    const { classes, handleUpdateEditToolsMode } = this.props;
     return (
       <ToggleButtonGroup
         style={{ width: "100%" }}
         exclusive
         value={this.state.changeEditMode}
         onChange={(e, newValue) => {
-          this.setState({ changeEditMode: newValue });
+          e.preventDefault();
+          if (!newValue) {
+            handleUpdateEditToolsMode(
+              this.state.changeEditMode,
+              this.state.editMode
+            );
+            return;
+          }
+          this.setState({ changeEditMode: newValue }, () => {
+            handleUpdateEditToolsMode(newValue, this.state.editMode);
+          });
         }}
       >
         <TooltipToggleButton
@@ -185,7 +207,7 @@ class EditMenu extends React.PureComponent {
               onClick={() => {
                 this.setState({
                   activeStep: 1,
-                  editMode: "draw",
+                  editMode: "new",
                 });
                 this.setState({ drawActive: true }, () => {
                   localObserver.publish("mf-start-draw-new-geometry");
@@ -230,7 +252,7 @@ class EditMenu extends React.PureComponent {
 
   renderStepTwo = (editMode) => {
     const { classes, localObserver } = this.props;
-    if (editMode === "draw") {
+    if (editMode === "new") {
       return (
         <Grid container item xs={12} spacing={(2, 2)}>
           <Grid item xs={12}>
@@ -239,7 +261,7 @@ class EditMenu extends React.PureComponent {
           <Grid item xs={12}>
             <SnappingControl
               enabled={true}
-              availableSnapLayers={this.#getAvailableSnapLayers()}
+              availableSnapLayers={this.#getAvailableWfsLayers()}
               localObserver={localObserver}
             />
           </Grid>
@@ -258,6 +280,10 @@ class EditMenu extends React.PureComponent {
                       localObserver.publish(
                         "mf-end-draw-new-geometry",
                         editMode
+                      );
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
                       );
                     }}
                     aria-label="Tillbaka"
@@ -285,46 +311,10 @@ class EditMenu extends React.PureComponent {
     if (editMode === "copy") {
       return (
         <Grid container item xs={12} spacing={(2, 2)}>
-          <Grid item xs={12}>
-            <Typography>Välj ett objekt i kartan att kopiera från</Typography>
-          </Grid>
-          <Grid item xs={12}>
-            <FormControl margin="none">
-              <InputLabel disableAnimation>Från lager</InputLabel>
-              <Select
-                style={{ minWidth: 200 }}
-                value={this.state.activeCopyLayer}
-                onChange={(e) => this.#handleChangeCopyLayer(e.target.value)}
-              >
-                <MenuItem key={"1"} value={"1"}>
-                  {"example layer"}
-                </MenuItem>
-                <MenuItem key={"2"} value={"2"}>
-                  {"example layer 2"}
-                </MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <TooltipToggleButton
-              size="small"
-              title="Välj objekt för kopiering"
-              aria-label="Välj objekt för kopiering"
-              selected={this.state.selectCopyActive}
-              value={"selectCopyActive"}
-              onChange={() => {
-                this.setState({
-                  selectCopyActive: !this.state.selectCopyActive,
-                });
-              }}
-            >
-              <Typography variant="button">&nbsp; Välj Objekt</Typography>
-            </TooltipToggleButton>
-            <Button variant="outlined" style={{ marginLeft: "8px" }}>
-              <FileCopyOutlinedIcon size="small" />
-              Skapa kopia
-            </Button>
-          </Grid>
+          <CopyingControl
+            availableCopyLayers={this.#getAvailableWfsLayers()}
+            localObserver={localObserver}
+          />
           <Grid item xs={12}>
             {this.renderStepTwoControls()}
           </Grid>
@@ -337,6 +327,14 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      localObserver.publish(
+                        "mf-end-draw-new-geometry",
+                        editMode
+                      );
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >
@@ -422,6 +420,14 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      localObserver.publish(
+                        "mf-end-draw-new-geometry",
+                        editMode
+                      );
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >

@@ -103,7 +103,7 @@ class IntegrationView extends React.PureComponent {
       this.#updateList(props);
     });
     this.localObserver.subscribe("mf-kubb-message-received", (message) => {
-      this.props.enqueueSnackbar(`Inläsning av  ${message} från EDP Vision`, {
+      this.props.enqueueSnackbar(`Inläsning av ${message} från EDP Vision`, {
         variant: "info",
         persist: false,
       });
@@ -118,15 +118,26 @@ class IntegrationView extends React.PureComponent {
       this.#addNewItemToList(this.newFeature);
       this.#addNewItemToSource(this.newFeature);
       this.newFeature = null;
+      const drawType = this.drawTypes[editMode][this.state.mode] + editMode;
+      this.drawFunctions[drawType].end();
     });
-    this.localObserver.subscribe("mf-snap-supportLayer", (snapTarget) => {
-      this.#showDrawingSupport(snapTarget.layerId);
-      this.model.addSnapInteraction(snapTarget.sourceName);
+
+    this.localObserver.subscribe("mf-edit-supportLayer", (editTarget) => {
+      this.#showDrawingSupport(editTarget.layerId);
+      this.editFunctions[editTarget.type].start(editTarget.sourceName);
     });
-    this.localObserver.subscribe("mf-snap-noSupportLayer", (snapTarget) => {
-      this.#hideDrawingSupport(snapTarget.layerId);
-      this.model.endSnapInteraction(snapTarget.sourceName);
+    this.localObserver.subscribe("mf-edit-noSupportLayer", (editTarget) => {
+      this.#hideDrawingSupport(editTarget.layerId);
+      this.editFunctions[editTarget.type].end(editTarget.sourceName);
     });
+
+    this.localObserver.subscribe(
+      "mf-new-feature-added-to-source",
+      (feature) => {
+        this.newFeature = feature;
+      }
+    );
+
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
       this.#clearDrawingSupport();
@@ -140,6 +151,8 @@ class IntegrationView extends React.PureComponent {
     this.#initClearFunctions();
     this.#initDrawFunctions();
     this.#initNewGeometryFunctions();
+    this.#initEditFunctions();
+    this.#initUpdateEditToolsFunctions();
     this.#initDrawTypes();
     this.#initPublishDefaultMode();
   };
@@ -176,15 +189,15 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions = {
       pointcopy: {
         start: this.props.model.startDrawCopyPoint,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawCopy,
       },
-      pointdraw: {
+      pointnew: {
         start: this.props.model.startDrawNewPoint,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawNew,
       },
-      polygondraw: {
+      polygonnew: {
         start: this.props.model.startDrawNewPolygon,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawNew,
       },
       pointselect: {
         start: this.props.model.startDrawSearchPoint,
@@ -199,21 +212,48 @@ class IntegrationView extends React.PureComponent {
 
   #initNewGeometryFunctions = () => {
     this.newGeometryFunctions = {
-      realEstate: this.drawFunctions.polygondraw.start,
-      coordinate: this.drawFunctions.pointdraw.start,
-      area: this.drawFunctions.polygondraw.start,
-      survey: this.drawFunctions.polygondraw.start,
-      contamination: this.drawFunctions.polygondraw.start,
+      realEstate: this.drawFunctions.polygonnew.start,
+      coordinate: this.drawFunctions.pointnew.start,
+      area: this.drawFunctions.polygonnew.start,
+      survey: this.drawFunctions.polygonnew.start,
+      contamination: this.drawFunctions.polygonnew.start,
+    };
+  };
+
+  #initEditFunctions = () => {
+    this.editFunctions = {
+      copy: { start: this.model.startDrawCopyPoint, end: this.model.endDraw },
+      snap: {
+        start: this.model.addSnapInteraction,
+        end: this.model.endSnapInteraction,
+      },
+    };
+  };
+
+  #initUpdateEditToolsFunctions = () => {
+    this.updateEditTools = {
+      edit: this.#reshapeNewGeometry,
+      move: this.#moveNewGeometry,
+      delete: this.#deleteNewGeometry,
     };
   };
 
   #initDrawTypes = () => {
     this.drawTypes = {
-      realEstate: "polygon",
-      coordinate: "point",
-      area: "polygon",
-      survey: "polygon",
-      contamination: "polygon",
+      copy: {
+        realEstate: "point",
+        coordinate: "point",
+        area: "point",
+        survey: "point",
+        contamination: "point",
+      },
+      new: {
+        realEstate: "polygon",
+        coordinate: "point",
+        area: "polygon",
+        survey: "polygon",
+        contamination: "polygon",
+      },
     };
   };
 
@@ -602,8 +642,25 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions[listToolsMode]?.start(this.state.mode);
   };
 
+  #handleUpdateEditTools = (editTool, editMenu) => {
+    this.updateEditTools[editTool](editMenu);
+  };
+
+  #reshapeNewGeometry = (source) => {};
+
+  #moveNewGeometry = (source) => {};
+
+  #deleteNewGeometry = (source) => {
+    this.model.deleteNewGeometry(this.newFeature, source);
+  };
+
   renderEditMenu = () => {
-    return <EditMenu localObserver={this.localObserver} />;
+    return (
+      <EditMenu
+        localObserver={this.localObserver}
+        handleUpdateEditToolsMode={this.#handleUpdateEditTools}
+      />
+    );
   };
 
   renderListTools = () => {
@@ -636,16 +693,6 @@ class IntegrationView extends React.PureComponent {
               variant="contained"
             >
               Fejk-KUBB: Testa fastigheter
-            </Button>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.startDrawCopyPoint(this.state.mode);
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-kopiera: Testa kopiera fastighet
             </Button>
           </ListItem>
         ) : null}
