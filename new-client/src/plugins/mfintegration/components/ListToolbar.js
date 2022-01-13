@@ -29,7 +29,7 @@ class ListToolbar extends React.PureComponent {
       this.props;
 
     return (
-      <Grid item xs={12}>
+      <Grid item xs={12} style={{ marginTop: "8px" }}>
         <FormLabel>Markera i kartan</FormLabel>
         <Box display="flex">
           <Box>
@@ -41,9 +41,9 @@ class ListToolbar extends React.PureComponent {
               }}
             >
               <TooltipToggleButton
-                title="Markera/avmarkera med punkt"
+                title="Markera/Avmarkera"
                 value="pointselect"
-                aria-label="Markera med punkt"
+                aria-label="Markera/AvmarkeraMarkera/Avmarkera"
               >
                 <TouchAppIcon />
               </TooltipToggleButton>
@@ -57,7 +57,10 @@ class ListToolbar extends React.PureComponent {
             </ToggleButtonGroup>
           </Box>
           <Box style={{ marginLeft: "32px" }}>
-            <Tooltip title="Rensa resultat" aria-label="Rensa resultat">
+            <Tooltip
+              title="Ta bort alla markeringarna"
+              aria-label="Ta bort alla markeringarna"
+            >
               <ToggleButton
                 value="clear"
                 onClick={(e) => {

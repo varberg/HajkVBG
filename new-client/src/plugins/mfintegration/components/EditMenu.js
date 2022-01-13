@@ -623,7 +623,7 @@ class EditMenu extends React.PureComponent {
           <AccordionDetails className={classes.accordionDetails}>
             <Grid item container>
               <Grid item xs={12}>
-                <Paper square elevation={0}>
+                <Paper square elevation={2}>
                   <Tabs
                     className={classes.tabs}
                     value={this.state.editTab}
@@ -635,7 +635,7 @@ class EditMenu extends React.PureComponent {
                     }}
                   >
                     <Tab value="create" label="Skapa nytt"></Tab>
-                    <Tab value="update" label="Ändra"></Tab>
+                    <Tab value="update" label="Ändra" disabled></Tab>
                   </Tabs>
                 </Paper>
               </Grid>
