@@ -106,7 +106,7 @@ class EditMenu extends React.PureComponent {
   }
 
   #bindSubscriptions = () => {
-    this.localObserver.subscribe("mf-new-feature-created", () => {
+    this.localObserver.subscribe("mf-new-feature-pending", () => {
       const newValue = true;
       this.setState({ isNewEdit: newValue });
     });
@@ -299,6 +299,10 @@ class EditMenu extends React.PureComponent {
                       editMode: editMode,
                       saveGeometry: true,
                     });
+                    localObserver.publish(
+                      "mf-edit-noSupportLayer",
+                      this.supportLayer
+                    );
                   }}
                   aria-label="OK"
                 >

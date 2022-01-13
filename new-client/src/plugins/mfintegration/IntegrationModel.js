@@ -193,6 +193,10 @@ class IntegrationModel {
     this.newSources[mode].addFeature(feature);
   };
 
+  abortDrawFeature = (editMode) => {
+    this.#clearSource(this.editSources[editMode]);
+  };
+
   toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
     let featureStyle = new Style();
     if (shouldBeVisible) featureStyle = null;
@@ -200,8 +204,10 @@ class IntegrationModel {
     this.#setFeatureStyle(feature, featureStyle);
   };
 
-  deleteNewGeometry = (feature, source) => {
-    this.editSources[source].removeFeature(feature);
+  deleteNewGeometry = (featureCollection, source) => {
+    featureCollection.features.forEach((feature) => {
+      this.editSources[source].removeFeature(feature);
+    });
   };
 
   #clearSource = (source) => {
@@ -634,7 +640,8 @@ class IntegrationModel {
 
   #copyWfsSearch = (data) => {
     // TODO: I krav 3.6 kan även snap betyde källa combine
-    this.#addAndPublishNewFeature(data, this.editSources.new);
+    this.#clearSource(this.editSources.copy);
+    this.#addAndPublishNewFeature(data, this.editSources.copy);
   };
 
   #addAndPublishNewFeature = (data, source) => {
@@ -645,7 +652,7 @@ class IntegrationModel {
     const newFeature = presentFeatures.filter((feature) => {
       return previousFeatures.indexOf(feature) === -1;
     });
-    this.localObserver.publish("mf-new-feature-created", newFeature[0]);
+    this.localObserver.publish("mf-new-feature-pending", newFeature[0]);
   };
 
   #snapWfsSearch = (data) => {

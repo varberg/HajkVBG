@@ -112,12 +112,12 @@ class IntegrationView extends React.PureComponent {
       this.newGeometryFunctions[this.state.mode]();
     });
     this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
-      // TODO: Skall inte spara geometrin i modellen innan användaren har tryckt på spara som idag.
-      // if (status.saveGeometry) {
-      //   return;
-      // }
-      this.#addNewItemToList(this.newFeature);
-      this.#addNewItemToSource(this.newFeature);
+      if (status.saveGeometry) {
+        this.#addNewItemToList(this.newFeature);
+        this.#addNewItemToSource(this.newFeature);
+      }
+      if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
+
       this.newFeature = null;
       const drawType =
         this.drawTypes[status.editMode][this.state.mode] + status.editMode;
@@ -133,7 +133,7 @@ class IntegrationView extends React.PureComponent {
       this.editFunctions[editTarget.type].end(editTarget.sourceName);
     });
 
-    this.localObserver.subscribe("mf-new-feature-created", (feature) => {
+    this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
       this.newFeature = { features: [feature], isNew: true };
     });
 
@@ -303,8 +303,6 @@ class IntegrationView extends React.PureComponent {
   };
 
   #addNewItemToSource = (data) => {
-    console.log(data);
-    //debugger;
     const feature = data?.features[0];
     this.props.model.addFeatureToNewSource(feature, this.state.mode);
   };
