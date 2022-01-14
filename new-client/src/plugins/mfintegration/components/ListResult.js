@@ -7,6 +7,7 @@ import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import DeleteIcon from "@material-ui/icons/Delete";
 import InfoIcon from "@material-ui/icons/Info";
 import StarBorderIcon from "@material-ui/icons/StarBorder";
+import { clickBackgroudColor } from "./../mockdata/mockdataClickList";
 import clsx from "clsx";
 
 const styles = (theme) => ({
@@ -34,7 +35,7 @@ const styles = (theme) => ({
   itemButton: {
     padding: theme.spacing(0.3),
   },
-  itemSelected: { backgroundColor: "#fc9" },
+  itemSelected: clickBackgroudColor(),
   itemUnselected: { backgroundColor: "#fff" },
   infoDescription: { fontWeight: "bold", fontSize: "0.85rem" },
   infoText: { fontSize: "0.9rem" },

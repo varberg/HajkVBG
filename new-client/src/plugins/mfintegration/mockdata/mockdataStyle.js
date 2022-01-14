@@ -86,9 +86,9 @@ export const newSearchStyle = () => {
 };
 
 export const highLightStyle = () => {
-  const strokeColor = "rgb(73,226,14,1)";
-  const strokeWidth = 4;
-  const fillColor = "rgba(73,226,14,0.5)";
+  const strokeColor = "rgba(200,40,255,1)";
+  const strokeWidth = 8;
+  const fillColor = "rgba(200,40,255,0.5)";
   const circleRadius = 6;
   const strokeWithCircle = 4;
 

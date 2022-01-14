@@ -22,11 +22,11 @@ import {
   FormControl,
   InputLabel,
 } from "@material-ui/core";
-import { ToggleButton, ToggleButtonGroup } from "@material-ui/lab";
+import { ToggleButton } from "@material-ui/lab";
 import ExpandMore from "@material-ui/icons/ExpandMore";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
-import OpenWithIcon from "@material-ui/icons/OpenWith";
 import DeleteIcon from "@material-ui/icons/Delete";
+import OpenWithIcon from "@material-ui/icons/OpenWith";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
 import CopyingControl from "./CopyingControl";
 import SnappingControl from "./SnappingControl";
@@ -136,70 +136,6 @@ class EditMenu extends React.PureComponent {
   #getAvailableWfsLayers = () => {
     return drawingSupportLayersArray();
   };
-
-  // renderStepTwoControls = () => {
-  //   const { classes, handleUpdateEditToolsMode } = this.props;
-  //   return (
-  //     <ToggleButtonGroup
-  //       style={{ width: "100%" }}
-  //       exclusive
-  //       value={this.state.changeEditMode}
-  //       onChange={(e, newValue) => {
-  //         e.preventDefault();
-  //         if (!newValue) {
-  //           handleUpdateEditToolsMode(
-  //             this.state.changeEditMode,
-  //             this.state.editMode
-  //           );
-  //           return;
-  //         }
-  //         this.setState({ changeEditMode: newValue }, () => {
-  //           handleUpdateEditToolsMode(newValue, this.state.editMode);
-  //         });
-  //       }}
-  //     >
-  //       <TooltipToggleButton
-  //         disabled={!this.state.isNewEdit}
-  //         className={classes.stepButtonGroup}
-  //         size="small"
-  //         value="edit"
-  //         title="Omforma befintlig redigering"
-  //         aria-label="Omforma befintlig redigering"
-  //       >
-  //         <FormatShapesIcon size="small" />
-  //         <Typography noWrap variant="button">
-  //           &nbsp; Omforma
-  //         </Typography>
-  //       </TooltipToggleButton>
-  //       <TooltipToggleButton
-  //         disabled={!this.state.isNewEdit}
-  //         className={classes.stepButtonGroup}
-  //         size="small"
-  //         value="move"
-  //         title="Flytta befintlig redigering"
-  //         aria-label="Flytta befintlig redigering"
-  //       >
-  //         <OpenWithIcon size="small" />
-  //         <Typography noWrap variant="button">
-  //           &nbsp; Flytta
-  //         </Typography>
-  //       </TooltipToggleButton>
-  //       <TooltipToggleButton
-  //         disabled={!this.state.isNewEdit}
-  //         className={classes.stepButtonGroup}
-  //         size="small"
-  //         value="delete"
-  //         title="Radera befintlig redigering"
-  //         aria-label="Radera befintlig redigering"
-  //       >
-  //         <DeleteIcon size="small" />
-  //         <Typography noWrap variant="button">
-  //           &nbsp; Radera
-  //         </Typography>
-  //       </TooltipToggleButton>
-  //     </ToggleButtonGroup>
-  //   );
-  // };
 
   renderStepOne = () => {
     const { classes, localObserver } = this.props;
@@ -487,7 +423,8 @@ class EditMenu extends React.PureComponent {
             >
               <ToggleButton
                 className={classes.toggleButton}
-                disabled={!this.state.isNewEdit}
+                // disabled={!this.state.isNewEdit}
+                disabled={true}
                 value="edit"
                 onChange={(e, newValue) => {
                   e.preventDefault();
@@ -519,7 +456,8 @@ class EditMenu extends React.PureComponent {
             >
               <ToggleButton
                 className={classes.toggleButton}
-                disabled={!this.state.isNewEdit}
+                // disabled={!this.state.isNewEdit}
+                disabled={true}
                 value="move"
                 onChange={(e, newValue) => {
                   e.preventDefault();
