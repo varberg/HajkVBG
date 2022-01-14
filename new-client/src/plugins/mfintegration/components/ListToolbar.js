@@ -7,7 +7,16 @@ import TouchAppIcon from "@material-ui/icons/TouchApp";
 import Crop32Icon from "@material-ui/icons/Crop32";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 
-const styles = (theme) => ({});
+const styles = (theme) => {
+  return {
+    toggleButton: {
+      color:
+        theme.palette.type === "dark"
+          ? theme.palette.common.white
+          : theme.palette.action.active,
+    },
+  };
+};
 
 //The existing Mui ToggleButtonGroup and Toggle buttons do not handle being wrapped in a Tooltip.
 //this TooltipToggleButton components allows using a tooltip on togglebuttons.
@@ -25,8 +34,12 @@ class ListToolbar extends React.PureComponent {
   };
 
   render() {
-    const { listToolsMode, handleClearResults, handleUpdateListToolsMode } =
-      this.props;
+    const {
+      classes,
+      listToolsMode,
+      handleClearResults,
+      handleUpdateListToolsMode,
+    } = this.props;
 
     return (
       <Grid item xs={12} style={{ marginTop: "8px" }}>
@@ -44,6 +57,7 @@ class ListToolbar extends React.PureComponent {
                 title="Markera/Avmarkera"
                 value="pointselect"
                 aria-label="Markera/AvmarkeraMarkera/Avmarkera"
+                className={classes.toggleButton}
               >
                 <TouchAppIcon />
               </TooltipToggleButton>
@@ -51,6 +65,7 @@ class ListToolbar extends React.PureComponent {
                 title="Markera med polygon"
                 value="polygonselect"
                 aria-label="Markera med polygon"
+                className={classes.toggleButton}
               >
                 <Crop32Icon />
               </TooltipToggleButton>
@@ -67,6 +82,7 @@ class ListToolbar extends React.PureComponent {
                   e.preventDefault();
                   handleClearResults();
                 }}
+                className={classes.toggleButton}
               >
                 <CancelOutlinedIcon />
               </ToggleButton>

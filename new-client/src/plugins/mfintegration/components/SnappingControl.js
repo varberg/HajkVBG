@@ -92,7 +92,7 @@ class SnappingControl extends React.PureComponent {
           labelPlacement="start"
           control={
             <Select
-              style={{ minWidth: 120 }}
+              style={{ minWidth: 120, paddingLeft: "8px" }}
               labelId="snap-layer-select-label"
               id="snap-layer-select"
               value={this.state.snapTargetName}
