@@ -13,7 +13,8 @@ import {
   drawNewStyle,
   drawSearchStyle,
   highLightStyle,
-  newGeometryStyle,
+  unsavedStyle,
+  editStyle,
   newSearchStyle,
   snapStyle,
 } from "./mockdata/mockdataStyle";
@@ -268,7 +269,7 @@ class IntegrationModel {
   #addNewGeometryLayer = () => {
     const newGeometryLayer = this.#createNewVectorLayer(
       this.drawingToolFunctions.new.source,
-      this.#createLayerStyle(newGeometryStyle())
+      this.#createLayerStyle(unsavedStyle())
     );
     this.map.addLayer(newGeometryLayer);
   };
@@ -329,15 +330,15 @@ class IntegrationModel {
     this.editLayers = {
       new: this.#createNewVectorLayer(
         this.editSources.new,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(editStyle())
       ),
       copy: this.#createNewVectorLayer(
         this.editSources.copy,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(editStyle())
       ),
       combine: this.#createNewVectorLayer(
         this.editSources.combine,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(editStyle())
       ),
     };
     this.#addArrayToObject(this.editLayers);
@@ -399,19 +400,19 @@ class IntegrationModel {
     this.newLayers = {
       coordinate: this.#createNewVectorLayer(
         this.newSources.coordinate,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(unsavedStyle())
       ),
       area: this.#createNewVectorLayer(
         this.newSources.area,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(unsavedStyle())
       ),
       survey: this.#createNewVectorLayer(
         this.newSources.survey,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(unsavedStyle())
       ),
       contamination: this.#createNewVectorLayer(
         this.newSources.contamination,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(unsavedStyle())
       ),
     };
     this.#addArrayToObject(this.newLayers);

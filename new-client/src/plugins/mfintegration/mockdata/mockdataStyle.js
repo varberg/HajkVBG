@@ -42,7 +42,7 @@ export const snapStyle = () => {
   };
 };
 
-export const newGeometryStyle = () => {
+export const editStyle = () => {
   const strokeColor = "rgba(255,0,0,0.5)";
   const strokeWidth = 4;
   const fillColor = "rgba(255,0,0,0.07)";
@@ -86,11 +86,25 @@ export const newSearchStyle = () => {
 };
 
 export const highLightStyle = () => {
-  const strokeColor = "rgba(255,128,40,1)";
+  const strokeColor = "rgb(73,226,14,1)";
   const strokeWidth = 4;
-  const fillColor = "rgba(255,128,40,0.5)";
+  const fillColor = "rgba(73,226,14,0.5)";
   const circleRadius = 6;
   const strokeWithCircle = 4;
+
+  return {
+    stroke: { color: strokeColor, width: strokeWidth },
+    fill: { color: fillColor },
+    circle: { radius: circleRadius, width: strokeWithCircle },
+  };
+};
+
+export const unsavedStyle = () => {
+  const strokeColor = "rgba(147, 219, 112, 1)";
+  const strokeWidth = 4;
+  const fillColor = "rgba(147, 219, 112, 0.5)";
+  const circleRadius = 6;
+  const strokeWithCircle = 2;
 
   return {
     stroke: { color: strokeColor, width: strokeWidth },

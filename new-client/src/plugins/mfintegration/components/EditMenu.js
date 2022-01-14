@@ -42,6 +42,12 @@ const styles = (theme) => {
       flex: "1 1 0",
       width: 0,
     },
+    toggleButton: {
+      color:
+        theme.palette.type === "dark"
+          ? theme.palette.common.white
+          : theme.palette.action.active,
+    },
   };
 };
 
@@ -294,6 +300,7 @@ class EditMenu extends React.PureComponent {
                 </Tooltip>
                 <Button
                   className={classes.stepButtonGroup}
+                  disabled={!this.state.isNewEdit}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
                     this.setState({ isNewEdit: false });
@@ -479,6 +486,7 @@ class EditMenu extends React.PureComponent {
               aria-label="Omforma befintlig redigering"
             >
               <ToggleButton
+                className={classes.toggleButton}
                 disabled={!this.state.isNewEdit}
                 value="edit"
                 onChange={(e, newValue) => {
@@ -510,6 +518,7 @@ class EditMenu extends React.PureComponent {
               aria-label="Flytta befintlig redigering"
             >
               <ToggleButton
+                className={classes.toggleButton}
                 disabled={!this.state.isNewEdit}
                 value="move"
                 onChange={(e, newValue) => {
@@ -526,7 +535,7 @@ class EditMenu extends React.PureComponent {
                   });
                 }}
               >
-                <FormatShapesIcon size="small" />
+                <OpenWithIcon size="small" />
                 <Typography noWrap variant="button">
                   &nbsp; Flytta{" "}
                 </Typography>
@@ -541,6 +550,7 @@ class EditMenu extends React.PureComponent {
               aria-label="Radera befintlig redigering"
             >
               <ToggleButton
+                className={classes.toggleButton}
                 disabled={!this.state.isNewEdit}
                 value="delete"
                 onChange={(e, newValue) => {
