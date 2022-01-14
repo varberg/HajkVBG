@@ -99,6 +99,11 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("window-opened", () => {
       this.#initDrawingSupport();
     });
+    this.localObserver.subscribe("mf-window-closed", () => {
+      this.#clearDrawingSupport();
+      this.#clearAllDataSources();
+      this.#clearAllInteractions();
+    });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
@@ -136,12 +141,6 @@ class IntegrationView extends React.PureComponent {
 
     this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
       this.newFeature = { features: [feature], isNew: true };
-    });
-
-    this.globalObserver.subscribe("core.closeWindow", (title) => {
-      if (title !== this.title) return;
-      this.#clearDrawingSupport();
-      this.#clearAllDataSources();
     });
   };
 
@@ -284,6 +283,14 @@ class IntegrationView extends React.PureComponent {
   #clearAllDataSources = () => {
     for (const clearFunction of this.clearFunctions.array) clearFunction();
     this.props.model.clearHighlight();
+    this.props.model.clearEdit();
+  };
+
+  #clearAllInteractions = () => {
+    //remove any exisiting OpenLayers interactions.
+    //FIXME - not working for realEstate.
+    this.props.model.endDraw();
+    this.props.model.endSnapInteraction();
   };
 
   #getDrawingSupportLayer = (layerId) => {
@@ -668,6 +675,7 @@ class IntegrationView extends React.PureComponent {
     return (
       <EditMenu
         localObserver={this.localObserver}
+        layerMode={this.state.mode}
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}
       />
     );

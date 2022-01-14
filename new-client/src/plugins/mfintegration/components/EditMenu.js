@@ -84,8 +84,6 @@ const defaultState = {
   changeEditMode: null, //edit, move, delete
   drawActive: false,
   isNewEdit: false,
-  selectCopyActive: false,
-  selectCombineActive: false,
   activeCombineLayer: "",
 };
 
@@ -98,16 +96,12 @@ class EditMenu extends React.PureComponent {
     changeEditMode: null, //edit, move, delete
     drawActive: false,
     isNewEdit: false,
-    selectCopyActive: false,
-    selectCombineActive: false,
     activeCombineLayer: "",
   };
 
   constructor(props) {
     super(props);
-
     this.localObserver = props.localObserver;
-
     this.#bindSubscriptions();
   }
 
@@ -119,9 +113,12 @@ class EditMenu extends React.PureComponent {
     this.localObserver.subscribe("mf-edit-supportLayer", (layer) => {
       this.supportLayer = layer;
     });
+    this.localObserver.subscribe("mf-window-closed", () => {
+      this.#resetEditMenu();
+    });
   };
 
-  #resetEditMenu = () => {
+  #resetEditMenu = (shouldCollapse) => {
     this.setState({ ...defaultState });
   };
 
@@ -555,9 +552,14 @@ class EditMenu extends React.PureComponent {
   render() {
     const { classes } = this.props;
 
+    let editdisabled =
+      this.state.editOpen === false && this.props.layerMode === "realEstate";
+
     return (
       <Grid item container xs={12}>
         <Accordion
+          disabled={editdisabled}
+          component={editdisabled ? "div" : undefined}
           elevation={0}
           expanded={this.state.editOpen}
           className={classes.accordion}
@@ -565,9 +567,20 @@ class EditMenu extends React.PureComponent {
             this.#toggleEditOpen();
           }}
         >
-          <StyledAccordionSummary expandIcon={<ExpandMore />}>
-            <Typography>Redigera</Typography>
-          </StyledAccordionSummary>
+          <Tooltip
+            title={
+              editdisabled
+                ? "Den valda objekttyp går inte att redigera"
+                : "Öppna redigeringsmenyn"
+            }
+            aria-label="Öppna redigeringsmenyn"
+          >
+            <div>
+              <StyledAccordionSummary expandIcon={<ExpandMore />}>
+                <Typography>Redigera</Typography>
+              </StyledAccordionSummary>
+            </div>
+          </Tooltip>
           <AccordionDetails className={classes.accordionDetails}>
             <Grid item container>
               <Grid item xs={12}>

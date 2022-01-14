@@ -173,10 +173,17 @@ class IntegrationModel {
 
   clearResults = (mode) => {
     this.#clearSource(this.dataSources[mode]);
+    this.#clearSource(this.newSources[mode]);
   };
 
   clearHighlight = () => {
     this.#clearSource(this.highlightSource);
+  };
+
+  clearEdit = () => {
+    Object.keys(this.editSources).forEach((key) => {
+      this.#clearSource(this.editSources[key]);
+    });
   };
 
   removeItemFromActiveSource = (clickedItem) => {
@@ -756,6 +763,10 @@ class IntegrationModel {
 
   handleWindowOpen = () => {
     this.localObserver.publish("window-opened");
+  };
+
+  handleWindowClose = () => {
+    this.localObserver.publish("mf-window-closed");
   };
 
   #sendSnackbarMessage = (nativMessageType) => {
