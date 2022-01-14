@@ -14,6 +14,8 @@ import Card from "components/Card";
 import Dialog from "components/Dialog/Dialog";
 import PluginControlButton from "components/PluginControlButton";
 
+import LocalStorageHelper from "utils/LocalStorageHelper";
+
 class DialogWindowPlugin extends React.PureComponent {
   state = {
     dialogOpen: false, // Will be taken care of in componentDidMount
@@ -49,19 +51,21 @@ class DialogWindowPlugin extends React.PureComponent {
   }
 
   componentDidMount() {
-    let dialogOpen = this.props.options.visibleAtStart;
-    const localStorageKey = `plugin.${this.uniqueIdentifier}.alreadyShown`;
+    const currentStore = LocalStorageHelper.get(this.uniqueIdentifier);
+    const { alreadyShown } = currentStore;
 
-    // TODO: Use LocalStorageHelper so we have a per-map-setting here…
+    let dialogOpen = this.props.options.visibleAtStart;
     if (this.props.options.visibleAtStart === true) {
-      if (
-        this.props.options.showOnlyOnce === true &&
-        parseInt(window.localStorage.getItem(localStorageKey)) === 1
-      ) {
+      if (this.props.options.showOnlyOnce === true && alreadyShown === true) {
         dialogOpen = false;
       } else {
         if (this.props.options.showOnlyOnce === true) {
-          window.localStorage.setItem(localStorageKey, 1);
+          // Write the new alreadyShown value by appending it to the
+          // already existing object in store (or the default empty object).
+          LocalStorageHelper.set(this.uniqueIdentifier, {
+            ...currentStore,
+            alreadyShown: true,
+          });
         }
         dialogOpen = true;
       }
