@@ -53,10 +53,15 @@ class LocalStorageHelper {
     // the emitted event and listen for changes to LocalStorage.
 
     // First save the original function, so we can use it later.
+    // NB: This _must_ be the localStorage, not Storage version, that we
+    // are about to override below!
     const originalSetItem = localStorage.setItem;
 
-    // Next, override the function with the new one that…
-    localStorage.setItem = function () {
+    // We _can't_ just override localStorage.setItem. Why? Please see
+    // https://github.com/hajkmap/Hajk/issues/977#issuecomment-1013140055
+
+    // Next, override Storage's setItem with a new method, that…
+    Storage.prototype.setItem = function () {
       // …creates an Event…
       const event = new Event("localStorageChanged");
       // …calls the original setItem (that actually) writes the
