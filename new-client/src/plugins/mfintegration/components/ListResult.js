@@ -1,10 +1,13 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { withStyles, Typography, IconButton } from "@material-ui/core";
+import { withStyles, Typography, IconButton, Tooltip } from "@material-ui/core";
 import VisibilityIcon from "@material-ui/icons/Visibility";
 import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
+import DeleteIcon from "@material-ui/icons/Delete";
 import InfoIcon from "@material-ui/icons/Info";
+import StarBorderIcon from "@material-ui/icons/StarBorder";
+import { clickBackgroudColor } from "./../mockdata/mockdataClickList";
 import clsx from "clsx";
 
 const styles = (theme) => ({
@@ -32,7 +35,7 @@ const styles = (theme) => ({
   itemButton: {
     padding: theme.spacing(0.3),
   },
-  itemSelected: { backgroundColor: "#fc9" },
+  itemSelected: clickBackgroudColor(),
   itemUnselected: { backgroundColor: "#fff" },
   infoDescription: { fontWeight: "bold", fontSize: "0.85rem" },
   infoText: { fontSize: "0.9rem" },
@@ -92,6 +95,7 @@ class ListResult extends React.PureComponent {
       listMode,
       handleClickItem,
       handleRemoveItem,
+      handleRemoveCreatedItem,
       handleToggleItemVisibilty,
     } = this.props;
     return (
@@ -110,38 +114,59 @@ class ListResult extends React.PureComponent {
               className={classes.listItemText}
               onClick={(e) => handleClickItem(item, listMode)}
             >
+              {item.isNew && <StarBorderIcon />}
               <Typography noWrap>{item.name}</Typography>
             </div>
             <div className={classes.itemButtons}>
               <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={() => {
-                    this.toggleInfo();
-                  }}
-                  aria-label="visa information"
-                >
-                  <InfoIcon />
-                </StyledIconButton>
+                <Tooltip title="Information om objektet">
+                  <StyledIconButton
+                    onClick={() => {
+                      this.toggleInfo();
+                    }}
+                    aria-label="visa information"
+                  >
+                    <InfoIcon />
+                  </StyledIconButton>
+                </Tooltip>
               </div>
               <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={() => {
-                    handleToggleItemVisibilty(item, listMode);
-                  }}
-                  aria-label="växla synlighet"
-                >
-                  {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                </StyledIconButton>
+                <Tooltip title="Visa/dölj objekt i kartan">
+                  <StyledIconButton
+                    onClick={() => {
+                      handleToggleItemVisibilty(item, listMode);
+                    }}
+                    aria-label="växla synlighet"
+                  >
+                    {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                  </StyledIconButton>
+                </Tooltip>
               </div>
+              {/* If the item is a newly created item (that is still temporary), it uses a different delete method. */}
               <div className={classes.itemButton}>
-                <StyledIconButton
-                  onClick={(e) => {
-                    handleRemoveItem(item, listMode);
-                  }}
-                  aria-label="välj bort"
-                >
-                  <CancelOutlinedIcon />
-                </StyledIconButton>
+                {item.isNew ? (
+                  <Tooltip title="Ta bort markering">
+                    <StyledIconButton
+                      onClick={(e) => {
+                        handleRemoveCreatedItem(item, listMode);
+                      }}
+                      aria-label="välj bort"
+                    >
+                      <DeleteIcon />
+                    </StyledIconButton>
+                  </Tooltip>
+                ) : (
+                  <Tooltip title="Ta bort markering">
+                    <StyledIconButton
+                      onClick={(e) => {
+                        handleRemoveItem(item, listMode);
+                      }}
+                      aria-label="välj bort"
+                    >
+                      <CancelOutlinedIcon />
+                    </StyledIconButton>
+                  </Tooltip>
+                )}
               </div>
             </div>
           </div>

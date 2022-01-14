@@ -8,7 +8,7 @@ export const drawingSupportLayers = () => {
   };
 };
 
-export const drawingSupportSnapLayers = () => {
+export const drawingSupportLayersArray = () => {
   const supportLayers = drawingSupportLayers();
 
   let answer = [];

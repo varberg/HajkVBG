@@ -7,11 +7,11 @@ import {
   Typography,
   Button,
   FormControl,
-  InputLabel,
   Select,
   MenuItem,
   ListItem,
   Grid,
+  FormLabel,
 } from "@material-ui/core";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ListResult from "./components/ListResult";
@@ -97,14 +97,13 @@ class IntegrationView extends React.PureComponent {
 
   #bindSubscriptions = () => {
     this.localObserver.subscribe("window-opened", () => {
-      console.log("IntegrationView - window-opened");
       this.#initDrawingSupport();
     });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
     this.localObserver.subscribe("mf-kubb-message-received", (message) => {
-      this.props.enqueueSnackbar(`Inläsning av  ${message} från EDP Vision`, {
+      this.props.enqueueSnackbar(`Inläsning av ${message} från EDP Vision`, {
         variant: "info",
         persist: false,
       });
@@ -112,14 +111,33 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
       this.newGeometryFunctions[this.state.mode]();
     });
-    this.localObserver.subscribe("mf-snap-supportLayer", (snapTarget) => {
-      this.#showDrawingSupport(snapTarget.layerId);
-      this.model.addSnapInteraction(snapTarget.sourceName);
+    this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
+      if (status.saveGeometry) {
+        this.#addNewItemToList(this.newFeature);
+        this.#addNewItemToSource(this.newFeature);
+        this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
+      }
+      if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
+
+      this.newFeature = null;
+      const drawType =
+        this.drawTypes[status.editMode][this.state.mode] + status.editMode;
+      this.drawFunctions[drawType].end();
     });
-    this.localObserver.subscribe("mf-snap-noSupportLayer", (snapTarget) => {
-      this.#hideDrawingSupport(snapTarget.layerId);
-      this.model.endSnapInteraction(snapTarget.sourceName);
+
+    this.localObserver.subscribe("mf-edit-supportLayer", (editTarget) => {
+      this.#showDrawingSupport(editTarget.layerId);
+      this.editFunctions[editTarget.type].start(editTarget.sourceName);
     });
+    this.localObserver.subscribe("mf-edit-noSupportLayer", (editTarget) => {
+      this.#hideDrawingSupport(editTarget.layerId);
+      this.editFunctions[editTarget.type].end(editTarget.sourceName);
+    });
+
+    this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
+      this.newFeature = { features: [feature], isNew: true };
+    });
+
     this.globalObserver.subscribe("core.closeWindow", (title) => {
       if (title !== this.title) return;
       this.#clearDrawingSupport();
@@ -133,6 +151,9 @@ class IntegrationView extends React.PureComponent {
     this.#initClearFunctions();
     this.#initDrawFunctions();
     this.#initNewGeometryFunctions();
+    this.#initEditFunctions();
+    this.#initUpdateEditToolsFunctions();
+    this.#initDrawTypes();
     this.#initPublishDefaultMode();
   };
 
@@ -168,15 +189,15 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions = {
       pointcopy: {
         start: this.props.model.startDrawCopyPoint,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawCopy,
       },
-      pointdraw: {
+      pointnew: {
         start: this.props.model.startDrawNewPoint,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawNew,
       },
-      polygondraw: {
+      polygonnew: {
         start: this.props.model.startDrawNewPolygon,
-        end: this.props.model.endDraw,
+        end: this.props.model.endDrawNew,
       },
       pointselect: {
         start: this.props.model.startDrawSearchPoint,
@@ -191,11 +212,48 @@ class IntegrationView extends React.PureComponent {
 
   #initNewGeometryFunctions = () => {
     this.newGeometryFunctions = {
-      realEstate: this.drawFunctions.polygondraw.start,
-      coordinate: this.drawFunctions.pointdraw.start,
-      area: this.drawFunctions.polygondraw.start,
-      survey: this.drawFunctions.polygondraw.start,
-      contamination: this.drawFunctions.polygondraw.start,
+      realEstate: this.drawFunctions.polygonnew.start,
+      coordinate: this.drawFunctions.pointnew.start,
+      area: this.drawFunctions.polygonnew.start,
+      survey: this.drawFunctions.polygonnew.start,
+      contamination: this.drawFunctions.polygonnew.start,
+    };
+  };
+
+  #initEditFunctions = () => {
+    this.editFunctions = {
+      copy: { start: this.model.startDrawCopyPoint, end: this.model.endDraw },
+      snap: {
+        start: this.model.addSnapInteraction,
+        end: this.model.endSnapInteraction,
+      },
+    };
+  };
+
+  #initUpdateEditToolsFunctions = () => {
+    this.updateEditTools = {
+      edit: this.#reshapeNewGeometry,
+      move: this.#moveNewGeometry,
+      delete: this.#deleteNewGeometry,
+    };
+  };
+
+  #initDrawTypes = () => {
+    this.drawTypes = {
+      copy: {
+        realEstate: "point",
+        coordinate: "point",
+        area: "point",
+        survey: "point",
+        contamination: "point",
+      },
+      new: {
+        realEstate: "polygon",
+        coordinate: "point",
+        area: "polygon",
+        survey: "polygon",
+        contamination: "polygon",
+      },
     };
   };
 
@@ -240,11 +298,27 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #addNewItemToList = (data) => {
+    data.type = this.state.mode;
+    this.#updateList(data);
+  };
+
+  #addNewItemToSource = (data) => {
+    const feature = data?.features[0];
+    this.props.model.addFeatureToNewSource(feature, this.state.mode);
+  };
+
+  #removeOldEditItemFromSource = (data, editMode) => {
+    const feature = data?.features[0];
+    this.props.model.removeFeatureFromEditSource(feature, editMode);
+  };
+
   #updateList = (props) => {
     this.updateListFunctions[props.type](props);
   };
 
   #updateRealEstateList = (props) => {
+    //not allowed to add new real estate items.
     let id = -1;
     const realEstateData = props.features.map((feature) => {
       const properties = feature.getProperties();
@@ -275,7 +349,10 @@ class IntegrationView extends React.PureComponent {
 
   #updateCoordinateList = (props) => {
     let id = -1;
-    const coordinateData = props.features.map((coordinate) => {
+    if (props.isNew) {
+      id = this.state.currentListResults.coordinate.length - 1;
+    }
+    let coordinateData = props.features.map((coordinate) => {
       const properties = coordinate.getProperties();
       const coordinateText =
         "(" +
@@ -283,23 +360,34 @@ class IntegrationView extends React.PureComponent {
         "; " +
         coordinate.getGeometry().flatCoordinates[1] +
         ")";
-      const name =
-        properties.label.length > 0 ? properties.label : coordinateText;
+      const name = props.isNew
+        ? "Ny koordinat"
+        : properties?.label?.length > 0
+        ? properties.label
+        : coordinateText;
       return {
         id: ++id,
         name: name,
         information: [
           {
             description: "Label",
-            value: properties.label.length > 0 ? properties.label : "-",
+            value: properties?.label?.length > 0 ? properties?.label : "-",
           },
           { description: "Koordinat", value: coordinateText },
         ],
         visible: true,
         selected: false,
         feature: coordinate,
+        isNew: props.isNew,
       };
     });
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.coordinate;
+      coordinateData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      coordinateData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -310,11 +398,13 @@ class IntegrationView extends React.PureComponent {
 
   #updateAreaList = (props) => {
     let id = -1;
-    const areaData = props.features.map((feature) => {
+    if (props.isNew) id = this.state.currentListResults.area.length - 1;
+    let areaData = props.features.map((feature) => {
       const properties = feature.getProperties();
+      const name = props.isNew ? `Nytt område` : properties.omrade;
       return {
         id: ++id,
-        name: properties.omrade,
+        name: name,
         information: [
           {
             description: "saknas",
@@ -324,8 +414,18 @@ class IntegrationView extends React.PureComponent {
         visible: true,
         selected: false,
         feature: feature,
+        isNew: props.isNew,
       };
     });
+
+    //If we are adding a newly drawn area (not a search), the existing list items should remain.
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.area;
+      areaData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      areaData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -336,11 +436,13 @@ class IntegrationView extends React.PureComponent {
 
   #updateSurveyList = (props) => {
     let id = -1;
-    const surveyData = props.features.map((feature) => {
+    if (props.isNew) id = this.state.currentListResults.survey.length - 1;
+    let surveyData = props.features.map((feature) => {
       const properties = feature.getProperties();
+      const name = props.isNew ? "Ny undersökning" : properties.omrade;
       return {
         id: ++id,
-        name: properties.omrade,
+        name: name,
         information: [
           {
             description: "saknas",
@@ -350,8 +452,17 @@ class IntegrationView extends React.PureComponent {
         visible: true,
         selected: false,
         feature: feature,
+        isNew: props.isNew,
       };
     });
+
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.survey;
+      surveyData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      surveyData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -362,11 +473,14 @@ class IntegrationView extends React.PureComponent {
 
   #updateContaminationList = (props) => {
     let id = -1;
-    const contaminationData = props.features.map((feature) => {
+    if (props.isNew)
+      id = this.state.currentListResults.contamination.length - 1;
+    let contaminationData = props.features.map((feature) => {
       const properties = feature.getProperties();
+      const name = props.isNew ? "Ny förorening" : properties.omrade;
       return {
         id: ++id,
-        name: properties.omrade,
+        name: name,
         information: [
           {
             description: "saknas",
@@ -376,8 +490,17 @@ class IntegrationView extends React.PureComponent {
         visible: true,
         selected: false,
         feature: feature,
+        isNew: props.isNew,
       };
     });
+
+    if (props.isNew) {
+      let currentData = this.state.currentListResults.contamination;
+      contaminationData.forEach((element) => {
+        currentData.unshift(element);
+      });
+      contaminationData = currentData;
+    }
     this.setState({
       currentListResults: {
         ...this.state.currentListResults,
@@ -431,6 +554,18 @@ class IntegrationView extends React.PureComponent {
     this.setState({ currentListResults: updateList });
 
     this.props.model.removeItemFromActiveSource(item);
+  };
+
+  #removeCreatedItemFromResults = (item, mode) => {
+    console.log("#removeCreatedItemFromResults");
+    let updateList = { ...this.state.currentListResults };
+    const updatedResults = updateList[mode].filter(
+      (listItem) => listItem.id !== item.id
+    );
+
+    updateList[mode] = updatedResults;
+    this.setState({ currentListResults: updateList });
+    this.props.model.removeItemFromNewSource(item);
   };
 
   #clearResults = () => {
@@ -517,8 +652,25 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions[listToolsMode]?.start(this.state.mode);
   };
 
+  #handleUpdateEditTools = (editTool, editMenu) => {
+    this.updateEditTools[editTool](editMenu);
+  };
+
+  #reshapeNewGeometry = (source) => {};
+
+  #moveNewGeometry = (source) => {};
+
+  #deleteNewGeometry = (source) => {
+    this.model.deleteNewGeometry(this.newFeature, source);
+  };
+
   renderEditMenu = () => {
-    return <EditMenu localObserver={this.localObserver} />;
+    return (
+      <EditMenu
+        localObserver={this.localObserver}
+        handleUpdateEditToolsMode={this.#handleUpdateEditTools}
+      />
+    );
   };
 
   renderListTools = () => {
@@ -630,13 +782,15 @@ class IntegrationView extends React.PureComponent {
       <Container disableGutters>
         <Grid container spacing={(1, 1)}>
           <Grid item xs={12}>
-            <Typography>{informationText}</Typography>
+            <Typography paragraph>{informationText}</Typography>
           </Grid>
           <Grid item xs={12}>
             <FormControl className={classes.dropdown}>
-              <InputLabel htmlFor="modeSelection">Välj kartobjekt</InputLabel>
+              <FormLabel>Välj kartobjekt</FormLabel>
               <Select
+                style={{ marginTop: "0px" }}
                 id="modeSelection"
+                displayEmpty
                 value={mode}
                 onChange={(e) => {
                   this.#toggleMode(e.target.value);
@@ -650,15 +804,17 @@ class IntegrationView extends React.PureComponent {
               </Select>
             </FormControl>
           </Grid>
+          {this.renderListTools()}
           <Grid item xs={12}>
             <Typography variant="subtitle1" className={classes.listHeading}>
-              {`Markerade ${modeDisplay[mode]["displayNamePlural"]}`}
+              {`Markerade ${modeDisplay[mode][
+                "displayNamePlural"
+              ].toLowerCase()}`}
               {this.state.currentListResults[mode].length > 0
                 ? ` (${this.state.currentListResults[mode].length})`
                 : null}
             </Typography>
           </Grid>
-          {this.renderListTools()}
           <Grid item xs={12}>
             <div>
               {this.state.currentListResults[mode].length > 0 ? (
@@ -673,6 +829,9 @@ class IntegrationView extends React.PureComponent {
                       }}
                       handleRemoveItem={(item, mode) => {
                         this.#removeFromResults(item, mode);
+                      }}
+                      handleRemoveCreatedItem={(item, mode) => {
+                        this.#removeCreatedItemFromResults(item, mode);
                       }}
                       handleToggleItemVisibilty={(item, mode) => {
                         this.toggleResultItemVisibility(item, mode);

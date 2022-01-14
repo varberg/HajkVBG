@@ -9,11 +9,13 @@ import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import Transform from "./Transformation/Transform";
 import {
+  drawCopyStyle,
   drawNewStyle,
+  drawSearchStyle,
   highLightStyle,
-  layerStyle,
-  newGeometryStyle,
-  searchStyle,
+  unsavedStyle,
+  editStyle,
+  newSearchStyle,
   snapStyle,
 } from "./mockdata/mockdataStyle";
 import { wfsConfig } from "./mockdata/mockdataWFS";
@@ -48,6 +50,7 @@ class IntegrationModel {
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
     this.#addLayers();
+    this.#initActiveSource();
   };
 
   #initSnap = (mode) => {
@@ -114,7 +117,7 @@ class IntegrationModel {
 
   startDrawCopyPoint = (mode) => {
     this.drawingToolFunctions.copy.source.mode = mode;
-    this.#drawGeometry("copy", "Point", drawNewStyle());
+    this.#drawGeometry("copy", "Point", drawCopyStyle());
   };
 
   startDrawNewPoint = (mode) => {
@@ -129,12 +132,12 @@ class IntegrationModel {
 
   startDrawSearchPoint = (mode) => {
     this.drawingToolFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Point", searchStyle());
+    this.#drawGeometry("search", "Point", drawSearchStyle());
   };
 
   startDrawSearchPolygon = (mode) => {
     this.drawingToolFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Polygon", searchStyle());
+    this.#drawGeometry("search", "Polygon", drawSearchStyle());
   };
 
   addSnapInteraction = (mode) => {
@@ -149,6 +152,16 @@ class IntegrationModel {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
     this.drawingTool = "none";
+  };
+
+  endDrawCopy = () => {
+    this.map.clickLock.delete("copy");
+    this.endDraw();
+  };
+
+  endDrawNew = () => {
+    this.map.clickLock.delete("new");
+    this.endDraw();
   };
 
   endSnapInteraction = () => {
@@ -169,8 +182,25 @@ class IntegrationModel {
   removeItemFromActiveSource = (clickedItem) => {
     if (this.#isFeatureHighlighted(clickedItem.feature))
       this.highlightSource.removeFeature(clickedItem.feature);
-
     this.activeSource.removeFeature(clickedItem.feature);
+  };
+
+  removeItemFromNewSource = (clickedItem) => {
+    if (this.#isFeatureHighlighted(clickedItem.feature))
+      this.highlightSource.removeFeature(clickedItem.feature);
+    this.activeNewSource.removeFeature(clickedItem.feature);
+  };
+
+  addFeatureToNewSource = (feature, mode) => {
+    this.newSources[mode].addFeature(feature);
+  };
+
+  removeFeatureFromEditSource = (feature, editMode) => {
+    this.editSources[editMode].removeFeature(feature);
+  };
+
+  abortDrawFeature = (editMode) => {
+    this.#clearSource(this.editSources[editMode]);
   };
 
   toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
@@ -178,6 +208,12 @@ class IntegrationModel {
     if (shouldBeVisible) featureStyle = null;
 
     this.#setFeatureStyle(feature, featureStyle);
+  };
+
+  deleteNewGeometry = (featureCollection, source) => {
+    featureCollection.features.forEach((feature) => {
+      this.editSources[source].removeFeature(feature);
+    });
   };
 
   #clearSource = (source) => {
@@ -225,7 +261,7 @@ class IntegrationModel {
   #addSearchLayer = () => {
     const searchLayer = this.#createNewVectorLayer(
       this.drawingToolFunctions.search.source,
-      this.#createLayerStyle(searchStyle())
+      this.#createLayerStyle(drawSearchStyle())
     );
     this.map.addLayer(searchLayer);
   };
@@ -233,7 +269,7 @@ class IntegrationModel {
   #addNewGeometryLayer = () => {
     const newGeometryLayer = this.#createNewVectorLayer(
       this.drawingToolFunctions.new.source,
-      this.#createLayerStyle(newGeometryStyle())
+      this.#createLayerStyle(unsavedStyle())
     );
     this.map.addLayer(newGeometryLayer);
   };
@@ -253,15 +289,12 @@ class IntegrationModel {
 
     this.#addDataLayers();
     this.#addLayersToMap(this.dataLayers.array);
+
+    this.#addNewLayers();
+    this.#addLayersToMap(this.newLayers.array);
   };
 
   #addSources = () => {
-    this.editSources = {
-      new: this.#createNewVectorSource(),
-      copy: this.#createNewVectorSource(),
-      combine: this.#createNewVectorSource(),
-    };
-
     this.dataSources = {
       realEstate: this.#createNewVectorSource(),
       coordinate: this.#createNewVectorSource(),
@@ -269,9 +302,23 @@ class IntegrationModel {
       survey: this.#createNewVectorSource(),
       contamination: this.#createNewVectorSource(),
     };
+    this.#addArrayToObject(this.dataSources);
+
+    this.editSources = {
+      new: this.#createNewVectorSource(),
+      copy: this.#createNewVectorSource(),
+      combine: this.#createNewVectorSource(),
+    };
 
     this.snapSources = {
       realEstate: this.#createNewVectorSource(),
+      coordinate: this.#createNewVectorSource(),
+      area: this.#createNewVectorSource(),
+      survey: this.#createNewVectorSource(),
+      contamination: this.#createNewVectorSource(),
+    };
+
+    this.newSources = {
       coordinate: this.#createNewVectorSource(),
       area: this.#createNewVectorSource(),
       survey: this.#createNewVectorSource(),
@@ -283,15 +330,15 @@ class IntegrationModel {
     this.editLayers = {
       new: this.#createNewVectorLayer(
         this.editSources.new,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(editStyle())
       ),
       copy: this.#createNewVectorLayer(
         this.editSources.copy,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(editStyle())
       ),
       combine: this.#createNewVectorLayer(
         this.editSources.combine,
-        this.#createLayerStyle(newGeometryStyle())
+        this.#createLayerStyle(editStyle())
       ),
     };
     this.#addArrayToObject(this.editLayers);
@@ -327,26 +374,48 @@ class IntegrationModel {
     this.dataLayers = {
       realEstate: this.#createNewVectorLayer(
         this.dataSources.realEstate,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       coordinate: this.#createNewVectorLayer(
         this.dataSources.coordinate,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       area: this.#createNewVectorLayer(
         this.dataSources.area,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       survey: this.#createNewVectorLayer(
         this.dataSources.survey,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
       contamination: this.#createNewVectorLayer(
         this.dataSources.contamination,
-        this.#createLayerStyle(layerStyle())
+        this.#createLayerStyle(newSearchStyle())
       ),
     };
     this.#addArrayToObject(this.dataLayers);
+  };
+
+  #addNewLayers = () => {
+    this.newLayers = {
+      coordinate: this.#createNewVectorLayer(
+        this.newSources.coordinate,
+        this.#createLayerStyle(unsavedStyle())
+      ),
+      area: this.#createNewVectorLayer(
+        this.newSources.area,
+        this.#createLayerStyle(unsavedStyle())
+      ),
+      survey: this.#createNewVectorLayer(
+        this.newSources.survey,
+        this.#createLayerStyle(unsavedStyle())
+      ),
+      contamination: this.#createNewVectorLayer(
+        this.newSources.contamination,
+        this.#createLayerStyle(unsavedStyle())
+      ),
+    };
+    this.#addArrayToObject(this.newLayers);
   };
 
   #addArrayToObject = (object) => {
@@ -368,6 +437,10 @@ class IntegrationModel {
       this.#createLayerStyle(highLightStyle())
     );
     this.map.addLayer(this.highlightLayer);
+  };
+
+  #initActiveSource = () => {
+    this.activeSource = this.dataSources.array[0];
   };
 
   #drawGeometry = (drawingTool, drawType, style) => {
@@ -406,20 +479,52 @@ class IntegrationModel {
   };
 
   #handleDrawCopyFeatureAdded = (e) => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("copy");
+    this.#clearSource(this.editSources.copy);
+    this.searchResponseTool = "copy";
     this.searchModelFunctions[e.target.mode](e.feature);
     this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
   #handleDrawNewFeatureAdded = (e) => {
-    this.map.removeInteraction(this.drawInteraction);
-    this.map.clickLock.delete("new");
-    this.editSources.new.addFeature(e.feature);
+    this.#clearSource(this.editSources.new);
+    const data = this.#createDataset(e.feature);
+    // TODO: I krav 3.6 kan även snap betyde källa combine
+    this.#addAndPublishNewFeature(data, this.editSources.new);
     this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
+  #createDataset = (feature) => {
+    let pairs = [];
+    for (let i = 0; i < feature.getGeometry().flatCoordinates.length; i += 2) {
+      pairs.push([
+        feature.getGeometry().flatCoordinates[i],
+        feature.getGeometry().flatCoordinates[i + 1],
+      ]);
+    }
+    const coordinates = [pairs];
+    const features = [
+      {
+        geometry: {
+          type: "Polygon",
+          coordinates: coordinates,
+        },
+        id: "område.0",
+        geometry_name: null,
+        properties: null,
+        type: "Feature",
+      },
+    ];
+    const simulatedFeatureCollection = { features: features };
+    return {
+      searchType: "none",
+      geometryField: null,
+      featureCollection: simulatedFeatureCollection,
+      transformation: null,
+    };
+  };
+
   #handleDrawSearchFeatureAdded = (e) => {
+    this.searchResponseTool = "search";
     this.searchModelFunctions[e.target.mode](e.feature);
     this.#clearSource(this.drawingToolFunctions.search.source);
   };
@@ -570,7 +675,20 @@ class IntegrationModel {
   };
 
   #copyWfsSearch = (data) => {
-    this.#addFeaturesToSource(this.editSources.copy, data);
+    // TODO: I krav 3.6 kan även snap betyde källa combine
+    this.#clearSource(this.editSources.copy);
+    this.#addAndPublishNewFeature(data, this.editSources.copy);
+  };
+
+  #addAndPublishNewFeature = (data, source) => {
+    const previousFeatures = source.getFeatures();
+    this.#addFeaturesToSource(source, data);
+    const presentFeatures = source.getFeatures();
+
+    const newFeature = presentFeatures.filter((feature) => {
+      return previousFeatures.indexOf(feature) === -1;
+    });
+    this.localObserver.publish("mf-new-feature-pending", newFeature[0]);
   };
 
   #snapWfsSearch = (data) => {
@@ -591,18 +709,32 @@ class IntegrationModel {
     this.#hideAllLayers();
     this.#showAcitveLayer(mode);
     this.#setActiveSource(mode);
+    this.#setActiveNewSource(mode);
   };
 
   #hideAllLayers = () => {
     for (const layer of this.dataLayers.array) layer.setVisible(false);
+    for (const layer of this.newLayers.array) layer.setVisible(false);
+
+    this.#hideLayers(this.dataLayers.array);
+    this.#hideLayers(this.newLayers.array);
+  };
+
+  #hideLayers = (mapLayersArray) => {
+    for (const layer of mapLayersArray) layer.setVisible(false);
   };
 
   #showAcitveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
+    this.newLayers[mode].setVisible(true);
   };
 
   #setActiveSource = (mode) => {
     this.activeSource = this.dataSources[mode];
+  };
+
+  #setActiveNewSource = (mode) => {
+    this.activeNewSource = this.newSources[mode];
   };
 
   #highlightItem = (item) => {

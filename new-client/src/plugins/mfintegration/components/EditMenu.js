@@ -22,16 +22,15 @@ import {
   FormControl,
   InputLabel,
 } from "@material-ui/core";
-import { ToggleButton, ToggleButtonGroup } from "@material-ui/lab";
+import { ToggleButton } from "@material-ui/lab";
 import ExpandMore from "@material-ui/icons/ExpandMore";
 import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
-import EditIcon from "@material-ui/icons/Edit";
-import OpenWithIcon from "@material-ui/icons/OpenWith";
 import DeleteIcon from "@material-ui/icons/Delete";
-import FileCopyOutlinedIcon from "@material-ui/icons/FileCopyOutlined";
+import OpenWithIcon from "@material-ui/icons/OpenWith";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
+import CopyingControl from "./CopyingControl";
 import SnappingControl from "./SnappingControl";
-import { drawingSupportSnapLayers } from "./../mockdata/mockdataLayers";
+import { drawingSupportLayersArray } from "./../mockdata/mockdataLayers";
 
 const styles = (theme) => {
   return {
@@ -42,6 +41,12 @@ const styles = (theme) => {
     stepButtonGroup: {
       flex: "1 1 0",
       width: 0,
+    },
+    toggleButton: {
+      color:
+        theme.palette.type === "dark"
+          ? theme.palette.common.white
+          : theme.palette.action.active,
     },
   };
 };
@@ -75,13 +80,12 @@ const defaultState = {
   activeStep: 0,
   editOpen: false,
   editTab: "create",
-  editMode: "none", //draw, copy, combine
+  editMode: "none", //new, copy, combine
   changeEditMode: null, //edit, move, delete
   drawActive: false,
   isNewEdit: false,
   selectCopyActive: false,
   selectCombineActive: false,
-  activeCopyLayer: "",
   activeCombineLayer: "",
 };
 
@@ -90,14 +94,31 @@ class EditMenu extends React.PureComponent {
     activeStep: 0,
     editOpen: false,
     editTab: "create",
-    editMode: "none", //draw, copy, combine
+    editMode: "none", //new, copy, combine
     changeEditMode: null, //edit, move, delete
     drawActive: false,
     isNewEdit: false,
     selectCopyActive: false,
     selectCombineActive: false,
-    activeCopyLayer: "",
     activeCombineLayer: "",
+  };
+
+  constructor(props) {
+    super(props);
+
+    this.localObserver = props.localObserver;
+
+    this.#bindSubscriptions();
+  }
+
+  #bindSubscriptions = () => {
+    this.localObserver.subscribe("mf-new-feature-pending", () => {
+      const newValue = true;
+      this.setState({ isNewEdit: newValue });
+    });
+    this.localObserver.subscribe("mf-edit-supportLayer", (layer) => {
+      this.supportLayer = layer;
+    });
   };
 
   #resetEditMenu = () => {
@@ -108,74 +129,16 @@ class EditMenu extends React.PureComponent {
     this.setState({ editOpen: !this.state.editOpen });
   };
 
-  #handleChangeCopyLayer = (layerId) => {
-    this.setState({ activeCopyLayer: layerId });
-  };
-
   #handleChangeCombineLayer = (layerId) => {
     this.setState({ activeCombineLayer: layerId });
   };
 
-  #getAvailableSnapLayers = () => {
-    return drawingSupportSnapLayers();
-  };
-
-  renderStepTwoControls = () => {
-    const { classes } = this.props;
-    return (
-      <ToggleButtonGroup
-        style={{ width: "100%" }}
-        exclusive
-        value={this.state.changeEditMode}
-        onChange={(e, newValue) => {
-          this.setState({ changeEditMode: newValue });
-        }}
-      >
-        <TooltipToggleButton
-          disabled={!this.state.isNewEdit}
-          className={classes.stepButtonGroup}
-          size="small"
-          value="edit"
-          title="Omforma befintlig redigering"
-          aria-label="Omforma befintlig redigering"
-        >
-          <FormatShapesIcon size="small" />
-          <Typography noWrap variant="button">
-            &nbsp; Omforma
-          </Typography>
-        </TooltipToggleButton>
-        <TooltipToggleButton
-          disabled={!this.state.isNewEdit}
-          className={classes.stepButtonGroup}
-          size="small"
-          value="move"
-          title="Flytta befintlig redigering"
-          aria-label="Flytta befintlig redigering"
-        >
-          <OpenWithIcon size="small" />
-          <Typography noWrap variant="button">
-            &nbsp; Flytta
-          </Typography>
-        </TooltipToggleButton>
-        <TooltipToggleButton
-          disabled={!this.state.isNewEdit}
-          className={classes.stepButtonGroup}
-          size="small"
-          value="delete"
-          title="Radera befintlig redigering"
-          aria-label="Radera befintlig redigering"
-        >
-          <DeleteIcon size="small" />
-          <Typography noWrap variant="button">
-            &nbsp; Radera
-          </Typography>
-        </TooltipToggleButton>
-      </ToggleButtonGroup>
-    );
+  #getAvailableWfsLayers = () => {
+    return drawingSupportLayersArray();
   };
 
   renderStepOne = () => {
-    const { classes } = this.props;
+    const { classes, localObserver } = this.props;
     return (
       <Grid container item xs={12}>
         <ButtonGroup style={{ width: "100%" }}>
@@ -186,7 +149,10 @@ class EditMenu extends React.PureComponent {
               onClick={() => {
                 this.setState({
                   activeStep: 1,
-                  editMode: "draw",
+                  editMode: "new",
+                });
+                this.setState({ drawActive: true }, () => {
+                  localObserver.publish("mf-start-draw-new-geometry");
                 });
               }}
             >
@@ -228,35 +194,16 @@ class EditMenu extends React.PureComponent {
 
   renderStepTwo = (editMode) => {
     const { classes, localObserver } = this.props;
-    if (editMode === "draw") {
+    if (editMode === "new") {
       return (
         <Grid container item xs={12} spacing={(2, 2)}>
           <Grid item xs={12}>
             <Typography>Rita ut det nya objektet i kartan.</Typography>
           </Grid>
           <Grid item xs={12}>
-            <TooltipToggleButton
-              size="small"
-              title="Börja rita i kartan"
-              aria-label="Börja rita i kartan"
-              selected={this.state.drawActive}
-              value={"drawActive"}
-              onChange={() => {
-                this.setState({ drawActive: !this.state.drawActive }, () => {
-                  if (this.state.drawActive) {
-                    localObserver.publish("mf-start-draw-new-geometry");
-                  }
-                });
-              }}
-            >
-              <EditIcon size="small" />
-              <Typography variant="button">&nbsp; Rita</Typography>
-            </TooltipToggleButton>
-          </Grid>
-          <Grid item xs={12}>
             <SnappingControl
               enabled={true}
-              availableSnapLayers={this.#getAvailableSnapLayers()}
+              availableSnapLayers={this.#getAvailableWfsLayers()}
               localObserver={localObserver}
             />
           </Grid>
@@ -272,6 +219,15 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      this.setState({ isNewEdit: false });
+                      localObserver.publish("mf-end-draw-new-geometry", {
+                        editMode: editMode,
+                        saveGeometry: false,
+                      });
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >
@@ -280,8 +236,18 @@ class EditMenu extends React.PureComponent {
                 </Tooltip>
                 <Button
                   className={classes.stepButtonGroup}
+                  disabled={!this.state.isNewEdit}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    this.setState({ isNewEdit: false });
+                    localObserver.publish("mf-end-draw-new-geometry", {
+                      editMode: editMode,
+                      saveGeometry: true,
+                    });
+                    localObserver.publish(
+                      "mf-edit-noSupportLayer",
+                      this.supportLayer
+                    );
                   }}
                   aria-label="OK"
                 >
@@ -297,46 +263,10 @@ class EditMenu extends React.PureComponent {
     if (editMode === "copy") {
       return (
         <Grid container item xs={12} spacing={(2, 2)}>
-          <Grid item xs={12}>
-            <Typography>Välj ett objekt i kartan att kopiera från</Typography>
-          </Grid>
-          <Grid item xs={12}>
-            <FormControl margin="none">
-              <InputLabel disableAnimation>Från lager</InputLabel>
-              <Select
-                style={{ minWidth: 200 }}
-                value={this.state.activeCopyLayer}
-                onChange={(e) => this.#handleChangeCopyLayer(e.target.value)}
-              >
-                <MenuItem key={"1"} value={"1"}>
-                  {"example layer"}
-                </MenuItem>
-                <MenuItem key={"2"} value={"2"}>
-                  {"example layer 2"}
-                </MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <TooltipToggleButton
-              size="small"
-              title="Välj objekt för kopiering"
-              aria-label="Välj objekt för kopiering"
-              selected={this.state.selectCopyActive}
-              value={"selectCopyActive"}
-              onChange={() => {
-                this.setState({
-                  selectCopyActive: !this.state.selectCopyActive,
-                });
-              }}
-            >
-              <Typography variant="button">&nbsp; Välj Objekt</Typography>
-            </TooltipToggleButton>
-            <Button variant="outlined" style={{ marginLeft: "8px" }}>
-              <FileCopyOutlinedIcon size="small" />
-              Skapa kopia
-            </Button>
-          </Grid>
+          <CopyingControl
+            availableCopyLayers={this.#getAvailableWfsLayers()}
+            localObserver={localObserver}
+          />
           <Grid item xs={12}>
             {this.renderStepTwoControls()}
           </Grid>
@@ -349,6 +279,15 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      this.setState({ isNewEdit: false });
+                      localObserver.publish("mf-end-draw-new-geometry", {
+                        editMode: editMode,
+                        saveGeometry: false,
+                      });
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >
@@ -359,6 +298,11 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    this.setState({ isNewEdit: false });
+                    localObserver.publish("mf-end-draw-new-geometry", {
+                      editMode: editMode,
+                      saveGeometry: true,
+                    });
                   }}
                   aria-label="OK"
                 >
@@ -434,6 +378,15 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0 });
+                      this.setState({ isNewEdit: false });
+                      localObserver.publish(
+                        "mf-end-draw-new-geometry",
+                        editMode
+                      );
+                      localObserver.publish(
+                        "mf-edit-noSupportLayer",
+                        this.supportLayer
+                      );
                     }}
                     aria-label="Tillbaka"
                   >
@@ -444,6 +397,7 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
+                    this.setState({ isNewEdit: false });
                   }}
                   aria-label="OK"
                 >
@@ -455,6 +409,112 @@ class EditMenu extends React.PureComponent {
         </Grid>
       );
     }
+  };
+
+  renderStepTwoControls = () => {
+    const { classes, handleUpdateEditToolsMode } = this.props;
+    return (
+      <Box display="flex">
+        <Box>
+          <Box style={{ marginLeft: "0px" }}>
+            <Tooltip
+              title="Omforma befintlig redigering"
+              aria-label="Omforma befintlig redigering"
+            >
+              <ToggleButton
+                className={classes.toggleButton}
+                // disabled={!this.state.isNewEdit}
+                disabled={true}
+                value="edit"
+                onChange={(e, newValue) => {
+                  e.preventDefault();
+                  if (!newValue) {
+                    handleUpdateEditToolsMode(
+                      this.state.changeEditMode,
+                      this.state.editMode
+                    );
+                    return;
+                  }
+                  this.setState({ changeEditMode: newValue }, () => {
+                    handleUpdateEditToolsMode(newValue, this.state.editMode);
+                  });
+                }}
+              >
+                <FormatShapesIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Omforma{" "}
+                </Typography>
+              </ToggleButton>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box>
+          <Box style={{ marginLeft: "0px" }}>
+            <Tooltip
+              title="Flytta befintlig redigering"
+              aria-label="Flytta befintlig redigering"
+            >
+              <ToggleButton
+                className={classes.toggleButton}
+                // disabled={!this.state.isNewEdit}
+                disabled={true}
+                value="move"
+                onChange={(e, newValue) => {
+                  e.preventDefault();
+                  if (!newValue) {
+                    handleUpdateEditToolsMode(
+                      this.state.changeEditMode,
+                      this.state.editMode
+                    );
+                    return;
+                  }
+                  this.setState({ changeEditMode: newValue }, () => {
+                    handleUpdateEditToolsMode(newValue, this.state.editMode);
+                  });
+                }}
+              >
+                <OpenWithIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Flytta{" "}
+                </Typography>
+              </ToggleButton>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box>
+          <Box style={{ marginLeft: "0px" }}>
+            <Tooltip
+              title="Radera befintlig redigering"
+              aria-label="Radera befintlig redigering"
+            >
+              <ToggleButton
+                className={classes.toggleButton}
+                disabled={!this.state.isNewEdit}
+                value="delete"
+                onChange={(e, newValue) => {
+                  e.preventDefault();
+                  if (!newValue) {
+                    handleUpdateEditToolsMode(
+                      this.state.changeEditMode,
+                      this.state.editMode
+                    );
+                    return;
+                  }
+                  this.setState({ changeEditMode: newValue }, () => {
+                    handleUpdateEditToolsMode(newValue, this.state.editMode);
+                  });
+                }}
+              >
+                <DeleteIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Radera{" "}
+                </Typography>
+              </ToggleButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </Box>
+    );
   };
 
   renderStepThree = () => {
@@ -511,19 +571,19 @@ class EditMenu extends React.PureComponent {
           <AccordionDetails className={classes.accordionDetails}>
             <Grid item container>
               <Grid item xs={12}>
-                <Paper square elevation={0}>
+                <Paper square elevation={2}>
                   <Tabs
                     className={classes.tabs}
                     value={this.state.editTab}
                     variant="fullWidth"
-                    indicatorColor="primary"
+                    indicatorColor="secondary"
                     textColor="primary"
                     onChange={(e, newValue) => {
                       this.setState({ editTab: newValue });
                     }}
                   >
                     <Tab value="create" label="Skapa nytt"></Tab>
-                    <Tab value="update" label="Ändra"></Tab>
+                    <Tab value="update" label="Ändra" disabled></Tab>
                   </Tabs>
                 </Paper>
               </Grid>
