@@ -100,9 +100,9 @@ export const highLightStyle = () => {
 };
 
 export const unsavedStyle = () => {
-  const strokeColor = "rgba(147, 219, 112, 1)";
+  const strokeColor = "rgba(100, 220, 50, 1)";
   const strokeWidth = 4;
-  const fillColor = "rgba(147, 219, 112, 0.5)";
+  const fillColor = "rgba(100, 220, 50, 0.25)";
   const circleRadius = 6;
   const strokeWithCircle = 2;
 
