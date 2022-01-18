@@ -287,10 +287,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clearAllInteractions = () => {
-    //remove any exisiting OpenLayers interactions.
-    //FIXME - not working for realEstate.
-    this.props.model.endDraw();
-    this.props.model.endSnapInteraction();
+    this.props.model.clearInteractions();
   };
 
   #getDrawingSupportLayer = (layerId) => {
@@ -564,7 +561,6 @@ class IntegrationView extends React.PureComponent {
   };
 
   #removeCreatedItemFromResults = (item, mode) => {
-    console.log("#removeCreatedItemFromResults");
     let updateList = { ...this.state.currentListResults };
     const updatedResults = updateList[mode].filter(
       (listItem) => listItem.id !== item.id
@@ -674,6 +670,7 @@ class IntegrationView extends React.PureComponent {
   renderEditMenu = () => {
     return (
       <EditMenu
+        model={this.props.model}
         localObserver={this.localObserver}
         layerMode={this.state.mode}
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}

@@ -28,6 +28,7 @@ import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
 import DeleteIcon from "@material-ui/icons/Delete";
 import OpenWithIcon from "@material-ui/icons/OpenWith";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
+import CloseIcon from "@material-ui/icons/Close";
 import CopyingControl from "./CopyingControl";
 import SnappingControl from "./SnappingControl";
 import { drawingSupportLayersArray } from "./../mockdata/mockdataLayers";
@@ -88,16 +89,7 @@ const defaultState = {
 };
 
 class EditMenu extends React.PureComponent {
-  state = {
-    activeStep: 0,
-    editOpen: false,
-    editTab: "create",
-    editMode: "none", //new, copy, combine
-    changeEditMode: null, //edit, move, delete
-    drawActive: false,
-    isNewEdit: false,
-    activeCombineLayer: "",
-  };
+  state = defaultState;
 
   constructor(props) {
     super(props);
@@ -114,12 +106,14 @@ class EditMenu extends React.PureComponent {
       this.supportLayer = layer;
     });
     this.localObserver.subscribe("mf-window-closed", () => {
-      this.#resetEditMenu();
+      this.#resetEditMenu(true);
     });
   };
 
-  #resetEditMenu = (shouldCollapse) => {
-    this.setState({ ...defaultState });
+  #resetEditMenu = (shouldClose) => {
+    this.props.model.abortDrawFeature(this.state.editMode);
+    this.props.model.clearInteractions();
+    this.setState({ ...defaultState, editOpen: !shouldClose });
   };
 
   #toggleEditOpen = () => {
@@ -215,8 +209,7 @@ class EditMenu extends React.PureComponent {
                     className={classes.stepButtonGroup}
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
-                      this.setState({ activeStep: 0 });
-                      this.setState({ isNewEdit: false });
+                      this.setState({ activeStep: 0, isNewEdit: false });
                       localObserver.publish("mf-end-draw-new-geometry", {
                         editMode: editMode,
                         saveGeometry: false,
@@ -374,8 +367,7 @@ class EditMenu extends React.PureComponent {
                     className={classes.stepButtonGroup}
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
-                      this.setState({ activeStep: 0 });
-                      this.setState({ isNewEdit: false });
+                      this.setState({ activeStep: 0, isNewEdit: false });
                       localObserver.publish(
                         "mf-end-draw-new-geometry",
                         editMode
@@ -537,7 +529,7 @@ class EditMenu extends React.PureComponent {
               <Button
                 className={classes.stepButtonGroup}
                 onClick={() => {
-                  this.#resetEditMenu();
+                  this.#resetEditMenu(false);
                 }}
               >
                 Avsluta
@@ -549,9 +541,22 @@ class EditMenu extends React.PureComponent {
     );
   };
 
+  componentDidUpdate(prevProps, prevState) {
+    //When the edit panel gets closed, reset the edit menu.
+    if (prevState.editOpen !== this.state.editOpen && !this.state.editOpen) {
+      this.#resetEditMenu(true);
+    }
+    //When the layerMode is changed, we need to reset the edit, otherwise the user may end up editing an incorrect layer.
+    if (prevProps.layerMode !== this.props.layerMode) {
+      let editShouldClose = true;
+      this.#resetEditMenu(editShouldClose);
+    }
+  }
+
   render() {
     const { classes } = this.props;
 
+    //FIXME - change to any layers where not editable, not hardcoded 'realEstate'.
     let editdisabled =
       this.state.editOpen === false && this.props.layerMode === "realEstate";
 
@@ -576,7 +581,11 @@ class EditMenu extends React.PureComponent {
             aria-label="Öppna redigeringsmenyn"
           >
             <div>
-              <StyledAccordionSummary expandIcon={<ExpandMore />}>
+              <StyledAccordionSummary
+                expandIcon={
+                  this.state.editOpen ? <CloseIcon /> : <ExpandMore />
+                }
+              >
                 <Typography>Redigera</Typography>
               </StyledAccordionSummary>
             </div>

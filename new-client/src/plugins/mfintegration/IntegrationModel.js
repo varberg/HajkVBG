@@ -148,6 +148,11 @@ class IntegrationModel {
     this.map.addInteraction(this.snapInteraction);
   };
 
+  clearInteractions = () => {
+    this.endDraw();
+    this.endSnapInteraction();
+  };
+
   endDraw = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
@@ -207,6 +212,7 @@ class IntegrationModel {
   };
 
   abortDrawFeature = (editMode) => {
+    if (!editMode || editMode === "none") return;
     this.#clearSource(this.editSources[editMode]);
   };
 
