@@ -45,9 +45,8 @@ const defaultState = {
     survey: [],
     contamination: [],
   },
-  editTab: "create",
-  editMode: "none",
   listToolsMode: "none",
+  editOpen: false,
 };
 
 const showDevelopmentOnlyButtons = true;
@@ -674,6 +673,9 @@ class IntegrationView extends React.PureComponent {
         localObserver={this.localObserver}
         layerMode={this.state.mode}
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}
+        handleUpdateEditOpen={(open) => {
+          this.setState({ editOpen: open });
+        }}
       />
     );
   };
@@ -681,6 +683,7 @@ class IntegrationView extends React.PureComponent {
   renderListTools = () => {
     return (
       <ListToolbar
+        disabled={this.state.editOpen}
         listToolsMode={this.state.listToolsMode}
         handleClearResults={() => {
           this.#clearResults();

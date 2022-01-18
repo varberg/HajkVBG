@@ -110,6 +110,17 @@ class EditMenu extends React.PureComponent {
     });
   };
 
+  #getEditModeDisplayName = (editMode) => {
+    let editModedisplayNames = {
+      new: "(Rita)",
+      copy: "(Kopiera)",
+      combime: "(Kombinera)",
+    };
+
+    let displayName = editModedisplayNames[editMode] || "";
+    return displayName;
+  };
+
   #resetEditMenu = (shouldClose) => {
     this.props.model.abortDrawFeature(this.state.editMode);
     this.props.model.clearInteractions();
@@ -209,7 +220,11 @@ class EditMenu extends React.PureComponent {
                     className={classes.stepButtonGroup}
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
-                      this.setState({ activeStep: 0, isNewEdit: false });
+                      this.setState({
+                        activeStep: 0,
+                        isNewEdit: false,
+                        editMode: "none",
+                      });
                       localObserver.publish("mf-end-draw-new-geometry", {
                         editMode: editMode,
                         saveGeometry: false,
@@ -228,8 +243,7 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   disabled={!this.state.isNewEdit}
                   onClick={() => {
-                    this.setState({ activeStep: 2 });
-                    this.setState({ isNewEdit: false });
+                    this.setState({ activeStep: 2, isNewEdit: false });
                     localObserver.publish("mf-end-draw-new-geometry", {
                       editMode: editMode,
                       saveGeometry: true,
@@ -542,10 +556,14 @@ class EditMenu extends React.PureComponent {
   };
 
   componentDidUpdate(prevProps, prevState) {
-    //When the edit panel gets closed, reset the edit menu.
-    if (prevState.editOpen !== this.state.editOpen && !this.state.editOpen) {
-      this.#resetEditMenu(true);
+    if (prevState.editOpen !== this.state.editOpen) {
+      //When the edit panel gets closed, reset the edit menu.
+      if (!this.state.editOpen) this.#resetEditMenu(true);
+
+      //Let the view know that edit has toggled, so we can disable parts that should not be used while editing.
+      this.props.handleUpdateEditOpen(this.state.editOpen);
     }
+
     //When the layerMode is changed, we need to reset the edit, otherwise the user may end up editing an incorrect layer.
     if (prevProps.layerMode !== this.props.layerMode) {
       let editShouldClose = true;
@@ -620,7 +638,10 @@ class EditMenu extends React.PureComponent {
                     <StepContent>{this.renderStepOne()}</StepContent>
                   </Step>
                   <Step key="createObject">
-                    <StepLabel>Skapa</StepLabel>
+                    <StepLabel>{`Skapa ${this.#getEditModeDisplayName(
+                      this.state.editMode
+                    )}`}</StepLabel>
+                    {this.#getEditModeDisplayName(this.state.editMode)}
                     <StepContent>
                       {this.renderStepTwo(this.state.editMode)}
                     </StepContent>
