@@ -45,9 +45,8 @@ const defaultState = {
     survey: [],
     contamination: [],
   },
-  editTab: "create",
-  editMode: "none",
   listToolsMode: "none",
+  editOpen: false,
 };
 
 const showDevelopmentOnlyButtons = true;
@@ -99,6 +98,11 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("window-opened", () => {
       this.#initDrawingSupport();
     });
+    this.localObserver.subscribe("mf-window-closed", () => {
+      this.#clearDrawingSupport();
+      this.#clearAllDataSources();
+      this.#clearAllInteractions();
+    });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
@@ -136,12 +140,6 @@ class IntegrationView extends React.PureComponent {
 
     this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
       this.newFeature = { features: [feature], isNew: true };
-    });
-
-    this.globalObserver.subscribe("core.closeWindow", (title) => {
-      if (title !== this.title) return;
-      this.#clearDrawingSupport();
-      this.#clearAllDataSources();
     });
   };
 
@@ -284,6 +282,11 @@ class IntegrationView extends React.PureComponent {
   #clearAllDataSources = () => {
     for (const clearFunction of this.clearFunctions.array) clearFunction();
     this.props.model.clearHighlight();
+    this.props.model.clearEdit();
+  };
+
+  #clearAllInteractions = () => {
+    this.props.model.clearInteractions();
   };
 
   #getDrawingSupportLayer = (layerId) => {
@@ -557,7 +560,6 @@ class IntegrationView extends React.PureComponent {
   };
 
   #removeCreatedItemFromResults = (item, mode) => {
-    console.log("#removeCreatedItemFromResults");
     let updateList = { ...this.state.currentListResults };
     const updatedResults = updateList[mode].filter(
       (listItem) => listItem.id !== item.id
@@ -667,8 +669,13 @@ class IntegrationView extends React.PureComponent {
   renderEditMenu = () => {
     return (
       <EditMenu
+        model={this.props.model}
         localObserver={this.localObserver}
+        layerMode={this.state.mode}
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}
+        handleUpdateEditOpen={(open) => {
+          this.setState({ editOpen: open });
+        }}
       />
     );
   };
@@ -676,6 +683,7 @@ class IntegrationView extends React.PureComponent {
   renderListTools = () => {
     return (
       <ListToolbar
+        disabled={this.state.editOpen}
         listToolsMode={this.state.listToolsMode}
         handleClearResults={() => {
           this.#clearResults();
