@@ -31,6 +31,7 @@ class ListToolbar extends React.PureComponent {
     listToolsMode: PropTypes.string, //is allowed to be null.
     handleClearResults: PropTypes.func.isRequired,
     handleUpdateListToolsMode: PropTypes.func.isRequired,
+    disabled: PropTypes.bool.isRequired,
   };
 
   render() {
@@ -39,6 +40,7 @@ class ListToolbar extends React.PureComponent {
       listToolsMode,
       handleClearResults,
       handleUpdateListToolsMode,
+      disabled,
     } = this.props;
 
     return (
@@ -58,6 +60,7 @@ class ListToolbar extends React.PureComponent {
                 value="pointselect"
                 aria-label="Markera/AvmarkeraMarkera/Avmarkera"
                 className={classes.toggleButton}
+                disabled={disabled}
               >
                 <TouchAppIcon />
               </TooltipToggleButton>
@@ -66,6 +69,7 @@ class ListToolbar extends React.PureComponent {
                 value="polygonselect"
                 aria-label="Markera med polygon"
                 className={classes.toggleButton}
+                disabled={disabled}
               >
                 <Crop32Icon />
               </TooltipToggleButton>
@@ -83,6 +87,7 @@ class ListToolbar extends React.PureComponent {
                   handleClearResults();
                 }}
                 className={classes.toggleButton}
+                disabled={disabled}
               >
                 <CancelOutlinedIcon />
               </ToggleButton>

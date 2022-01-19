@@ -148,6 +148,11 @@ class IntegrationModel {
     this.map.addInteraction(this.snapInteraction);
   };
 
+  clearInteractions = () => {
+    this.endDraw();
+    this.endSnapInteraction();
+  };
+
   endDraw = () => {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
@@ -173,10 +178,17 @@ class IntegrationModel {
 
   clearResults = (mode) => {
     this.#clearSource(this.dataSources[mode]);
+    this.#clearSource(this.newSources[mode]);
   };
 
   clearHighlight = () => {
     this.#clearSource(this.highlightSource);
+  };
+
+  clearEdit = () => {
+    Object.keys(this.editSources).forEach((key) => {
+      this.#clearSource(this.editSources[key]);
+    });
   };
 
   removeItemFromActiveSource = (clickedItem) => {
@@ -200,6 +212,7 @@ class IntegrationModel {
   };
 
   abortDrawFeature = (editMode) => {
+    if (!editMode || editMode === "none") return;
     this.#clearSource(this.editSources[editMode]);
   };
 
@@ -710,6 +723,7 @@ class IntegrationModel {
     this.#showAcitveLayer(mode);
     this.#setActiveSource(mode);
     this.#setActiveNewSource(mode);
+    this.#zoomToSource(this.dataSources[mode]);
   };
 
   #hideAllLayers = () => {
@@ -726,7 +740,7 @@ class IntegrationModel {
 
   #showAcitveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
-    this.newLayers[mode].setVisible(true);
+    this.newLayers[mode]?.setVisible(true);
   };
 
   #setActiveSource = (mode) => {
@@ -756,6 +770,10 @@ class IntegrationModel {
 
   handleWindowOpen = () => {
     this.localObserver.publish("window-opened");
+  };
+
+  handleWindowClose = () => {
+    this.localObserver.publish("mf-window-closed");
   };
 
   #sendSnackbarMessage = (nativMessageType) => {

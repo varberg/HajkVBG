@@ -28,6 +28,7 @@ import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
 import DeleteIcon from "@material-ui/icons/Delete";
 import OpenWithIcon from "@material-ui/icons/OpenWith";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
+import CloseIcon from "@material-ui/icons/Close";
 import CopyingControl from "./CopyingControl";
 import SnappingControl from "./SnappingControl";
 import { drawingSupportLayersArray } from "./../mockdata/mockdataLayers";
@@ -84,30 +85,15 @@ const defaultState = {
   changeEditMode: null, //edit, move, delete
   drawActive: false,
   isNewEdit: false,
-  selectCopyActive: false,
-  selectCombineActive: false,
   activeCombineLayer: "",
 };
 
 class EditMenu extends React.PureComponent {
-  state = {
-    activeStep: 0,
-    editOpen: false,
-    editTab: "create",
-    editMode: "none", //new, copy, combine
-    changeEditMode: null, //edit, move, delete
-    drawActive: false,
-    isNewEdit: false,
-    selectCopyActive: false,
-    selectCombineActive: false,
-    activeCombineLayer: "",
-  };
+  state = defaultState;
 
   constructor(props) {
     super(props);
-
     this.localObserver = props.localObserver;
-
     this.#bindSubscriptions();
   }
 
@@ -119,10 +105,26 @@ class EditMenu extends React.PureComponent {
     this.localObserver.subscribe("mf-edit-supportLayer", (layer) => {
       this.supportLayer = layer;
     });
+    this.localObserver.subscribe("mf-window-closed", () => {
+      this.#resetEditMenu(true);
+    });
   };
 
-  #resetEditMenu = () => {
-    this.setState({ ...defaultState });
+  #getEditModeDisplayName = (editMode) => {
+    let editModedisplayNames = {
+      new: "(Rita)",
+      copy: "(Kopiera)",
+      combime: "(Kombinera)",
+    };
+
+    let displayName = editModedisplayNames[editMode] || "";
+    return displayName;
+  };
+
+  #resetEditMenu = (shouldClose) => {
+    this.props.model.abortDrawFeature(this.state.editMode);
+    this.props.model.clearInteractions();
+    this.setState({ ...defaultState, editOpen: !shouldClose });
   };
 
   #toggleEditOpen = () => {
@@ -218,8 +220,11 @@ class EditMenu extends React.PureComponent {
                     className={classes.stepButtonGroup}
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
-                      this.setState({ activeStep: 0 });
-                      this.setState({ isNewEdit: false });
+                      this.setState({
+                        activeStep: 0,
+                        isNewEdit: false,
+                        editMode: "none",
+                      });
                       localObserver.publish("mf-end-draw-new-geometry", {
                         editMode: editMode,
                         saveGeometry: false,
@@ -238,8 +243,7 @@ class EditMenu extends React.PureComponent {
                   className={classes.stepButtonGroup}
                   disabled={!this.state.isNewEdit}
                   onClick={() => {
-                    this.setState({ activeStep: 2 });
-                    this.setState({ isNewEdit: false });
+                    this.setState({ activeStep: 2, isNewEdit: false });
                     localObserver.publish("mf-end-draw-new-geometry", {
                       editMode: editMode,
                       saveGeometry: true,
@@ -377,8 +381,7 @@ class EditMenu extends React.PureComponent {
                     className={classes.stepButtonGroup}
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
-                      this.setState({ activeStep: 0 });
-                      this.setState({ isNewEdit: false });
+                      this.setState({ activeStep: 0, isNewEdit: false });
                       localObserver.publish(
                         "mf-end-draw-new-geometry",
                         editMode
@@ -540,7 +543,7 @@ class EditMenu extends React.PureComponent {
               <Button
                 className={classes.stepButtonGroup}
                 onClick={() => {
-                  this.#resetEditMenu();
+                  this.#resetEditMenu(false);
                 }}
               >
                 Avsluta
@@ -552,12 +555,34 @@ class EditMenu extends React.PureComponent {
     );
   };
 
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.editOpen !== this.state.editOpen) {
+      //When the edit panel gets closed, reset the edit menu.
+      if (!this.state.editOpen) this.#resetEditMenu(true);
+
+      //Let the view know that edit has toggled, so we can disable parts that should not be used while editing.
+      this.props.handleUpdateEditOpen(this.state.editOpen);
+    }
+
+    //When the layerMode is changed, we need to reset the edit, otherwise the user may end up editing an incorrect layer.
+    if (prevProps.layerMode !== this.props.layerMode) {
+      let editShouldClose = true;
+      this.#resetEditMenu(editShouldClose);
+    }
+  }
+
   render() {
     const { classes } = this.props;
+
+    //FIXME - change to any layers where not editable, not hardcoded 'realEstate'.
+    let editdisabled =
+      this.state.editOpen === false && this.props.layerMode === "realEstate";
 
     return (
       <Grid item container xs={12}>
         <Accordion
+          disabled={editdisabled}
+          component={editdisabled ? "div" : undefined}
           elevation={0}
           expanded={this.state.editOpen}
           className={classes.accordion}
@@ -565,9 +590,24 @@ class EditMenu extends React.PureComponent {
             this.#toggleEditOpen();
           }}
         >
-          <StyledAccordionSummary expandIcon={<ExpandMore />}>
-            <Typography>Redigera</Typography>
-          </StyledAccordionSummary>
+          <Tooltip
+            title={
+              editdisabled
+                ? "Den valda objekttyp går inte att redigera"
+                : "Öppna redigeringsmenyn"
+            }
+            aria-label="Öppna redigeringsmenyn"
+          >
+            <div>
+              <StyledAccordionSummary
+                expandIcon={
+                  this.state.editOpen ? <CloseIcon /> : <ExpandMore />
+                }
+              >
+                <Typography>Redigera</Typography>
+              </StyledAccordionSummary>
+            </div>
+          </Tooltip>
           <AccordionDetails className={classes.accordionDetails}>
             <Grid item container>
               <Grid item xs={12}>
@@ -598,7 +638,10 @@ class EditMenu extends React.PureComponent {
                     <StepContent>{this.renderStepOne()}</StepContent>
                   </Step>
                   <Step key="createObject">
-                    <StepLabel>Skapa</StepLabel>
+                    <StepLabel>{`Skapa ${this.#getEditModeDisplayName(
+                      this.state.editMode
+                    )}`}</StepLabel>
+                    {this.#getEditModeDisplayName(this.state.editMode)}
                     <StepContent>
                       {this.renderStepTwo(this.state.editMode)}
                     </StepContent>

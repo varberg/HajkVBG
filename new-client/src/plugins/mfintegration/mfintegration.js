@@ -43,6 +43,10 @@ class MFIntegration extends React.PureComponent {
     this.model.handleWindowOpen();
   };
 
+  onWindowHide = () => {
+    this.model.handleWindowClose();
+  };
+
   render() {
     return (
       <BaseWindowPlugin
@@ -56,6 +60,7 @@ class MFIntegration extends React.PureComponent {
           height: 800,
           width: 500,
           onWindowShow: this.onWindowShow,
+          onWindowHide: this.onWindowHide,
         }}
       >
         <IntegrationView
