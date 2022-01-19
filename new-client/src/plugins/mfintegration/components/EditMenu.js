@@ -506,6 +506,7 @@ class EditMenu extends React.PureComponent {
                   this.setState({ changeEditMode: newValue }, () => {
                     handleUpdateEditToolsMode(newValue, this.state.editMode);
                   });
+                  this.setState({ isNewEdit: false });
                 }}
               >
                 <DeleteIcon size="small" />
