@@ -723,6 +723,7 @@ class IntegrationModel {
     this.#showAcitveLayer(mode);
     this.#setActiveSource(mode);
     this.#setActiveNewSource(mode);
+    this.#zoomToSource(this.dataSources[mode]);
   };
 
   #hideAllLayers = () => {
@@ -739,7 +740,7 @@ class IntegrationModel {
 
   #showAcitveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
-    this.newLayers[mode].setVisible(true);
+    this.newLayers[mode]?.setVisible(true);
   };
 
   #setActiveSource = (mode) => {
