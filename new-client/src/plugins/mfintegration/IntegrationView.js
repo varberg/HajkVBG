@@ -675,6 +675,8 @@ class IntegrationView extends React.PureComponent {
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}
         handleUpdateEditOpen={(open) => {
           this.setState({ editOpen: open });
+          //deactivate any active listtools when opening search.
+          if (open) this.setState({ listToolsMode: "none" });
         }}
       />
     );
