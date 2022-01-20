@@ -242,14 +242,14 @@ class IntegrationView extends React.PureComponent {
   #initDrawTypes = () => {
     this.drawTypes = {
       copy: {
-        realEstate: "point",
+        realEstate: "none",
         coordinate: "point",
         area: "point",
         survey: "point",
         contamination: "point",
       },
       new: {
-        realEstate: "polygon",
+        realEstate: "none",
         coordinate: "point",
         area: "polygon",
         survey: "polygon",
@@ -679,6 +679,8 @@ class IntegrationView extends React.PureComponent {
         model={this.props.model}
         localObserver={this.localObserver}
         layerMode={this.state.mode}
+        copyEditMode={this.drawTypes.new[this.state.mode]}
+        newEditMode={this.drawTypes.new[this.state.mode]}
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}
         handleUpdateEditOpen={(open) => {
           this.setState({ editOpen: open });
