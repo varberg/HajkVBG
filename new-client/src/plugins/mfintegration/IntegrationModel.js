@@ -230,7 +230,7 @@ class IntegrationModel {
   };
 
   #clearSource = (source) => {
-    source.clear();
+    source?.clear();
   };
 
   #createNewVectorSource = () => {
