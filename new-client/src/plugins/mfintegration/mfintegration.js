@@ -7,10 +7,21 @@ import IntegrationModel from "./IntegrationModel";
 import IntegrationView from "./IntegrationView";
 import SearchModel from "./SearchModel";
 
+const defaultOptions = {
+  title: "EDP integration",
+  panelDescription: "Integrera med EDP Vision",
+  target: "control",
+  position: "right",
+  visibleAtStart: false,
+  instruction:
+    "Detta verktyg används för att hantera kartobjekt som har en koppling till EDP Vision.",
+};
+
 class MFIntegration extends React.PureComponent {
   state = {
-    title: this.props.options.title ?? "Integration Miljö",
-    description: this.props.options.description ?? "Integration med EDP",
+    title: this.props.options.title ?? defaultOptions.title,
+    description:
+      this.props.options.panelDescription ?? defaultOptions.panelDescription,
     color: null,
   };
 
@@ -36,6 +47,7 @@ class MFIntegration extends React.PureComponent {
       app: props.app,
       map: props.map,
       searchModel: this.searchModel,
+      options: this.props.options,
     });
   }
 

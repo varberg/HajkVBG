@@ -17,8 +17,12 @@ const ColorButtonBlue = withStyles((theme) => ({
 const defaultState = {
   active: false,
   index: 0,
+  title: "EDP integration",
+  panelDescription: "Integrera med EDP Vision",
   target: "toolbar",
-  visibleAtStart: false
+  visibleAtStart: false,
+  position: "right",
+  instruction: "",
 };
 
 class ToolOptions extends Component {
@@ -34,13 +38,17 @@ class ToolOptions extends Component {
       this.setState({
         active: true,
         index: tool.index,
+        title: tool.options?.title ?? defaultState.title,
+        panelDescription:
+          tool.options?.panelDescription ?? defaultState.panelDescription,
         target: tool.options.target || "toolbar",
         visibleAtStart: tool.options.visibleAtStart,
-        position: tool.options.position
+        position: tool.options?.position ?? defaultState.position,
+        instruction: tool.options?.instruction ?? defaultState.instruction,
       });
     } else {
       this.setState({
-        active: false
+        active: false,
       });
     }
   }
@@ -90,9 +98,12 @@ class ToolOptions extends Component {
       type: this.type,
       index: this.state.index,
       options: {
+        title: this.state.title,
+        panelDescription: this.state.panelDescription,
         target: this.state.target,
         position: this.state.position,
-        visibleAtStart: this.state.visibleAtStart
+        visibleAtStart: this.state.visibleAtStart,
+        instruction: this.state.instruction,
       },
     };
 
@@ -169,6 +180,44 @@ class ToolOptions extends Component {
           </div>
           <div className="separator">Fönsterinställningar</div>
           <div>
+            <label htmlFor="drawerTitle">
+              Titel{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Titel på verktygets panel. Detta visas högst upp i panelen"
+              />
+            </label>
+            <input
+              id="title"
+              value={this.state.title}
+              type="text"
+              name="title"
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="panelDescription">
+              Description{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Beskrivande text som visas vid hoovring över verktygsknapp."
+              />
+            </label>
+            <input
+              id="panelDescription"
+              value={this.state.panelDescription}
+              type="text"
+              name="panelDescription"
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
             <label htmlFor="index">Sorteringsordning</label>
             <input
               id="index"
@@ -221,6 +270,12 @@ class ToolOptions extends Component {
               <option value="right">Right</option>
             </select>
           </div>
+          <div className="separator">Kartobjekt inställningar</div>
+          <div className="separator">Utseende för markerade objekt</div>
+          <div className="separator">Utseende för valt markerat objekt</div>
+          <div className="separator">Utseende för ej sparat objekt</div>
+          <div className="separator">Utseende för objekt i redigeringsläge</div>
+          <div className="separator">KUBB inställningar</div>
           <div className="separator">Övriga inställningar</div>
           <div>
             <input
@@ -234,6 +289,25 @@ class ToolOptions extends Component {
             />
             &nbsp;
             <label htmlFor="visibleAtStart">Synlig vid start</label>
+          </div>
+          <div>
+            <label htmlFor="instruction">
+              Instruction{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Förklarande text som visas högst upp i verktygspanelen."
+              />
+            </label>
+            <input
+              id="instruction"
+              value={this.state.instruction}
+              type="text"
+              name="instruction"
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
           </div>
         </form>
       </div>

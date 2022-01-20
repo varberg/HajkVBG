@@ -542,12 +542,15 @@
     },
     {
       "type": "mfintegration",
+      "index": 0,
       "options": {
+        "title": "EDP integration",
+        "panelDescription": "Integrera med EDP",
         "target": "control",
         "position": "right",
-        "visibleAtStart": false
-      },
-      "index": 6 
+        "visibleAtStart": false,
+        "instruction": "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden."
+      }
     }
   ],
   "map": {

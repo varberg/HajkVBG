@@ -51,10 +51,6 @@ const defaultState = {
 
 const showDevelopmentOnlyButtons = true;
 
-//TODO - Move this out to config.
-const informationText =
-  "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.";
-
 //TODO - move this? where to place constant information on the different modes - the model?
 const modeDisplay = {
   realEstate: {
@@ -786,13 +782,13 @@ class IntegrationView extends React.PureComponent {
   }
 
   render() {
-    const { classes } = this.props;
+    const { classes, options } = this.props;
     const { mode } = this.state;
     return (
       <Container disableGutters>
         <Grid container spacing={(1, 1)}>
           <Grid item xs={12}>
-            <Typography paragraph>{informationText}</Typography>
+            <Typography paragraph>{options.instruction}</Typography>
           </Grid>
           <Grid item xs={12}>
             <FormControl className={classes.dropdown}>
