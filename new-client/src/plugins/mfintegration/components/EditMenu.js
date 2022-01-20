@@ -544,7 +544,7 @@ class EditMenu extends React.PureComponent {
               <Button
                 className={classes.stepButtonGroup}
                 onClick={() => {
-                  this.#resetEditMenu(false);
+                  this.#resetEditMenu(true);
                 }}
               >
                 Avsluta
