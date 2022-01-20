@@ -102,6 +102,7 @@ class IntegrationView extends React.PureComponent {
       this.#clearDrawingSupport();
       this.#clearAllDataSources();
       this.#clearAllInteractions();
+      this.#clearMode();
     });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
@@ -287,6 +288,10 @@ class IntegrationView extends React.PureComponent {
 
   #clearAllInteractions = () => {
     this.props.model.clearInteractions();
+  };
+
+  #clearMode = () => {
+    this.setState({ mode: defaultState.mode });
   };
 
   #getDrawingSupportLayer = (layerId) => {
