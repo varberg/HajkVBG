@@ -154,6 +154,8 @@ class IntegrationView extends React.PureComponent {
     this.#initUpdateEditToolsFunctions();
     this.#initDrawTypes();
     this.#initPublishDefaultMode();
+    if (this.app.plugins.mfintegration?.options?.visibleAtStart)
+      this.#initDrawingSupport();
   };
 
   #initUpdateFunctions = () => {
