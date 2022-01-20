@@ -3,6 +3,7 @@ import Button from "@material-ui/core/Button";
 import SaveIcon from "@material-ui/icons/SaveSharp";
 import { withStyles } from "@material-ui/core/styles";
 import { blue } from "@material-ui/core/colors";
+import { SketchPicker } from "react-color";
 
 const ColorButtonBlue = withStyles((theme) => ({
   root: {
@@ -23,7 +24,47 @@ const defaultState = {
   visibleAtStart: false,
   position: "right",
   instruction: "",
+
+  //used to style the features that appear in the 'Markerade kartobjekt' list.
+  listFeatureFillColor: "rgba(255,255,255,0.07)",
+  listFeatureStrokeColor: "rgba(74,74,74,0.5)",
+
+  //used to style a selected feature, selected from the 'Markerade kartobjekt' list.
+  selectedListFeatureFillColor: "rgba(255,255,255,0.07)",
+  selectedListFeatureStrokeColor: "rgba(74,74,74,0.5)",
+
+  //used to style a created feature, that is not yet saved/imported into EDP Vision.
+  unsavedFeatureFillColor: "rgba(255,255,255,0.07)",
+  unsavedFeatureStrokeColor: "rgba(74,74,74,0.5)",
+
+  //used to style a feature that is currently being edited/created.
+  editFeatureFillColor: "rgba(255,255,255,0.07)",
+  editFeatureStrokeColor: "rgba(74,74,74,0.5)",
 };
+
+class RGBA {
+  static toString(o) {
+    return `rgba(${o.r},${o.g},${o.b},${o.a})`;
+  }
+
+  static parse(s) {
+    try {
+      // 1. RegEx that matches stuff between a set of parentheses
+      // 2. Execute that regex on the input string, but first remove any whitespace it may contain
+      // 3. RegEx exec returns an array. Grab the second element, which will contain the value.
+      // 4. Split the value to extract individual rgba values
+      const o = /\(([^)]+)\)/.exec(s.replace(/\s/g, ""))[1].split(",");
+      return {
+        r: o[0],
+        g: o[1],
+        b: o[2],
+        a: o[3],
+      };
+    } catch (error) {
+      console.error("RGBA parsing failed: " + error.message);
+    }
+  }
+}
 
 class ToolOptions extends Component {
   constructor() {
@@ -45,6 +86,30 @@ class ToolOptions extends Component {
         visibleAtStart: tool.options.visibleAtStart,
         position: tool.options?.position ?? defaultState.position,
         instruction: tool.options?.instruction ?? defaultState.instruction,
+        listFeatureFillColor:
+          tool.options?.listFeatureFillColor ??
+          defaultState.listFeatureFillColor,
+        listFeatureStrokeColor:
+          tool.options?.listFeatureStrokeColor ??
+          defaultState.listFeatureStrokeColor,
+        selectedListFeatureFillColor:
+          tool.options?.selectedListFeatureFillColor ??
+          defaultState.selectedListFeatureFillColor,
+        selectedListFeatureStrokeColor:
+          tool.options?.selectedListFeatureStrokeColor ??
+          defaultState.selectedListFeatureStrokeColor,
+        unsavedFeatureFillColor:
+          tool.options?.unsavedFeatureFillColor ??
+          defaultState.unsavedFeatureFillColor,
+        unsavedFeatureStrokeColor:
+          tool.options?.unsavedFeatureStrokeColor ??
+          defaultState.unsavedFeatureStrokeColor,
+        editFeatureFillColor:
+          tool.options?.editFeatureFillColor ??
+          defaultState.editFeatureFillColor,
+        editFeatureStrokeColor:
+          tool.options?.editFeatureStrokeColor ??
+          defaultState.editFeatureStrokeColor,
       });
     } else {
       this.setState({
@@ -104,6 +169,15 @@ class ToolOptions extends Component {
         position: this.state.position,
         visibleAtStart: this.state.visibleAtStart,
         instruction: this.state.instruction,
+        listFeatureFillColor: this.state.listFeatureFillColor,
+        listFeatureStrokeColor: this.state.listFeatureStrokeColor,
+        selectedListFeatureFillColor: this.state.selectedListFeatureFillColor,
+        selectedListFeatureStrokeColor:
+          this.state.selectedListFeatureStrokeColor,
+        unsavedFeatureFillColor: this.state.unsavedFeatureFillColor,
+        unsavedFeatureStrokeColor: this.state.unsavedFeatureStrokeColor,
+        editFeatureFillColor: this.state.editFeatureFillColor,
+        editFeatureStrokeColor: this.state.editFeatureStrokeColor,
       },
     };
 
@@ -147,6 +221,10 @@ class ToolOptions extends Component {
       update.call(this);
     }
   }
+
+  handleColorChange = (target, color) => {
+    this.setState({ [target]: RGBA.toString(color.rgb) });
+  };
 
   render() {
     return (
@@ -272,9 +350,127 @@ class ToolOptions extends Component {
           </div>
           <div className="separator">Kartobjekt inställningar</div>
           <div className="separator">Utseende för markerade objekt</div>
+          <span className="pull-left" style={{ marginLeft: "10px" }}>
+            <div>
+              <div>
+                <label className="long-label" htmlFor="listFeatureFillColor">
+                  Fyllnadsfärg
+                </label>
+              </div>
+              <SketchPicker
+                color={RGBA.parse(this.state.listFeatureFillColor)}
+                onChangeComplete={(color) =>
+                  this.handleColorChange("listFeatureFillColor", color)
+                }
+              />
+            </div>
+          </span>
+          <div>
+            <div>
+              <label className="long-label" htmlFor="listFeatureStrokeColor">
+                Ramfärg
+              </label>
+            </div>
+            <SketchPicker
+              color={RGBA.parse(this.state.listFeatureStrokeColor)}
+              onChangeComplete={(color) =>
+                this.handleColorChange("listFeatureStrokeColor", color)
+              }
+            />
+          </div>
           <div className="separator">Utseende för valt markerat objekt</div>
+          <span className="pull-left" style={{ marginLeft: "10px" }}>
+            <div>
+              <div>
+                <label
+                  className="long-label"
+                  htmlFor="selectedListFeatureFillColor"
+                >
+                  Fyllnadsfärg
+                </label>
+              </div>
+              <SketchPicker
+                color={RGBA.parse(this.state.selectedListFeatureFillColor)}
+                onChangeComplete={(color) =>
+                  this.handleColorChange("selectedListFeatureFillColor", color)
+                }
+              />
+            </div>
+          </span>
+          <div>
+            <div>
+              <label
+                className="long-label"
+                htmlFor="selectedListFeatureStrokeColor"
+              >
+                Ramfärg
+              </label>
+            </div>
+            <SketchPicker
+              color={RGBA.parse(this.state.selectedListFeatureStrokeColor)}
+              onChangeComplete={(color) =>
+                this.handleColorChange("selectedListFeatureStrokeColor", color)
+              }
+            />
+          </div>
           <div className="separator">Utseende för ej sparat objekt</div>
+          <span className="pull-left" style={{ marginLeft: "10px" }}>
+            <div>
+              <div>
+                <label className="long-label" htmlFor="unsavedFeatureFillColor">
+                  Fyllnadsfärg
+                </label>
+              </div>
+              <SketchPicker
+                color={RGBA.parse(this.state.unsavedFeatureFillColor)}
+                onChangeComplete={(color) =>
+                  this.handleColorChange("unsavedFeatureFillColor", color)
+                }
+              />
+            </div>
+          </span>
+          <div>
+            <div>
+              <label className="long-label" htmlFor="unsavedFeatureStrokeColor">
+                Ramfärg
+              </label>
+            </div>
+            <SketchPicker
+              color={RGBA.parse(this.state.unsavedFeatureStrokeColor)}
+              onChangeComplete={(color) =>
+                this.handleColorChange("unsavedFeatureStrokeColor", color)
+              }
+            />
+          </div>
           <div className="separator">Utseende för objekt i redigeringsläge</div>
+          <span className="pull-left" style={{ marginLeft: "10px" }}>
+            <div>
+              <div>
+                <label className="long-label" htmlFor="editFeatureFillColor">
+                  Fyllnadsfärg
+                </label>
+              </div>
+              <SketchPicker
+                color={RGBA.parse(this.state.editFeatureFillColor)}
+                onChangeComplete={(color) =>
+                  this.handleColorChange("editFeatureFillColor", color)
+                }
+              />
+            </div>
+          </span>
+          <div>
+            <div>
+              <label className="long-label" htmlFor="editFeatureStrokeColor">
+                Ramfärg
+              </label>
+            </div>
+            <SketchPicker
+              color={RGBA.parse(this.state.editFeatureStrokeColor)}
+              onChangeComplete={(color) =>
+                this.handleColorChange("editFeatureStrokeColor", color)
+              }
+            />
+          </div>
           <div className="separator">KUBB inställningar</div>
           <div className="separator">Övriga inställningar</div>
           <div>

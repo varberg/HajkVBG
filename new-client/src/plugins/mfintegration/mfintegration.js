@@ -15,14 +15,24 @@ const defaultOptions = {
   visibleAtStart: false,
   instruction:
     "Detta verktyg används för att hantera kartobjekt som har en koppling till EDP Vision.",
+  listFeatureFillColor: "rgba(209,226,40,0.8)",
+  listFeatureStrokeColor: "rgba(35,196,61,0.7)",
+  selectedListFeatureFillColor: "rgba(189,16,224,1)",
+  selectedListFeatureStrokeColor: "rgba(245,166,35,1)",
+  unsavedFeatureFillColor: "rgba(139,87,42,1)",
+  unsavedFeatureStrokeColor: "rgba(80,227,194,1)",
+  editFeatureFillColor: "rgba(255,255,255,0.07)",
+  editFeatureStrokeColor: "rgba(74,74,74,0.5)",
 };
+
+const mapStyles = "beans";
 
 class MFIntegration extends React.PureComponent {
   state = {
+    color: null,
     title: this.props.options.title ?? defaultOptions.title,
     description:
       this.props.options.panelDescription ?? defaultOptions.panelDescription,
-    color: null,
   };
 
   static propTypes = {
@@ -32,6 +42,8 @@ class MFIntegration extends React.PureComponent {
   };
 
   constructor(props) {
+    console.log(props.options);
+    console.log(mapStyles);
     super(props);
     this.localObserver = Observer();
     this.globalObserver = props.app.globalObserver;
