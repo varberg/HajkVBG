@@ -1,4 +1,5 @@
-import { click, pointerMove } from "ol/events/condition";
+import { click } from "ol/events/condition";
+import { createMapStyles } from "./MapStyles";
 import Draw from "ol/interaction/Draw";
 import { extend, createEmpty } from "ol/extent";
 import Feature from "ol/Feature";
@@ -10,16 +11,6 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Transform from "./Transformation/Transform";
 import { KUBB } from "./mockdata/mockdataKUBB";
-import {
-  drawCopyStyle,
-  drawNewStyle,
-  drawSearchStyle,
-  highLightStyle,
-  unsavedStyle,
-  editStyle,
-  newSearchStyle,
-  snapStyle,
-} from "./mockdata/mockdataStyle";
 import { wfsConfig } from "./mockdata/mockdataWFS";
 
 class IntegrationModel {
@@ -48,6 +39,7 @@ class IntegrationModel {
 
   #init = () => {
     this.handleWindowOpen();
+    this.mapStyles = createMapStyles(this.options);
     this.#initSearchModelFunctions();
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
@@ -120,29 +112,29 @@ class IntegrationModel {
 
   startDrawCopyPoint = (mode) => {
     this.drawingToolFunctions.copy.source.mode = mode;
-    this.#drawGeometry("copy", "Point", drawCopyStyle());
+    this.#drawGeometry("copy", "Point", this.mapStyles.editFeatureStyle);
   };
 
   startDrawNewPoint = (mode) => {
     this.drawingToolFunctions.new.source.mode = mode;
-    this.#drawGeometry("new", "Point", drawNewStyle());
+    this.#drawGeometry("new", "Point", this.mapStyles.editFeatureStyle);
   };
 
   startDrawNewPolygon = (mode) => {
     this.drawingToolFunctions.new.source.mode = mode;
-    this.#drawGeometry("new", "Polygon", drawNewStyle());
+    this.#drawGeometry("new", "Polygon", this.mapStyles.editFeatureStyle);
   };
 
   startDrawSearchPoint = (mode) => {
     this.removeMapSelect();
     this.drawingToolFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Point", drawSearchStyle());
+    this.#drawGeometry("search", "Point", this.mapStyles.drawSearchStyle);
   };
 
   startDrawSearchPolygon = (mode) => {
     this.removeMapSelect();
     this.drawingToolFunctions.search.source.mode = mode;
-    this.#drawGeometry("search", "Polygon", drawSearchStyle());
+    this.#drawGeometry("search", "Polygon", this.mapStyles.drawSearchStyle);
   };
 
   addSnapInteraction = (mode) => {
@@ -301,7 +293,7 @@ class IntegrationModel {
   #addSearchLayer = () => {
     const searchLayer = this.#createNewVectorLayer(
       this.drawingToolFunctions.search.source,
-      this.#createLayerStyle(drawSearchStyle())
+      this.#createLayerStyle(this.mapStyles.drawSearchStyle)
     );
     this.map.addLayer(searchLayer);
   };
@@ -309,7 +301,7 @@ class IntegrationModel {
   #addNewGeometryLayer = () => {
     const newGeometryLayer = this.#createNewVectorLayer(
       this.drawingToolFunctions.new.source,
-      this.#createLayerStyle(unsavedStyle())
+      this.#createLayerStyle(this.mapStyles.unsavedFeatureStyle)
     );
     this.map.addLayer(newGeometryLayer);
   };
@@ -370,15 +362,15 @@ class IntegrationModel {
     this.editLayers = {
       new: this.#createNewVectorLayer(
         this.editSources.new,
-        this.#createLayerStyle(editStyle())
+        this.#createLayerStyle(this.mapStyles.editFeatureStyle)
       ),
       copy: this.#createNewVectorLayer(
         this.editSources.copy,
-        this.#createLayerStyle(editStyle())
+        this.#createLayerStyle(this.mapStyles.editFeatureStyle)
       ),
       combine: this.#createNewVectorLayer(
         this.editSources.combine,
-        this.#createLayerStyle(editStyle())
+        this.#createLayerStyle(this.mapStyles.editFeatureStyle)
       ),
     };
     this.#addArrayToObject(this.editLayers);
@@ -388,23 +380,23 @@ class IntegrationModel {
     this.snapLayers = {
       realEstate: this.#createNewVectorLayer(
         this.snapSources.realEstate,
-        this.#createLayerStyle(snapStyle())
+        this.#createLayerStyle(this.mapStyles.snapStyle)
       ),
       coordinate: this.#createNewVectorLayer(
         this.snapSources.coordinate,
-        this.#createLayerStyle(snapStyle())
+        this.#createLayerStyle(this.mapStyles.snapStyle)
       ),
       area: this.#createNewVectorLayer(
         this.snapSources.area,
-        this.#createLayerStyle(snapStyle())
+        this.#createLayerStyle(this.mapStyles.snapStyle)
       ),
       survey: this.#createNewVectorLayer(
         this.snapSources.survey,
-        this.#createLayerStyle(snapStyle())
+        this.#createLayerStyle(this.mapStyles.snapStyle)
       ),
       contamination: this.#createNewVectorLayer(
         this.snapSources.contamination,
-        this.#createLayerStyle(snapStyle())
+        this.#createLayerStyle(this.mapStyles.snapStyle)
       ),
     };
     this.#addArrayToObject(this.snapLayers);
@@ -414,23 +406,23 @@ class IntegrationModel {
     this.dataLayers = {
       realEstate: this.#createNewVectorLayer(
         this.dataSources.realEstate,
-        this.#createLayerStyle(newSearchStyle())
+        this.#createLayerStyle(this.mapStyles.listFeatureStyle)
       ),
       coordinate: this.#createNewVectorLayer(
         this.dataSources.coordinate,
-        this.#createLayerStyle(newSearchStyle())
+        this.#createLayerStyle(this.mapStyles.listFeatureStyle)
       ),
       area: this.#createNewVectorLayer(
         this.dataSources.area,
-        this.#createLayerStyle(newSearchStyle())
+        this.#createLayerStyle(this.mapStyles.listFeatureStyle)
       ),
       survey: this.#createNewVectorLayer(
         this.dataSources.survey,
-        this.#createLayerStyle(newSearchStyle())
+        this.#createLayerStyle(this.mapStyles.listFeatureStyle)
       ),
       contamination: this.#createNewVectorLayer(
         this.dataSources.contamination,
-        this.#createLayerStyle(newSearchStyle())
+        this.#createLayerStyle(this.mapStyles.listFeatureStyle)
       ),
     };
     this.#addArrayToObject(this.dataLayers);
@@ -440,19 +432,19 @@ class IntegrationModel {
     this.newLayers = {
       coordinate: this.#createNewVectorLayer(
         this.newSources.coordinate,
-        this.#createLayerStyle(unsavedStyle())
+        this.#createLayerStyle(this.mapStyles.unsavedFeatureStyle)
       ),
       area: this.#createNewVectorLayer(
         this.newSources.area,
-        this.#createLayerStyle(unsavedStyle())
+        this.#createLayerStyle(this.mapStyles.unsavedFeatureStyle)
       ),
       survey: this.#createNewVectorLayer(
         this.newSources.survey,
-        this.#createLayerStyle(unsavedStyle())
+        this.#createLayerStyle(this.mapStyles.unsavedFeatureStyle)
       ),
       contamination: this.#createNewVectorLayer(
         this.newSources.contamination,
-        this.#createLayerStyle(unsavedStyle())
+        this.#createLayerStyle(this.mapStyles.unsavedFeatureStyle)
       ),
     };
     this.#addArrayToObject(this.newLayers);
@@ -474,7 +466,7 @@ class IntegrationModel {
 
     this.highlightLayer = this.#createNewVectorLayer(
       this.highlightSource,
-      this.#createLayerStyle(highLightStyle())
+      this.#createLayerStyle(this.mapStyles.selectedListFeatureStyle)
     );
     this.map.addLayer(this.highlightLayer);
   };
