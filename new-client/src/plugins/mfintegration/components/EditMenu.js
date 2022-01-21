@@ -578,8 +578,6 @@ class EditMenu extends React.PureComponent {
 
   render() {
     const { classes, newEditMode } = this.props;
-
-    //FIXME - change to any layers where not editable, not hardcoded 'realEstate'.
     let editdisabled = this.state.editOpen === false && newEditMode === "none";
 
     return (
