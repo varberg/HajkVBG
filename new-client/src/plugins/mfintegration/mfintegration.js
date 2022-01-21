@@ -15,17 +15,15 @@ const defaultOptions = {
   visibleAtStart: false,
   instruction:
     "Detta verktyg används för att hantera kartobjekt som har en koppling till EDP Vision.",
-  listFeatureFillColor: "rgba(209,226,40,0.8)",
-  listFeatureStrokeColor: "rgba(35,196,61,0.7)",
-  selectedListFeatureFillColor: "rgba(189,16,224,1)",
-  selectedListFeatureStrokeColor: "rgba(245,166,35,1)",
-  unsavedFeatureFillColor: "rgba(139,87,42,1)",
-  unsavedFeatureStrokeColor: "rgba(80,227,194,1)",
-  editFeatureFillColor: "rgba(255,255,255,0.07)",
-  editFeatureStrokeColor: "rgba(74,74,74,0.5)",
+  listFeatureFillColor: "rgba(0,0,255,0.07)",
+  listFeatureStrokeColor: "rgba(0,0,255,0.5)",
+  selectedListFeatureFillColor: "rgba(200,40,255,0.5)",
+  selectedListFeatureStrokeColor: "rgba(200,40,255,1)",
+  unsavedFeatureFillColor: "rgba(100, 220, 50, 0.25)",
+  unsavedFeatureStrokeColor: "rgba(100, 220, 50, 1)",
+  editFeatureFillColor: "rgba(255,0,0,0.07)",
+  editFeatureStrokeColor: "rgba(255,0,0,0.5)",
 };
-
-const mapStyles = "beans";
 
 class MFIntegration extends React.PureComponent {
   state = {
@@ -42,11 +40,10 @@ class MFIntegration extends React.PureComponent {
   };
 
   constructor(props) {
-    console.log(props.options);
-    console.log(mapStyles);
     super(props);
     this.localObserver = Observer();
     this.globalObserver = props.app.globalObserver;
+    this.optionsWithDefaults = this.mapDefaultOptions(props.options);
 
     this.searchModel = new SearchModel({
       localObserver: this.localObserver,
@@ -59,7 +56,7 @@ class MFIntegration extends React.PureComponent {
       app: props.app,
       map: props.map,
       searchModel: this.searchModel,
-      options: this.props.options,
+      options: this.mapDefaultOptions(props.options),
     });
   }
 
@@ -69,6 +66,20 @@ class MFIntegration extends React.PureComponent {
 
   onWindowHide = () => {
     this.model.handleWindowClose();
+  };
+
+  mapDefaultOptions = (options) => {
+    //start with the default options, and then replace any that have an option given in config.So we can later be sure that we have
+    //reasonable default values, and can use props.options without checking everything to see if it exists.
+    let mappedOptions = defaultOptions;
+    let optionsFields = Object.keys(defaultOptions);
+
+    for (const [key, value] of Object.entries(options)) {
+      if (optionsFields.includes(key)) {
+        mappedOptions[key] = value;
+      }
+    }
+    return mappedOptions;
   };
 
   render() {
@@ -90,7 +101,7 @@ class MFIntegration extends React.PureComponent {
         <IntegrationView
           app={this.props.app}
           model={this.model}
-          options={this.props.options}
+          options={this.mapDefaultOptions(this.props.options)}
           localObserver={this.localObserver}
           globalObserver={this.globalObserver}
           title={this.state.title}

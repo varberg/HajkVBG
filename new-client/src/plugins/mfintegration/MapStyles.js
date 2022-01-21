@@ -1,6 +1,7 @@
 //default, non admin configurable style values.
 
 const defaultStrokeWidth = 4;
+const highlightStrokeWidth = 6;
 const defaultCircleRadius = 6;
 const defaultStrokeWithCircle = 2;
 
@@ -43,7 +44,7 @@ const createSelectedListFeatureStyle = (options) => {
   const strokeColor = options.selectedListFeatureStrokeColor;
   const fillColor = options.selectedListFeatureFillColor;
   return {
-    stroke: { color: strokeColor, width: defaultStrokeWidth },
+    stroke: { color: strokeColor, width: highlightStrokeWidth },
     fill: { color: fillColor },
     circle: { radius: defaultCircleRadius, width: defaultStrokeWithCircle },
   };

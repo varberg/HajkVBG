@@ -26,20 +26,20 @@ const defaultState = {
   instruction: "",
 
   //used to style the features that appear in the 'Markerade kartobjekt' list.
-  listFeatureFillColor: "rgba(255,255,255,0.07)",
-  listFeatureStrokeColor: "rgba(74,74,74,0.5)",
+  listFeatureFillColor: "rgba(0,0,255,0.07)",
+  listFeatureStrokeColor: "rgba(0,0,255,0.5)",
 
   //used to style a selected feature, selected from the 'Markerade kartobjekt' list.
-  selectedListFeatureFillColor: "rgba(255,255,255,0.07)",
-  selectedListFeatureStrokeColor: "rgba(74,74,74,0.5)",
+  selectedListFeatureFillColor: "rgba(200,40,255,0.5)",
+  selectedListFeatureStrokeColor: "rgba(200,40,255,1)",
 
   //used to style a created feature, that is not yet saved/imported into EDP Vision.
-  unsavedFeatureFillColor: "rgba(255,255,255,0.07)",
-  unsavedFeatureStrokeColor: "rgba(74,74,74,0.5)",
+  unsavedFeatureFillColor: "rgba(100, 220, 50, 0.25)",
+  unsavedFeatureStrokeColor: "rgba(100, 220, 50, 1)",
 
   //used to style a feature that is currently being edited/created.
-  editFeatureFillColor: "rgba(255,255,255,0.07)",
-  editFeatureStrokeColor: "rgba(74,74,74,0.5)",
+  editFeatureFillColor: "rgba(255,0,0,0.07)",
+  editFeatureStrokeColor: "rgba(255,0,0,0.5)",
 };
 
 class RGBA {
