@@ -1,13 +1,15 @@
+import { click, pointerMove } from "ol/events/condition";
 import Draw from "ol/interaction/Draw";
-import Feature from "ol/Feature";
 import { extend, createEmpty } from "ol/extent";
-import Point from "ol/geom/Point";
-import Snap from "ol/interaction/Snap";
+import Feature from "ol/Feature";
 import { Fill, Stroke, Style, Circle } from "ol/style";
+import Point from "ol/geom/Point";
+import Select from "ol/interaction/Select";
+import Snap from "ol/interaction/Snap";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import { KUBB } from "./mockdata/mockdataKUBB";
 import Transform from "./Transformation/Transform";
+import { KUBB } from "./mockdata/mockdataKUBB";
 import {
   drawCopyStyle,
   drawNewStyle,
@@ -51,6 +53,7 @@ class IntegrationModel {
     this.#initDrawingFunctions();
     this.#addLayers();
     this.#initActiveSource();
+    this.addMapSelection();
   };
 
   #initSnap = (mode) => {
@@ -131,11 +134,13 @@ class IntegrationModel {
   };
 
   startDrawSearchPoint = (mode) => {
+    this.removeMapSelect();
     this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Point", drawSearchStyle());
   };
 
   startDrawSearchPolygon = (mode) => {
+    this.removeMapSelect();
     this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Polygon", drawSearchStyle());
   };
@@ -148,6 +153,27 @@ class IntegrationModel {
     this.map.addInteraction(this.snapInteraction);
   };
 
+  addMapSelection = () => {
+    this.selectInteraction = new Select({
+      condition: click,
+      style: null,
+    });
+    this.map.addInteraction(this.selectInteraction);
+    this.selectInteraction.on("select", (e) => {
+      if (e.selected.length > 0)
+        this.localObserver.publish("mf-geometry-selected-from-map", e.selected);
+      else
+        this.localObserver.publish(
+          "mf-geometry-deselected-from-map",
+          e.deselected
+        );
+    });
+  };
+
+  removeMapSelect = () => {
+    this.map.removeInteraction(this.selectInteraction);
+  };
+
   clearInteractions = () => {
     this.endDraw();
     this.endSnapInteraction();
@@ -157,6 +183,7 @@ class IntegrationModel {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
     this.drawingTool = "none";
+    this.map.addInteraction(this.selectInteraction);
   };
 
   endDrawCopy = () => {
@@ -755,13 +782,7 @@ class IntegrationModel {
     const addItem = !this.#isFeatureHighlighted(item.feature);
     this.#clearSource(this.highlightSource);
 
-    if (addItem) {
-      this.highlightSource.addFeature(item.feature);
-      this.#zoomToSource(this.highlightSource);
-      return;
-    }
-
-    this.#zoomToSource(this.activeSource);
+    if (addItem) this.highlightSource.addFeature(item.feature);
   };
 
   #isFeatureHighlighted = (feature) => {

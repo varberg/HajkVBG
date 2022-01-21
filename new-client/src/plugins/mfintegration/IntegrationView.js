@@ -104,6 +104,18 @@ class IntegrationView extends React.PureComponent {
       this.#clearAllInteractions();
       this.#clearMode();
     });
+    this.localObserver.subscribe(
+      "mf-geometry-selected-from-map",
+      (features) => {
+        this.#geometrySelectededInMap(features);
+      }
+    );
+    this.localObserver.subscribe(
+      "mf-geometry-deselected-from-map",
+      (features) => {
+        this.#geometryDeselectedInMap(features);
+      }
+    );
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
@@ -117,17 +129,7 @@ class IntegrationView extends React.PureComponent {
       this.newGeometryFunctions[this.state.mode]();
     });
     this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
-      if (status.saveGeometry) {
-        this.#addNewItemToList(this.newFeature);
-        this.#addNewItemToSource(this.newFeature);
-        this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
-      }
-      if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
-
-      this.newFeature = null;
-      const drawType =
-        this.drawTypes[status.editMode][this.state.mode] + status.editMode;
-      this.drawFunctions[drawType].end();
+      this.#newGeometryFinished(status);
     });
 
     this.localObserver.subscribe("mf-edit-supportLayer", (editTarget) => {
@@ -321,6 +323,29 @@ class IntegrationView extends React.PureComponent {
   #removeOldEditItemFromSource = (data, editMode) => {
     const feature = data?.features[0];
     this.props.model.removeFeatureFromEditSource(feature, editMode);
+  };
+
+  #geometrySelectededInMap = (features) => {
+    this.#clickRowFromMapInteraction(features);
+  };
+
+  #geometryDeselectedInMap = (features) => {
+    this.#clickRowFromMapInteraction(features);
+  };
+
+  #clickRowFromMapInteraction = (features) => {
+    const selectedFeature = features[0];
+    let featuresInList = { ...this.state.currentListResults[this.state.mode] };
+    this.#addArrayToObject(featuresInList);
+
+    const clickedFeature = featuresInList.array.filter((listFeature) => {
+      if (selectedFeature.ol_uid === listFeature.feature.ol_uid)
+        return listFeature;
+      return false;
+    });
+
+    if (clickedFeature.length === 0) return;
+    this.#clickRow(clickedFeature[0], this.state.mode);
   };
 
   #updateList = (props) => {
@@ -517,6 +542,20 @@ class IntegrationView extends React.PureComponent {
         contamination: contaminationData,
       },
     });
+  };
+
+  #newGeometryFinished = (status) => {
+    if (status.saveGeometry) {
+      this.#addNewItemToList(this.newFeature);
+      this.#addNewItemToSource(this.newFeature);
+      this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
+    }
+    if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
+
+    this.newFeature = null;
+    const drawType =
+      this.drawTypes[status.editMode][this.state.mode] + status.editMode;
+    this.drawFunctions[drawType].end();
   };
 
   #toggleMode = (mode) => {
