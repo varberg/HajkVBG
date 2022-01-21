@@ -565,7 +565,7 @@
         "panelDescription": "Integrera med EDP",
         "target": "control",
         "position": "right",
-        "visibleAtStart": false,
+        "visibleAtStart": true,
         "instruction": "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.",
         "listFeatureFillColor": "rgba(0,0,255,0.07)",
         "listFeatureStrokeColor": "rgba(0,0,255,0.5)",
