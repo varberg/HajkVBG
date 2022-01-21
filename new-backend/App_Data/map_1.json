@@ -567,15 +567,16 @@
         "position": "right",
         "visibleAtStart": false,
         "instruction": "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.",
-        "listFeatureFillColor": "rgba(209,226,40,0.8)",
-        "listFeatureStrokeColor": "rgba(35,196,61,0.7)",
-        "selectedListFeatureFillColor": "rgba(189,16,224,1)",
-        "selectedListFeatureStrokeColor": "rgba(245,166,35,1)",
-        "unsavedFeatureFillColor": "rgba(139,87,42,1)",
-        "unsavedFeatureStrokeColor": "rgba(80,227,194,1)",
-        "editFeatureFillColor": "rgba(255,201,14,0.5)",
-        "editFeatureStrokeColor": "rgba(255,201,14,0.5)"
-      }
+        "listFeatureFillColor": "rgba(0,0,255,0.07)",
+        "listFeatureStrokeColor": "rgba(0,0,255,0.5)",
+        "selectedListFeatureFillColor": "rgba(200,40,255,0.5)",
+        "selectedListFeatureStrokeColor": "rgba(200,40,255,1)",
+        "unsavedFeatureFillColor": "rgba(100, 220, 50, 0.25)",
+        "unsavedFeatureStrokeColor": "rgba(100, 220, 50, 1)",
+        "editFeatureFillColor": "rgba(255,0,0,0.07)",
+        "editFeatureStrokeColor": "rgba(255,0,0,0.5)"
+      },
+      "visibleAtStart": true
     }
   ],
   "map": {

@@ -555,6 +555,8 @@ class IntegrationView extends React.PureComponent {
   };
 
   #toggleMode = (mode) => {
+    console.log("toggleMode");
+    //debugger;
     this.#unselectAllFeatures(this.state.mode);
     this.#hideDrawingSupport(this.drawingSupportLayerNames[this.state.mode]);
     this.setState({
@@ -587,6 +589,14 @@ class IntegrationView extends React.PureComponent {
 
     updateList[mode] = updatedResults;
     this.setState({ currentListResults: updateList });
+  };
+
+  #zoomFeatureInOrOut = (clickedItem) => {
+    if (!this.zoomedIn) {
+      this.model.zoomToFeature(clickedItem.feature);
+      this.zoomedIn = true;
+      return;
+    }
   };
 
   #removeFromResults = (item, mode) => {
@@ -880,6 +890,9 @@ class IntegrationView extends React.PureComponent {
                       listMode={mode}
                       handleClickItem={(clickedItem, mode) => {
                         this.#clickRow(clickedItem, mode);
+                      }}
+                      handledZoomItem={(clickedItem) => {
+                        this.#zoomFeatureInOrOut(clickedItem);
                       }}
                       handleRemoveItem={(item, mode) => {
                         this.#removeFromResults(item, mode);
