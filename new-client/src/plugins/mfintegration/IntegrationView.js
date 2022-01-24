@@ -51,10 +51,6 @@ const defaultState = {
 
 const showDevelopmentOnlyButtons = true;
 
-//TODO - Move this out to config.
-const informationText =
-  "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.";
-
 //TODO - move this? where to place constant information on the different modes - the model?
 const modeDisplay = {
   realEstate: {
@@ -102,6 +98,10 @@ class IntegrationView extends React.PureComponent {
       this.#clearDrawingSupport();
       this.#clearAllDataSources();
       this.#clearAllInteractions();
+      this.#clearMode();
+    });
+    this.localObserver.subscribe("mf-geometry-selected-from-map", (feature) => {
+      this.#clickRowFromMapInteraction(feature);
     });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
@@ -116,17 +116,7 @@ class IntegrationView extends React.PureComponent {
       this.newGeometryFunctions[this.state.mode]();
     });
     this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
-      if (status.saveGeometry) {
-        this.#addNewItemToList(this.newFeature);
-        this.#addNewItemToSource(this.newFeature);
-        this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
-      }
-      if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
-
-      this.newFeature = null;
-      const drawType =
-        this.drawTypes[status.editMode][this.state.mode] + status.editMode;
-      this.drawFunctions[drawType].end();
+      this.#newGeometryFinished(status);
     });
 
     this.localObserver.subscribe("mf-edit-supportLayer", (editTarget) => {
@@ -153,6 +143,8 @@ class IntegrationView extends React.PureComponent {
     this.#initUpdateEditToolsFunctions();
     this.#initDrawTypes();
     this.#initPublishDefaultMode();
+    if (this.app.plugins.mfintegration?.options?.visibleAtStart)
+      this.#initDrawingSupport();
   };
 
   #initUpdateFunctions = () => {
@@ -239,14 +231,14 @@ class IntegrationView extends React.PureComponent {
   #initDrawTypes = () => {
     this.drawTypes = {
       copy: {
-        realEstate: "point",
+        realEstate: "none",
         coordinate: "point",
         area: "point",
         survey: "point",
         contamination: "point",
       },
       new: {
-        realEstate: "polygon",
+        realEstate: "none",
         coordinate: "point",
         area: "polygon",
         survey: "polygon",
@@ -264,15 +256,17 @@ class IntegrationView extends React.PureComponent {
   };
 
   #showDrawingSupport = (layerId) => {
-    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
-    if (drawingSupportLayers.length > 0)
-      drawingSupportLayers[0].setVisible(true);
+    this.#showOrHideDrawingSupport(layerId, true);
   };
 
   #hideDrawingSupport = (layerId) => {
-    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
-    if (drawingSupportLayers.length > 0)
-      drawingSupportLayers[0].setVisible(false);
+    this.#showOrHideDrawingSupport(layerId, false);
+  };
+
+  #showOrHideDrawingSupport = (layerId, visible) => {
+    const foundDrawingSupportLayer =
+      this.#getDrawingSupportLayer(layerId).shift();
+    if (foundDrawingSupportLayer) foundDrawingSupportLayer.setVisible(visible);
   };
 
   #clearDrawingSupport = () => {
@@ -287,6 +281,10 @@ class IntegrationView extends React.PureComponent {
 
   #clearAllInteractions = () => {
     this.props.model.clearInteractions();
+  };
+
+  #clearMode = () => {
+    this.setState({ mode: defaultState.mode });
   };
 
   #getDrawingSupportLayer = (layerId) => {
@@ -314,6 +312,22 @@ class IntegrationView extends React.PureComponent {
   #removeOldEditItemFromSource = (data, editMode) => {
     const feature = data?.features[0];
     this.props.model.removeFeatureFromEditSource(feature, editMode);
+  };
+
+  #clickRowFromMapInteraction = (selectedFeature) => {
+    let featuresInList = { ...this.state.currentListResults[this.state.mode] };
+    this.#addArrayToObject(featuresInList);
+
+    const clickedFeature = featuresInList.array
+      .filter((listFeature) => {
+        if (selectedFeature.ol_uid === listFeature.feature.ol_uid)
+          return listFeature;
+        return false;
+      })
+      .shift();
+
+    this.#clickedRowFromMap(clickedFeature);
+    this.#clickRow(clickedFeature, this.state.mode);
   };
 
   #updateList = (props) => {
@@ -512,6 +526,20 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #newGeometryFinished = (status) => {
+    if (status.saveGeometry) {
+      this.#addNewItemToList(this.newFeature);
+      this.#addNewItemToSource(this.newFeature);
+      this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
+    }
+    if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
+
+    this.newFeature = null;
+    const drawType =
+      this.drawTypes[status.editMode][this.state.mode] + status.editMode;
+    this.drawFunctions[drawType].end();
+  };
+
   #toggleMode = (mode) => {
     this.#unselectAllFeatures(this.state.mode);
     this.#hideDrawingSupport(this.drawingSupportLayerNames[this.state.mode]);
@@ -527,6 +555,16 @@ class IntegrationView extends React.PureComponent {
       feature.selected = false;
       return null;
     });
+  };
+
+  #clickedRowFromList = (clickedFeature) => {
+    clickedFeature.selectedFromList = true;
+    clickedFeature.selectedFromMap = false;
+  };
+
+  #clickedRowFromMap = (clickedFeature) => {
+    clickedFeature.selectedFromList = false;
+    clickedFeature.selectedFromMap = true;
   };
 
   #clickRow = (clickedItem, mode) => {
@@ -545,6 +583,14 @@ class IntegrationView extends React.PureComponent {
 
     updateList[mode] = updatedResults;
     this.setState({ currentListResults: updateList });
+  };
+
+  #zoomFeatureInOrOut = (clickedItem) => {
+    if (!this.zoomedIn) {
+      this.model.zoomToFeature(clickedItem.feature);
+      this.zoomedIn = true;
+      return;
+    }
   };
 
   #removeFromResults = (item, mode) => {
@@ -672,6 +718,8 @@ class IntegrationView extends React.PureComponent {
         model={this.props.model}
         localObserver={this.localObserver}
         layerMode={this.state.mode}
+        copyEditMode={this.drawTypes.new[this.state.mode]}
+        newEditMode={this.drawTypes.new[this.state.mode]}
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}
         handleUpdateEditOpen={(open) => {
           this.setState({ editOpen: open });
@@ -786,13 +834,13 @@ class IntegrationView extends React.PureComponent {
   }
 
   render() {
-    const { classes } = this.props;
+    const { classes, options } = this.props;
     const { mode } = this.state;
     return (
       <Container disableGutters>
         <Grid container spacing={(1, 1)}>
           <Grid item xs={12}>
-            <Typography paragraph>{informationText}</Typography>
+            <Typography paragraph>{options.instruction}</Typography>
           </Grid>
           <Grid item xs={12}>
             <FormControl className={classes.dropdown}>
@@ -835,7 +883,11 @@ class IntegrationView extends React.PureComponent {
                       item={item}
                       listMode={mode}
                       handleClickItem={(clickedItem, mode) => {
+                        this.#clickedRowFromList(clickedItem);
                         this.#clickRow(clickedItem, mode);
+                      }}
+                      handledZoomItem={(clickedItem) => {
+                        this.#zoomFeatureInOrOut(clickedItem);
                       }}
                       handleRemoveItem={(item, mode) => {
                         this.#removeFromResults(item, mode);

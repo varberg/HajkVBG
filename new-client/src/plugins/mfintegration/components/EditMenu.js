@@ -140,7 +140,9 @@ class EditMenu extends React.PureComponent {
   };
 
   renderStepOne = () => {
-    const { classes, localObserver } = this.props;
+    const { classes, copyEditMode, localObserver } = this.props;
+    const disableCopy = copyEditMode === "point";
+    const disableCombine = copyEditMode === "point";
     return (
       <Grid container item xs={12}>
         <ButtonGroup style={{ width: "100%" }}>
@@ -163,6 +165,7 @@ class EditMenu extends React.PureComponent {
           </Tooltip>
           <Tooltip title="Kopiera befintlig objekt">
             <Button
+              disabled={disableCopy}
               className={classes.stepButtonGroup}
               aria-label="Kopiera befintlig objekt"
               onClick={() => {
@@ -177,6 +180,7 @@ class EditMenu extends React.PureComponent {
           </Tooltip>
           <Tooltip title="Kombinera befintliga objekt">
             <Button
+              disabled={disableCombine}
               className={classes.stepButtonGroup}
               aria-label="Kombinera befintliga objekt"
               onClick={() => {
@@ -506,6 +510,7 @@ class EditMenu extends React.PureComponent {
                   this.setState({ changeEditMode: newValue }, () => {
                     handleUpdateEditToolsMode(newValue, this.state.editMode);
                   });
+                  this.setState({ isNewEdit: false });
                 }}
               >
                 <DeleteIcon size="small" />
@@ -543,7 +548,7 @@ class EditMenu extends React.PureComponent {
               <Button
                 className={classes.stepButtonGroup}
                 onClick={() => {
-                  this.#resetEditMenu(false);
+                  this.#resetEditMenu(true);
                 }}
               >
                 Avsluta
@@ -572,11 +577,8 @@ class EditMenu extends React.PureComponent {
   }
 
   render() {
-    const { classes } = this.props;
-
-    //FIXME - change to any layers where not editable, not hardcoded 'realEstate'.
-    let editdisabled =
-      this.state.editOpen === false && this.props.layerMode === "realEstate";
+    const { classes, newEditMode } = this.props;
+    let editdisabled = this.state.editOpen === false && newEditMode === "none";
 
     return (
       <Grid item container xs={12}>

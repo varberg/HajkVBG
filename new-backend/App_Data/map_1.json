@@ -559,12 +559,24 @@
     },
     {
       "type": "mfintegration",
+      "index": 6,
       "options": {
+        "title": "EDP integration",
+        "panelDescription": "Integrera med EDP",
         "target": "control",
         "position": "right",
-        "visibleAtStart": false
+        "visibleAtStart": true,
+        "instruction": "Detta verktyg används för att hantera kartobjekt som har en koppling till verksamhetssystemets poster för exempelvis tillsyn/kontroll och förorenade områden.",
+        "listFeatureFillColor": "rgba(0,0,255,0.07)",
+        "listFeatureStrokeColor": "rgba(0,0,255,0.5)",
+        "selectedListFeatureFillColor": "rgba(200,40,255,0.5)",
+        "selectedListFeatureStrokeColor": "rgba(200,40,255,1)",
+        "unsavedFeatureFillColor": "rgba(100, 220, 50, 0.25)",
+        "unsavedFeatureStrokeColor": "rgba(100, 220, 50, 1)",
+        "editFeatureFillColor": "rgba(255,0,0,0.07)",
+        "editFeatureStrokeColor": "rgba(255,0,0,0.5)"
       },
-      "index": 6
+      "visibleAtStart": true
     }
   ],
   "map": {
