@@ -151,15 +151,34 @@ class IntegrationModel {
       style: null,
     });
     this.map.addInteraction(this.selectInteraction);
-    this.selectInteraction.on("select", (e) => {
-      if (e.selected.length > 0)
-        this.localObserver.publish("mf-geometry-selected-from-map", e.selected);
-      else
-        this.localObserver.publish(
-          "mf-geometry-deselected-from-map",
-          e.deselected
-        );
-    });
+    this.selectInteraction.on("select", this.#selectClick);
+    this.map.on("singleclick", this.#selectSingleClick);
+  };
+
+  #selectClick = (e) => {
+    const selectedFeature = e.selected[0];
+    this.localObserver.publish(
+      "mf-geometry-selected-from-map",
+      selectedFeature
+    );
+    this.selectedFeatureFromMap = selectedFeature;
+    this.selectInteraction.getFeatures().clear();
+  };
+
+  #selectSingleClick = (e) => {
+    const selectedFeature = this.map.forEachFeatureAtPixel(
+      e.pixel,
+      (feature) => {
+        return feature;
+      }
+    );
+    if (this.selectedFeatureFromMap && !selectedFeature) {
+      this.localObserver.publish(
+        "mf-geometry-selected-from-map",
+        this.selectedFeatureFromMap
+      );
+      this.selectedFeatureFromMap = null;
+    }
   };
 
   removeMapSelect = () => {
@@ -717,10 +736,12 @@ class IntegrationModel {
     this.#addFeaturesToSource(source, data);
     const presentFeatures = source.getFeatures();
 
-    const newFeature = presentFeatures.filter((feature) => {
-      return previousFeatures.indexOf(feature) === -1;
-    });
-    this.localObserver.publish("mf-new-feature-pending", newFeature[0]);
+    const newFeature = presentFeatures
+      .filter((feature) => {
+        return previousFeatures.indexOf(feature) === -1;
+      })
+      .shift();
+    this.localObserver.publish("mf-new-feature-pending", newFeature);
   };
 
   #snapWfsSearch = (data) => {
@@ -774,7 +795,10 @@ class IntegrationModel {
     const addItem = !this.#isFeatureHighlighted(item.feature);
     this.#clearSource(this.highlightSource);
 
-    if (addItem) this.highlightSource.addFeature(item.feature);
+    if (addItem) {
+      this.highlightSource.addFeature(item.feature);
+      this.selectedFeatureFromMap = item.feature;
+    } else this.selectedFeatureFromMap = null;
   };
 
   #isFeatureHighlighted = (feature) => {

@@ -100,18 +100,9 @@ class IntegrationView extends React.PureComponent {
       this.#clearAllInteractions();
       this.#clearMode();
     });
-    this.localObserver.subscribe(
-      "mf-geometry-selected-from-map",
-      (features) => {
-        this.#geometrySelectededInMap(features);
-      }
-    );
-    this.localObserver.subscribe(
-      "mf-geometry-deselected-from-map",
-      (features) => {
-        this.#geometryDeselectedInMap(features);
-      }
-    );
+    this.localObserver.subscribe("mf-geometry-selected-from-map", (feature) => {
+      this.#clickRowFromMapInteraction(feature);
+    });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
@@ -265,15 +256,17 @@ class IntegrationView extends React.PureComponent {
   };
 
   #showDrawingSupport = (layerId) => {
-    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
-    if (drawingSupportLayers.length > 0)
-      drawingSupportLayers[0].setVisible(true);
+    this.#showOrHideDrawingSupport(layerId, true);
   };
 
   #hideDrawingSupport = (layerId) => {
-    const drawingSupportLayers = this.#getDrawingSupportLayer(layerId);
-    if (drawingSupportLayers.length > 0)
-      drawingSupportLayers[0].setVisible(false);
+    this.#showOrHideDrawingSupport(layerId, false);
+  };
+
+  #showOrHideDrawingSupport = (layerId, visible) => {
+    const foundDrawingSupportLayer =
+      this.#getDrawingSupportLayer(layerId).shift();
+    if (foundDrawingSupportLayer) foundDrawingSupportLayer.setVisible(visible);
   };
 
   #clearDrawingSupport = () => {
@@ -321,27 +314,20 @@ class IntegrationView extends React.PureComponent {
     this.props.model.removeFeatureFromEditSource(feature, editMode);
   };
 
-  #geometrySelectededInMap = (features) => {
-    this.#clickRowFromMapInteraction(features);
-  };
-
-  #geometryDeselectedInMap = (features) => {
-    this.#clickRowFromMapInteraction(features);
-  };
-
-  #clickRowFromMapInteraction = (features) => {
-    const selectedFeature = features[0];
+  #clickRowFromMapInteraction = (selectedFeature) => {
     let featuresInList = { ...this.state.currentListResults[this.state.mode] };
     this.#addArrayToObject(featuresInList);
 
-    const clickedFeature = featuresInList.array.filter((listFeature) => {
-      if (selectedFeature.ol_uid === listFeature.feature.ol_uid)
-        return listFeature;
-      return false;
-    });
+    const clickedFeature = featuresInList.array
+      .filter((listFeature) => {
+        if (selectedFeature.ol_uid === listFeature.feature.ol_uid)
+          return listFeature;
+        return false;
+      })
+      .shift();
 
-    if (clickedFeature.length === 0) return;
-    this.#clickRow(clickedFeature[0], this.state.mode);
+    this.#clickedRowFromMap(clickedFeature);
+    this.#clickRow(clickedFeature, this.state.mode);
   };
 
   #updateList = (props) => {
@@ -555,8 +541,6 @@ class IntegrationView extends React.PureComponent {
   };
 
   #toggleMode = (mode) => {
-    console.log("toggleMode");
-    //debugger;
     this.#unselectAllFeatures(this.state.mode);
     this.#hideDrawingSupport(this.drawingSupportLayerNames[this.state.mode]);
     this.setState({
@@ -571,6 +555,16 @@ class IntegrationView extends React.PureComponent {
       feature.selected = false;
       return null;
     });
+  };
+
+  #clickedRowFromList = (clickedFeature) => {
+    clickedFeature.selectedFromList = true;
+    clickedFeature.selectedFromMap = false;
+  };
+
+  #clickedRowFromMap = (clickedFeature) => {
+    clickedFeature.selectedFromList = false;
+    clickedFeature.selectedFromMap = true;
   };
 
   #clickRow = (clickedItem, mode) => {
@@ -889,6 +883,7 @@ class IntegrationView extends React.PureComponent {
                       item={item}
                       listMode={mode}
                       handleClickItem={(clickedItem, mode) => {
+                        this.#clickedRowFromList(clickedItem);
                         this.#clickRow(clickedItem, mode);
                       }}
                       handledZoomItem={(clickedItem) => {
