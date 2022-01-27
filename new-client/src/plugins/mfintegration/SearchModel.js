@@ -2,7 +2,6 @@ import { intersects, or as Or, equalTo as EqualTo } from "ol/format/filter";
 import { hfetch } from "utils/FetchWrapper";
 import { WFS } from "ol/format";
 import Transform from "./Transformation/Transform";
-import { wfsConfig } from "./mockdata/mockdataWFS";
 
 export default class SearchModel {
   /**
@@ -12,13 +11,15 @@ export default class SearchModel {
   constructor(settings) {
     this.map = settings.map;
     this.app = settings.app;
+    this.options = settings.options;
     this.localObserver = settings.localObserver;
 
-    this.wfsConfigRealEstate = wfsConfig().realEstate;
-    this.wfsConfigCoordinates = wfsConfig().coordinate;
-    this.wfsConfigAreas = wfsConfig().area;
-    this.wfsConfigSurvey = wfsConfig().survey;
-    this.wfsConfigContamination = wfsConfig().contamination;
+    this.wfsConfigRealEstate = this.options.mapObjects.realEstate.wfsLayer;
+    this.wfsConfigCoordinates = this.options.mapObjects.coordinate.wfsLayer;
+    this.wfsConfigAreas = this.options.mapObjects.area.wfsLayer;
+    this.wfsConfigSurvey = this.options.mapObjects.survey.wfsLayer;
+    this.wfsConfigContamination =
+      this.options.mapObjects.contamination.wfsLayer;
   }
 
   findRealEstatesWithGeometry = (selectionFeature) => {
@@ -69,6 +70,7 @@ export default class SearchModel {
   findCoordinatesWithGeometry = (selectionFeature) => {};
 
   findCoordinatesWithCoordinates = (coordinateList) => {
+    let wfsConfig = this.options.mapObjects.coordinate.wfsLayer;
     /*** Lägg till en wfs-sökning här ***/
     // const filter
     // const wfsRequest
@@ -81,7 +83,7 @@ export default class SearchModel {
           coordinates: [coordinate.Easting, coordinate.Northing],
         },
         id: "koordinat." + ++id,
-        geometry_name: this.wfsConfigCoordinates.geometryName,
+        geometry_name: "geom",
         properties: { label: coordinate.Label },
         type: "Feature",
       };
@@ -90,8 +92,8 @@ export default class SearchModel {
 
     let answer = this.#createResponse(
       simulatedFeatureCollection,
-      this.wfsConfigCoordinates.geometryField,
-      this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
+      wfsConfig.geometryField,
+      this.#getTransformationWfsToMap(wfsConfig),
       "List"
     );
     answer.selectedCoordinates = coordinateList;
@@ -103,6 +105,7 @@ export default class SearchModel {
 
   // Skall vara ett nummer, men är en koordinat i vår testkod
   findAreasWithNumbers = (areaList) => {
+    let wfsConfig = this.options.mapObjects.area.wfsLayer;
     /*** Lägg till en wfs-sökning här ***/
     // const filter
     // const wfsRequest
@@ -115,7 +118,7 @@ export default class SearchModel {
           coordinates: areaList.coordinates,
         },
         id: "område." + ++id,
-        geometry_name: this.wfsConfigAreas.geometryName,
+        geometry_name: wfsConfig.geometryName,
         properties: { saknas: "-", omrade: areaList.name },
         type: "Feature",
       },
@@ -125,8 +128,8 @@ export default class SearchModel {
 
     let answer = this.#createResponse(
       simulatedFeatureCollection,
-      this.wfsConfigCoordinates.geometryField,
-      this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
+      wfsConfig.geometryField,
+      this.#getTransformationWfsToMap(wfsConfig),
       "List"
     );
     answer.selectedCoordinates = areaList;
@@ -137,6 +140,7 @@ export default class SearchModel {
   findSurveysWithGeometry = (selectionFeature) => {};
 
   findSurveysWithNumbers = (surveyList) => {
+    let wfsConfig = this.options.mapObjects.survey.wfsLayer;
     /*** Lägg till en wfs-sökning här ***/
     // const filter
     // const wfsRequest
@@ -149,7 +153,7 @@ export default class SearchModel {
           coordinates: surveyList.coordinates,
         },
         id: "område." + ++id,
-        geometry_name: this.wfsConfigAreas.geometryName,
+        geometry_name: wfsConfig.geometryName,
         properties: { saknas: "-", omrade: surveyList.name },
         type: "Feature",
       },
@@ -159,8 +163,8 @@ export default class SearchModel {
 
     let answer = this.#createResponse(
       simulatedFeatureCollection,
-      this.wfsConfigCoordinates.geometryField,
-      this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
+      wfsConfig.geometryField,
+      this.#getTransformationWfsToMap(wfsConfig),
       "List"
     );
     answer.selectedCoordinates = surveyList;
@@ -171,6 +175,7 @@ export default class SearchModel {
   findContaminationsWithGeometry = (selectionFeature) => {};
 
   findContaminationsWithNumbers = (contaminationList) => {
+    let wfsConfig = this.options.mapObjects.contamination.wfsLayer;
     /*** Lägg till en wfs-sökning här ***/
     // const filter
     // const wfsRequest
@@ -183,7 +188,7 @@ export default class SearchModel {
           coordinates: contaminationList.coordinates,
         },
         id: "område." + ++id,
-        geometry_name: this.wfsConfigAreas.geometryName,
+        geometry_name: wfsConfig.geometryName,
         properties: { saknas: "-", omrade: contaminationList.name },
         type: "Feature",
       },
@@ -193,8 +198,8 @@ export default class SearchModel {
 
     let answer = this.#createResponse(
       simulatedFeatureCollection,
-      this.wfsConfigCoordinates.geometryField,
-      this.#getTransformationWfsToMap(this.wfsConfigCoordinates),
+      wfsConfig.geometryField,
+      this.#getTransformationWfsToMap(wfsConfig),
       "List"
     );
     answer.selectedCoordinates = contaminationList;

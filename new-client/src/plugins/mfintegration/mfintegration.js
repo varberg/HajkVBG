@@ -52,11 +52,13 @@ class MFIntegration extends React.PureComponent {
     this.optionsWithDefaults.mapObjects = initModeConfig(
       props.options.mapObjects
     );
+    this.#createWfsConfig(this.optionsWithDefaults);
 
     this.searchModel = new SearchModel({
       localObserver: this.localObserver,
       app: props.app,
       map: props.map,
+      options: this.optionsWithDefaults,
     });
 
     this.model = new IntegrationModel({
@@ -88,6 +90,37 @@ class MFIntegration extends React.PureComponent {
       }
     }
     return mappedOptions;
+  };
+
+  #createWfsConfig = (options) => {
+    Object.keys(options.mapObjects).forEach((key) => {
+      let layerInfo = this.#getWfsLayerInfoFromId(options.mapObjects[key]);
+      options.mapObjects[key].wfsLayer = layerInfo;
+    });
+  };
+
+  #getWfsLayerInfoFromId = (mapObject) => {
+    let layerInfo = {
+      featureTypes: null,
+      srsName: "EPSG:3007",
+      url: null,
+      geometryField: null,
+      geometryName: "geom",
+    };
+
+    let layer = this.props.app.config.layersConfig.find(
+      (layer) => layer.id === mapObject.wfsId
+    );
+    if (layer) {
+      layerInfo = {
+        featureTypes: [layer.layer],
+        srsName: layer.projection,
+        url: layer.url,
+        geometryField: mapObject.wfsSearchField,
+        geometryName: mapObject.wfsGeom || "geom",
+      };
+    }
+    return layerInfo;
   };
 
   render() {

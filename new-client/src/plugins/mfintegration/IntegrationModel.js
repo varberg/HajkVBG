@@ -32,31 +32,6 @@ class IntegrationModel {
     return wmsConfig;
   };
 
-  #createWfsConfig = (options) => {
-    Object.keys(options.mapObjects).forEach((key) => {
-      let layerInfo = this.#getWfsLayerInfoFromId(options.mapObjects[key]);
-      options.mapObjects[key].wfsLayer = layerInfo;
-    });
-  };
-
-  #getWfsLayerInfoFromId = (mapObject) => {
-    let answer = null;
-    let layer = this.app.config.layersConfig.find(
-      (layer) => layer.id === mapObject.wfsId
-    );
-
-    if (layer) {
-      answer = {
-        featureTypes: [layer.layer],
-        srsName: layer.projection,
-        url: layer.url,
-        geometryField: mapObject.wfsSearchField,
-        geometryName: mapObject.wfsGeom || "geom",
-      };
-    }
-    return answer;
-  };
-
   #bindSubscriptions = () => {
     this.localObserver.subscribe("mf-wfs-search", (data) => {
       this.#handleWfsSearch(data);
@@ -73,7 +48,6 @@ class IntegrationModel {
     this.handleWindowOpen();
     this.mapStyles = createMapStyles(this.options);
     this.wmsConfig = this.#createWmsConfig(this.options);
-    this.#createWfsConfig(this.options);
     this.#initSearchModelFunctions();
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
