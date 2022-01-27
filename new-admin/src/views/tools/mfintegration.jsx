@@ -24,7 +24,14 @@ const defaultState = {
   visibleAtStart: false,
   position: "right",
   instruction: "",
-
+  mapObjects: {
+    realEstate: {
+      wfsId: "",
+      wmsId: "",
+      activateWms: true,
+      editable: false,
+    },
+  },
   //used to style the features that appear in the 'Markerade kartobjekt' list.
   listFeatureFillColor: "rgba(0,0,255,0.07)",
   listFeatureStrokeColor: "rgba(0,0,255,0.5)",
@@ -40,6 +47,9 @@ const defaultState = {
   //used to style a feature that is currently being edited/created.
   editFeatureFillColor: "rgba(255,0,0,0.07)",
   editFeatureStrokeColor: "rgba(255,0,0,0.5)",
+
+  //local state, not saved to config.
+  searchableLayers: {},
 };
 
 class RGBA {
@@ -76,6 +86,7 @@ class ToolOptions extends Component {
   componentDidMount() {
     const tool = this.getTool();
     if (tool) {
+      this.loadAvailableVectorLayers();
       this.setState({
         active: true,
         index: tool.index,
@@ -110,12 +121,40 @@ class ToolOptions extends Component {
         editFeatureStrokeColor:
           tool.options?.editFeatureStrokeColor ??
           defaultState.editFeatureStrokeColor,
+        mapObjects: tool.options?.mapObjects ?? defaultState.mapObjects,
       });
     } else {
       this.setState({
         active: false,
       });
     }
+  }
+
+  loadAvailableVectorLayers() {
+    console.log("loadAvailableVectorLayers");
+    this.props.model.getConfig(
+      this.props.model.get("config").url_layers,
+      (layers) => {
+        let wmslayers = layers.wmslayers.filter((l) =>
+          this.props.model.findLayerInConfig(l.id)
+        );
+        let wfslayers = layers.wfslayers;
+        let vectorlayers = layers.vectorlayers;
+
+        /*filter out only the layers that are available in this map configuration.*/
+        // let configWfslayers = wfslayers.filter((l) => {
+        //   return this.props.model.findLayerInConfig(l.id) === true;
+        // });
+
+        this.setState({
+          availableVectorLayers: wfslayers,
+          availableWmsLayers: wmslayers,
+        });
+      }
+    );
+
+    let inConfig = this.props.model.findLayerInConfig("beans");
+    console.log("isinconfig", inConfig);
   }
 
   handleInputChange(event) {
@@ -130,6 +169,20 @@ class ToolOptions extends Component {
       [name]: value,
     });
   }
+
+  //update t.ex. "realEstateSettings"
+  handleMapObjectChange = (modeName, stateName, value) => {
+    //debugger;
+    let currentMapObjectState = { ...this.state.mapObjects };
+    let currentModeState = { ...this.state.mapObjects[modeName] };
+
+    currentModeState[stateName] = value;
+    this.setState({
+      mapObjects: { ...currentMapObjectState, [modeName]: currentModeState },
+    });
+
+    //this.setState({ [modeName]: { ...current, [stateName]: value } });
+  };
 
   getTool() {
     return this.props.model
@@ -178,6 +231,7 @@ class ToolOptions extends Component {
         unsavedFeatureStrokeColor: this.state.unsavedFeatureStrokeColor,
         editFeatureFillColor: this.state.editFeatureFillColor,
         editFeatureStrokeColor: this.state.editFeatureStrokeColor,
+        mapObjects: this.state.mapObjects,
       },
     };
 
@@ -224,6 +278,41 @@ class ToolOptions extends Component {
 
   handleColorChange = (target, color) => {
     this.setState({ [target]: RGBA.toString(color.rgb) });
+  };
+
+  handleWfsChange = (target, value) => {
+    console.log("handleWfsChange");
+    this.setState({
+      [target]: { ...this.state[target], wfsId: value },
+    });
+  };
+
+  handleWmsChange = (target, value) => {
+    console.log("handleWmsChange");
+    this.setState({
+      [target]: { ...this.state[target], wmsId: value },
+    });
+  };
+
+  renderLayerOptionsList = (layers) => {
+    let options = [
+      <option key="noOption" value="">
+        -
+      </option>,
+    ];
+
+    if (!layers) {
+      return options;
+    }
+
+    layers.forEach((layer) => {
+      options.push(
+        <option key={layer.id} value={layer.id}>
+          {layer.caption}
+        </option>
+      );
+    });
+    return options;
   };
 
   render() {
@@ -349,6 +438,99 @@ class ToolOptions extends Component {
             </select>
           </div>
           <div className="separator">Kartobjekt inställningar</div>
+          <div>
+            <label>
+              <strong>RealEstate</strong>
+            </label>
+          </div>
+          <div>
+            <input
+              id="editable"
+              name="editable"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "editable",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.realEstate.editable}
+            />
+            &nbsp;
+            <label htmlFor="editable" className="long-label">
+              Redigerbar i EDP vision
+            </label>
+          </div>
+          <div>
+            <input
+              id="activateWms"
+              name="activateWms"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "activateWms",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.realEstate.activateWms}
+            />
+            &nbsp;
+            <label htmlFor="activateWms" className="long-label">
+              Tänd kopplad wms lager när lager väljs
+            </label>
+          </div>
+          <div>
+            <label htmlFor="realEstateWfs">
+              WFS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WFS lager som är kopplad till kartobjektet RealEstate."
+              />
+            </label>
+            <select
+              id="realEstateWfs"
+              name="realEstateWfs"
+              className="control-fixed-width"
+              value={this.state.mapObjects.realEstate.wfsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "wfsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableVectorLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="realEstateWms">
+              WMS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WMS lager som är kopplad till kartobjektet RealEstate."
+              />
+            </label>
+            <select
+              id="realEstateWms"
+              name="realEstateWms"
+              className="control-fixed-width"
+              value={this.state.mapObjects.realEstate.wmsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "wmsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableWmsLayers)}
+            </select>
+          </div>
           <div className="separator">Utseende för markerade objekt</div>
           <span className="pull-left" style={{ marginLeft: "10px" }}>
             <div>

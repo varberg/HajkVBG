@@ -11,7 +11,6 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Transform from "./Transformation/Transform";
 import { KUBB } from "./mockdata/mockdataKUBB";
-import { wfsConfig } from "./mockdata/mockdataWFS";
 
 class IntegrationModel {
   constructor(settings) {
@@ -24,6 +23,39 @@ class IntegrationModel {
     this.#init();
     this.#bindSubscriptions();
   }
+
+  #createWmsConfig = (options) => {
+    let wmsConfig = {};
+    Object.keys(options.mapObjects).forEach((key) => {
+      wmsConfig[key] = options.mapObjects[key].wmsId;
+    });
+    return wmsConfig;
+  };
+
+  #createWfsConfig = (options) => {
+    Object.keys(options.mapObjects).forEach((key) => {
+      let layerInfo = this.#getWfsLayerInfoFromId(options.mapObjects[key]);
+      options.mapObjects[key].wfsLayer = layerInfo;
+    });
+  };
+
+  #getWfsLayerInfoFromId = (mapObject) => {
+    let answer = null;
+    let layer = this.app.config.layersConfig.find(
+      (layer) => layer.id === mapObject.wfsId
+    );
+
+    if (layer) {
+      answer = {
+        featureTypes: [layer.layer],
+        srsName: layer.projection,
+        url: layer.url,
+        geometryField: mapObject.wfsSearchField,
+        geometryName: mapObject.wfsGeom || "geom",
+      };
+    }
+    return answer;
+  };
 
   #bindSubscriptions = () => {
     this.localObserver.subscribe("mf-wfs-search", (data) => {
@@ -40,6 +72,8 @@ class IntegrationModel {
   #init = () => {
     this.handleWindowOpen();
     this.mapStyles = createMapStyles(this.options);
+    this.wmsConfig = this.#createWmsConfig(this.options);
+    this.#createWfsConfig(this.options);
     this.#initSearchModelFunctions();
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
@@ -58,10 +92,11 @@ class IntegrationModel {
 
     let snapWfsSearch = true;
     this.map.forEachFeatureAtPixel(e.pixel, (snappedGeometry) => {
+      const searchField = this.options.mapObjects[this.snapMode].wfsSearchField;
       const foundFeatureInSource = this.#getFeatureInSource(
         this.activeSnapSource.getFeatures(),
         snappedGeometry,
-        wfsConfig()[this.snapMode].geometryField
+        searchField
       );
       if (foundFeatureInSource) snapWfsSearch = false;
       return false;
