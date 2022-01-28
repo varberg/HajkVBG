@@ -55,7 +55,7 @@ export const defaultModeConfig = {
     editable: true,
   },
   contamination: {
-    name: "survey",
+    name: "contamination",
     type: "polygon",
     displayName: "Förorening",
     displayNamePl: "Föroreningar",
