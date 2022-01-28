@@ -24,7 +24,48 @@ const defaultState = {
   visibleAtStart: false,
   position: "right",
   instruction: "",
-
+  mapObjects: {
+    realEstate: {
+      wfsId: "",
+      wfsSearchField: "",
+      wfsGeometryField: "geom",
+      wmsId: "",
+      activateWms: true,
+      editable: false,
+    },
+    coordinate: {
+      wfsId: "",
+      wfsSearchField: "",
+      wfsGeometryField: "geom",
+      wmsId: "",
+      activateWms: true,
+      editable: true,
+    },
+    area: {
+      wfsId: "",
+      wfsSearchField: "",
+      wfsGeometryField: "geom",
+      wmsId: "",
+      activateWms: true,
+      editable: true,
+    },
+    survey: {
+      wfsId: "",
+      wfsSearchField: "",
+      wfsGeometryField: "geom",
+      wmsId: "",
+      activateWms: true,
+      editable: true,
+    },
+    contamination: {
+      wfsId: "",
+      wfsSearchField: "",
+      wfsGeometryField: "geom",
+      wmsId: "",
+      activateWms: true,
+      editable: true,
+    },
+  },
   //used to style the features that appear in the 'Markerade kartobjekt' list.
   listFeatureFillColor: "rgba(0,0,255,0.07)",
   listFeatureStrokeColor: "rgba(0,0,255,0.5)",
@@ -40,6 +81,9 @@ const defaultState = {
   //used to style a feature that is currently being edited/created.
   editFeatureFillColor: "rgba(255,0,0,0.07)",
   editFeatureStrokeColor: "rgba(255,0,0,0.5)",
+
+  //local state, not saved to config.
+  searchableLayers: {},
 };
 
 class RGBA {
@@ -76,6 +120,7 @@ class ToolOptions extends Component {
   componentDidMount() {
     const tool = this.getTool();
     if (tool) {
+      this.loadAvailableVectorLayers();
       this.setState({
         active: true,
         index: tool.index,
@@ -110,12 +155,47 @@ class ToolOptions extends Component {
         editFeatureStrokeColor:
           tool.options?.editFeatureStrokeColor ??
           defaultState.editFeatureStrokeColor,
+        mapObjects: this.createMapObjectState(),
       });
     } else {
       this.setState({
         active: false,
       });
     }
+  }
+
+  //If there is no item for a mapObject in the config, add the default one to the state.
+  createMapObjectState() {
+    const tool = this.getTool();
+    let mappedObjects = {};
+    for (const [key, value] of Object.entries(defaultState.mapObjects)) {
+      if (tool.options?.mapObjects[key]) {
+        mappedObjects[key] = tool.options.mapObjects[key];
+      } else {
+        mappedObjects[key] = value;
+      }
+    }
+    return mappedObjects;
+  }
+
+  loadAvailableVectorLayers() {
+    this.props.model.getConfig(
+      this.props.model.get("config").url_layers,
+      (layers) => {
+        let wmslayers = layers.wmslayers.filter((l) => {
+          return this.props.model.findLayerInConfig(l.id);
+        });
+
+        let vectorlayers = layers.vectorlayers.filter((l) => {
+          return this.props.model.findLayerInConfig(l.id);
+        });
+
+        this.setState({
+          availableVectorLayers: vectorlayers,
+          availableWmsLayers: wmslayers,
+        });
+      }
+    );
   }
 
   handleInputChange(event) {
@@ -130,6 +210,16 @@ class ToolOptions extends Component {
       [name]: value,
     });
   }
+
+  handleMapObjectChange = (modeName, stateName, value) => {
+    let currentMapObjectState = { ...this.state.mapObjects };
+    let currentModeState = { ...this.state.mapObjects[modeName] };
+
+    currentModeState[stateName] = value;
+    this.setState({
+      mapObjects: { ...currentMapObjectState, [modeName]: currentModeState },
+    });
+  };
 
   getTool() {
     return this.props.model
@@ -178,6 +268,7 @@ class ToolOptions extends Component {
         unsavedFeatureStrokeColor: this.state.unsavedFeatureStrokeColor,
         editFeatureFillColor: this.state.editFeatureFillColor,
         editFeatureStrokeColor: this.state.editFeatureStrokeColor,
+        mapObjects: this.state.mapObjects,
       },
     };
 
@@ -224,6 +315,39 @@ class ToolOptions extends Component {
 
   handleColorChange = (target, color) => {
     this.setState({ [target]: RGBA.toString(color.rgb) });
+  };
+
+  handleWfsChange = (target, value) => {
+    this.setState({
+      [target]: { ...this.state[target], wfsId: value },
+    });
+  };
+
+  handleWmsChange = (target, value) => {
+    this.setState({
+      [target]: { ...this.state[target], wmsId: value },
+    });
+  };
+
+  renderLayerOptionsList = (layers) => {
+    let options = [
+      <option key="noOption" value="">
+        -
+      </option>,
+    ];
+
+    if (!layers) {
+      return options;
+    }
+
+    layers.forEach((layer) => {
+      options.push(
+        <option key={layer.id} value={layer.id}>
+          {layer.caption}
+        </option>
+      );
+    });
+    return options;
   };
 
   render() {
@@ -349,6 +473,685 @@ class ToolOptions extends Component {
             </select>
           </div>
           <div className="separator">Kartobjekt inställningar</div>
+          <div>
+            <label>
+              <strong>Fastighet</strong>
+            </label>
+          </div>
+          <div>
+            <input
+              id="editable"
+              name="editable"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "editable",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.realEstate.editable}
+            />
+            &nbsp;
+            <label htmlFor="editable" className="long-label">
+              Redigerbar i EDP vision
+            </label>
+          </div>
+          <div>
+            <input
+              id="activateWms"
+              name="activateWms"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "activateWms",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.realEstate.activateWms}
+            />
+            &nbsp;
+            <label htmlFor="activateWms" className="long-label">
+              Tänd kopplad wms lager när lager väljs
+            </label>
+          </div>
+          <div>
+            <label htmlFor="realEstateWms">
+              WMS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WMS lager som är kopplad till kartobjektet RealEstate."
+              />
+            </label>
+            <select
+              id="realEstateWms"
+              name="realEstateWms"
+              className="control-fixed-width"
+              value={this.state.mapObjects.realEstate.wmsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "wmsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableWmsLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="realEstateWfs">
+              WFS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WFS lager som är kopplad till kartobjektet RealEstate."
+              />
+            </label>
+            <select
+              id="realEstateWfs"
+              name="realEstateWfs"
+              className="control-fixed-width"
+              value={this.state.mapObjects.realEstate.wfsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "wfsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableVectorLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="wfsSearchField">
+              WFS sökfält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Fält som används till WFS sökning"
+              />
+            </label>
+            <input
+              id="wfsSearchField"
+              name="wfsSearchField"
+              type="text"
+              value={this.state.mapObjects.realEstate.wfsSearchField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "wfsSearchField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label htmlFor="wfsGeometryField">
+              WFS geometri fält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Geometri fält i wfs lager. t.ex. 'geom'."
+              />
+            </label>
+            <input
+              id="wfsGeometryField"
+              name="wfsGeometryField"
+              type="text"
+              value={this.state.mapObjects.realEstate.wfsGeometryField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "realEstate",
+                  "wfsGeometryField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label>
+              <strong>Koordinat</strong>
+            </label>
+          </div>
+          <div>
+            <input
+              id="editable"
+              name="editable"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "coordinate",
+                  "editable",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.coordinate.editable}
+            />
+            &nbsp;
+            <label htmlFor="editable" className="long-label">
+              Redigerbar i EDP vision
+            </label>
+          </div>
+          <div>
+            <input
+              id="activateWms"
+              name="activateWms"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "coordinate",
+                  "activateWms",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.coordinate.activateWms}
+            />
+            &nbsp;
+            <label htmlFor="activateWms" className="long-label">
+              Tänd kopplad wms lager när lager väljs
+            </label>
+          </div>
+          <div>
+            <label htmlFor="coordinateWms">
+              WMS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WMS lager som är kopplad till kartobjektet koordinat."
+              />
+            </label>
+            <select
+              id="coordinateWms"
+              name="coordinateWms"
+              className="control-fixed-width"
+              value={this.state.mapObjects.coordinate.wmsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "coordinate",
+                  "wmsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableWmsLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="coordinateWfs">
+              WFS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WFS lager som är kopplad till kartobjektet koordinat."
+              />
+            </label>
+            <select
+              id="coordinateWfs"
+              name="coordinateWfs"
+              className="control-fixed-width"
+              value={this.state.mapObjects.coordinate.wfsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "coordinate",
+                  "wfsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableVectorLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="wfsSearchField">
+              WFS sökfält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Fält som används till WFS sökning"
+              />
+            </label>
+            <input
+              id="wfsSearchField"
+              name="wfsSearchField"
+              type="text"
+              value={this.state.mapObjects.coordinate.wfsSearchField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "coordinate",
+                  "wfsSearchField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label htmlFor="wfsGeometryField">
+              WFS geometri fält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Geometri fält i wfs lager. t.ex. 'geom'."
+              />
+            </label>
+            <input
+              id="wfsGeometryField"
+              name="wfsGeometryField"
+              type="text"
+              value={this.state.mapObjects.coordinate.wfsGeometryField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "coordinate",
+                  "wfsGeometryField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label>
+              <strong>Område</strong>
+            </label>
+          </div>
+          <div>
+            <input
+              id="editable"
+              name="editable"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "area",
+                  "editable",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.area.editable}
+            />
+            &nbsp;
+            <label htmlFor="editable" className="long-label">
+              Redigerbar i EDP vision
+            </label>
+          </div>
+          <div>
+            <input
+              id="activateWms"
+              name="activateWms"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "area",
+                  "activateWms",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.realEstate.activateWms}
+            />
+            &nbsp;
+            <label htmlFor="activateWms" className="long-label">
+              Tänd kopplad wms lager när lager väljs
+            </label>
+          </div>
+          <div>
+            <label htmlFor="areaWms">
+              WMS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WMS lager som är kopplad till kartobjektet Område."
+              />
+            </label>
+            <select
+              id="areaWms"
+              name="areaWms"
+              className="control-fixed-width"
+              value={this.state.mapObjects.area.wmsId}
+              onChange={(e) => {
+                this.handleMapObjectChange("area", "wmsId", e.target.value);
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableWmsLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="areaWfs">
+              WFS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WFS lager som är kopplad till kartobjektet Område."
+              />
+            </label>
+            <select
+              id="areaWfs"
+              name="areaWfs"
+              className="control-fixed-width"
+              value={this.state.mapObjects.area.wfsId}
+              onChange={(e) => {
+                this.handleMapObjectChange("area", "wfsId", e.target.value);
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableVectorLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="wfsSearchField">
+              WFS sökfält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Fält som används till WFS sökning"
+              />
+            </label>
+            <input
+              id="wfsSearchField"
+              name="wfsSearchField"
+              type="text"
+              value={this.state.mapObjects.area.wfsSearchField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "area",
+                  "wfsSearchField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label htmlFor="wfsGeometryField">
+              WFS geometri fält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Geometri fält i wfs lager. t.ex. 'geom'."
+              />
+            </label>
+            <input
+              id="wfsGeometryField"
+              name="wfsGeometryField"
+              type="text"
+              value={this.state.mapObjects.area.wfsGeometryField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "area",
+                  "wfsGeometryField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label>
+              <strong>Undersökning</strong>
+            </label>
+          </div>
+          <div>
+            <input
+              id="editable"
+              name="editable"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "survey",
+                  "editable",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.survey.editable}
+            />
+            &nbsp;
+            <label htmlFor="editable" className="long-label">
+              Redigerbar i EDP vision
+            </label>
+          </div>
+          <div>
+            <input
+              id="activateWms"
+              name="activateWms"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "survey",
+                  "activateWms",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.realEstate.activateWms}
+            />
+            &nbsp;
+            <label htmlFor="activateWms" className="long-label">
+              Tänd kopplad wms lager när lager väljs
+            </label>
+          </div>
+          <div>
+            <label htmlFor="surveyWms">
+              WMS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WMS lager som är kopplad till kartobjektet undersökning."
+              />
+            </label>
+            <select
+              id="surveyWms"
+              name="surveyWms"
+              className="control-fixed-width"
+              value={this.state.mapObjects.survey.wmsId}
+              onChange={(e) => {
+                this.handleMapObjectChange("survey", "wmsId", e.target.value);
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableWmsLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="surveyWfs">
+              WFS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WFS lager som är kopplad till kartobjektet undersökning."
+              />
+            </label>
+            <select
+              id="surveyWfs"
+              name="surveyWfs"
+              className="control-fixed-width"
+              value={this.state.mapObjects.survey.wfsId}
+              onChange={(e) => {
+                this.handleMapObjectChange("survey", "wfsId", e.target.value);
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableVectorLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="wfsSearchField">
+              WFS sökfält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Fält som används till WFS sökning"
+              />
+            </label>
+            <input
+              id="wfsSearchField"
+              name="wfsSearchField"
+              type="text"
+              value={this.state.mapObjects.survey.wfsSearchField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "survey",
+                  "wfsSearchField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label htmlFor="wfsGeometryField">
+              WFS geometri fält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Geometri fält i wfs lager. t.ex. 'geom'."
+              />
+            </label>
+            <input
+              id="wfsGeometryField"
+              name="wfsGeometryField"
+              type="text"
+              value={this.state.mapObjects.survey.wfsGeometryField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "survey",
+                  "wfsGeometryField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label>
+              <strong>Förorening</strong>
+            </label>
+          </div>
+          <div>
+            <input
+              id="editable"
+              name="editable"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "contamination",
+                  "editable",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.contamination.editable}
+            />
+            &nbsp;
+            <label htmlFor="editable" className="long-label">
+              Redigerbar i EDP vision
+            </label>
+          </div>
+          <div>
+            <input
+              id="activateWms"
+              name="activateWms"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "contamination",
+                  "activateWms",
+                  e.target.checked
+                );
+              }}
+              checked={this.state.mapObjects.realEstate.activateWms}
+            />
+            &nbsp;
+            <label htmlFor="activateWms" className="long-label">
+              Tänd kopplad wms lager när lager väljs
+            </label>
+          </div>
+          <div>
+            <label htmlFor="contaminationWms">
+              WMS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WMS lager som är kopplad till kartobjektet förorening."
+              />
+            </label>
+            <select
+              id="contaminationWms"
+              name="contaminationWms"
+              className="control-fixed-width"
+              value={this.state.mapObjects.contamination.wmsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "contamination",
+                  "wmsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableWmsLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="contaminationWfs">
+              WFS lager{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="WFS lager som är kopplad till kartobjektet förorening."
+              />
+            </label>
+            <select
+              id="contaminationWfs"
+              name="contaminationWfs"
+              className="control-fixed-width"
+              value={this.state.mapObjects.contamination.wfsId}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "contamination",
+                  "wfsId",
+                  e.target.value
+                );
+              }}
+            >
+              {this.renderLayerOptionsList(this.state.availableVectorLayers)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="wfsSearchField">
+              WFS sökfält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Fält som används till WFS sökning"
+              />
+            </label>
+            <input
+              id="wfsSearchField"
+              name="wfsSearchField"
+              type="text"
+              value={this.state.mapObjects.contamination.wfsSearchField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "contamination",
+                  "wfsSearchField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
+          <div>
+            <label htmlFor="wfsGeometryField">
+              WFS geometri fält{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Geometri fält i wfs lager. t.ex. 'geom'."
+              />
+            </label>
+            <input
+              id="wfsGeometryField"
+              name="wfsGeometryField"
+              type="text"
+              value={this.state.mapObjects.contamination.wfsGeometryField}
+              onChange={(e) => {
+                this.handleMapObjectChange(
+                  "contamination",
+                  "wfsGeometryField",
+                  e.target.value
+                );
+              }}
+            ></input>
+          </div>
           <div className="separator">Utseende för markerade objekt</div>
           <span className="pull-left" style={{ marginLeft: "10px" }}>
             <div>

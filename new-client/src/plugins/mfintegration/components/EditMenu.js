@@ -31,7 +31,6 @@ import FormatShapesIcon from "@material-ui/icons/FormatShapes";
 import CloseIcon from "@material-ui/icons/Close";
 import CopyingControl from "./CopyingControl";
 import SnappingControl from "./SnappingControl";
-import { drawingSupportLayersArray } from "./../mockdata/mockdataLayers";
 
 const styles = (theme) => {
   return {
@@ -136,7 +135,19 @@ class EditMenu extends React.PureComponent {
   };
 
   #getAvailableWfsLayers = () => {
-    return drawingSupportLayersArray();
+    let mapModes = this.props.model.options.mapObjects;
+    let availableLayers = [];
+
+    Object.keys(mapModes).forEach((key) => {
+      if (mapModes[key].wmsId) {
+        availableLayers.push({
+          sourceName: key,
+          layerId: mapModes[key].wmsId,
+          name: mapModes[key].displayNamePl,
+        });
+      }
+    });
+    return availableLayers;
   };
 
   renderStepOne = () => {
@@ -577,8 +588,11 @@ class EditMenu extends React.PureComponent {
   }
 
   render() {
-    const { classes, newEditMode } = this.props;
-    let editdisabled = this.state.editOpen === false && newEditMode === "none";
+    const { classes, layerMode } = this.props;
+    const layerModeEditable =
+      this.props.model.options.mapObjects[layerMode].editable;
+
+    let editdisabled = this.state.editOpen === false && !layerModeEditable;
 
     return (
       <Grid item container xs={12}>
