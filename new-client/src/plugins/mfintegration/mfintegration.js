@@ -117,7 +117,7 @@ class MFIntegration extends React.PureComponent {
         srsName: layer.projection,
         url: layer.url,
         geometryField: mapObject.wfsSearchField,
-        geometryName: mapObject.wfsGeom || "geom",
+        geometryName: mapObject.wfsGeometryField || "geom",
       };
     }
     return layerInfo;
