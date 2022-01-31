@@ -5,6 +5,7 @@ import Observer from "react-event-observer";
 import RepeatIcon from "@material-ui/icons/Repeat";
 import IntegrationModel from "./IntegrationModel";
 import IntegrationView from "./IntegrationView";
+import { defaultModeConfig, initModeConfig } from "./ModeConfig";
 import SearchModel from "./SearchModel";
 
 const defaultOptions = {
@@ -23,6 +24,7 @@ const defaultOptions = {
   unsavedFeatureStrokeColor: "rgba(100, 220, 50, 1)",
   editFeatureFillColor: "rgba(255,0,0,0.07)",
   editFeatureStrokeColor: "rgba(255,0,0,0.5)",
+  mapObjects: defaultModeConfig,
 };
 
 class MFIntegration extends React.PureComponent {
@@ -43,12 +45,20 @@ class MFIntegration extends React.PureComponent {
     super(props);
     this.localObserver = Observer();
     this.globalObserver = props.app.globalObserver;
-    this.optionsWithDefaults = this.mapDefaultOptions(props.options);
+
+    this.optionsWithDefaults = this.mapDefaultOptions(props.options, [
+      "mapObjects",
+    ]);
+    this.optionsWithDefaults.mapObjects = initModeConfig(
+      props.options.mapObjects
+    );
+    this.#createWfsConfig(this.optionsWithDefaults);
 
     this.searchModel = new SearchModel({
       localObserver: this.localObserver,
       app: props.app,
       map: props.map,
+      options: this.optionsWithDefaults,
     });
 
     this.model = new IntegrationModel({
@@ -56,7 +66,7 @@ class MFIntegration extends React.PureComponent {
       app: props.app,
       map: props.map,
       searchModel: this.searchModel,
-      options: this.mapDefaultOptions(props.options),
+      options: this.optionsWithDefaults,
     });
   }
 
@@ -68,18 +78,49 @@ class MFIntegration extends React.PureComponent {
     this.model.handleWindowClose();
   };
 
-  mapDefaultOptions = (options) => {
+  mapDefaultOptions = (options, ignoreArray = []) => {
     //start with the default options, and then replace any that have an option given in config.So we can later be sure that we have
     //reasonable default values, and can use props.options without checking everything to see if it exists.
     let mappedOptions = defaultOptions;
     let optionsFields = Object.keys(defaultOptions);
 
     for (const [key, value] of Object.entries(options)) {
-      if (optionsFields.includes(key)) {
+      if (optionsFields.includes(key) && !ignoreArray.includes(key)) {
         mappedOptions[key] = value;
       }
     }
     return mappedOptions;
+  };
+
+  #createWfsConfig = (options) => {
+    Object.keys(options.mapObjects).forEach((key) => {
+      let layerInfo = this.#getWfsLayerInfoFromId(options.mapObjects[key]);
+      options.mapObjects[key].wfsLayer = layerInfo;
+    });
+  };
+
+  #getWfsLayerInfoFromId = (mapObject) => {
+    let layerInfo = {
+      featureTypes: null,
+      srsName: "EPSG:3007",
+      url: null,
+      geometryField: null,
+      geometryName: "geom",
+    };
+
+    let layer = this.props.app.config.layersConfig.find(
+      (layer) => layer.id === mapObject.wfsId
+    );
+    if (layer) {
+      layerInfo = {
+        featureTypes: [layer.layer],
+        srsName: layer.projection,
+        url: layer.url,
+        geometryField: mapObject.wfsSearchField,
+        geometryName: mapObject.wfsGeometryField || "geom",
+      };
+    }
+    return layerInfo;
   };
 
   render() {
@@ -101,7 +142,7 @@ class MFIntegration extends React.PureComponent {
         <IntegrationView
           app={this.props.app}
           model={this.model}
-          options={this.mapDefaultOptions(this.props.options)}
+          options={this.optionsWithDefaults}
           localObserver={this.localObserver}
           globalObserver={this.globalObserver}
           title={this.state.title}

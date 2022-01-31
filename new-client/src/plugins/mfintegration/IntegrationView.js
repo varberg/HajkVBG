@@ -17,7 +17,6 @@ import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ListResult from "./components/ListResult";
 import ListToolbar from "./components/ListToolbar";
 import EditMenu from "./components/EditMenu";
-import { drawingSupportLayers } from "./mockdata/mockdataLayers";
 
 const styles = (theme) => {
   return {
@@ -59,7 +58,7 @@ const modeDisplay = {
   },
   coordinate: { displayName: "Koordinat", displayNamePlural: "Koordinater" },
   area: { displayName: "Område", displayNamePlural: "Områden" },
-  survey: { displayName: "Underökning", displayNamePlural: "Undersökningar" },
+  survey: { displayName: "Undersökning", displayNamePlural: "Undersökningar" },
   contamination: {
     displayName: "Förorening",
     displayNamePlural: "Föroreningar",
@@ -134,7 +133,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #init = () => {
-    this.drawingSupportLayerNames = drawingSupportLayers();
+    this.drawingSupportLayerNames = this.props.model.wmsConfig;
     this.#initUpdateFunctions();
     this.#initClearFunctions();
     this.#initDrawFunctions();
@@ -228,6 +227,7 @@ class IntegrationView extends React.PureComponent {
     };
   };
 
+  //TODO - this should come from the where the modes (realEstate etc are configured).
   #initDrawTypes = () => {
     this.drawTypes = {
       copy: {
@@ -546,6 +546,7 @@ class IntegrationView extends React.PureComponent {
     this.setState({
       mode: mode,
     });
+    //only show drawing support if the mode says we should according to it's config.
     this.#showDrawingSupport(this.drawingSupportLayerNames[mode]);
     this.localObserver.publish("mf-new-mode", mode);
   };
