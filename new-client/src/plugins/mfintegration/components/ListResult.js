@@ -91,6 +91,7 @@ class ListResult extends React.PureComponent {
   render() {
     const {
       classes,
+      model,
       item,
       listMode,
       handleClickItem,
@@ -99,7 +100,10 @@ class ListResult extends React.PureComponent {
       handleToggleItemVisibilty,
     } = this.props;
     return (
-      <div className={classes.itemList}>
+      <div
+        className={classes.itemList}
+        ref={model.listItemRefs[item.feature.ol_uid]}
+      >
         <div
           key={item.id}
           className={

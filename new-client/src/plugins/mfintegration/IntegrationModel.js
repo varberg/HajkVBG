@@ -19,6 +19,7 @@ class IntegrationModel {
     this.options = settings.options;
     this.localObserver = settings.localObserver;
     this.searchModel = settings.searchModel;
+    this.listItemRefs = {};
 
     this.#init();
     this.#bindSubscriptions();
@@ -801,6 +802,11 @@ class IntegrationModel {
   };
 
   #highlightItem = (item) => {
+    if (item.selectedFromMap) {
+      let featureId = item.feature.ol_uid;
+      this.listItemRefs[featureId].current.scrollIntoView();
+    }
+
     const addItem = !this.#isFeatureHighlighted(item.feature);
     this.#clearSource(this.highlightSource);
 
