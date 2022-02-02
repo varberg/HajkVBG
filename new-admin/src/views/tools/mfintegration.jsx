@@ -168,8 +168,15 @@ class ToolOptions extends Component {
   createMapObjectState() {
     const tool = this.getTool();
     let mappedObjects = {};
+
+    //If there is no mapObjects in the config files at all, use the entire default state for mapObjects.
+    if (!tool.options?.mapObjects) {
+      return defaultState.mapObjects
+    };
+
+    //If there is a mapObjects object in the config, replace any defaultState properties with the matching properties.
     for (const [key, value] of Object.entries(defaultState.mapObjects)) {
-      if (tool.options?.mapObjects[key]) {
+      if (tool.options.mapObjects[key]) {
         mappedObjects[key] = tool.options.mapObjects[key];
       } else {
         mappedObjects[key] = value;

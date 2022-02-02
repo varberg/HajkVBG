@@ -50,7 +50,7 @@ class MFIntegration extends React.PureComponent {
       "mapObjects",
     ]);
     this.optionsWithDefaults.mapObjects = initModeConfig(
-      props.options.mapObjects
+      props.options?.mapObjects || {}
     );
     this.#createWfsConfig(this.optionsWithDefaults);
 
