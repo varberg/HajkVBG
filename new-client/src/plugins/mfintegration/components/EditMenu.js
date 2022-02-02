@@ -109,6 +109,14 @@ class EditMenu extends React.PureComponent {
     });
   };
 
+  #getEditInfoText = (isCreateMode) => {
+    if (isCreateMode) {
+      return "Ett nytt kartobjekt har skapats. Gå över till EDP Vision för att spara det nya kartobjektet till rätt post.";
+    } else {
+      return "Kartobjektet har ändrats. Gå över till EDP Vision för att spara det ändrade kartobjektet till rätt post.";
+    }
+  };
+
   #getEditModeDisplayName = (editMode) => {
     let editModedisplayNames = {
       new: "(Rita)",
@@ -537,8 +545,9 @@ class EditMenu extends React.PureComponent {
   };
 
   renderStepThree = () => {
-    const informationText =
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.";
+    const informationText = this.#getEditInfoText(
+      this.state.editTab === "create"
+    );
     const { classes } = this.props;
     return (
       <Grid container item xs={12}>
