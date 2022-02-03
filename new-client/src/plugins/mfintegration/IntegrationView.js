@@ -110,6 +110,17 @@ class IntegrationView extends React.PureComponent {
         persist: false,
       });
     });
+    this.localObserver.subscribe("mf-wfs-failed-search", (error) => {
+      let displayName =
+        this.props.model.options.mapObjects[this.state.mode].displayName;
+      this.props.enqueueSnackbar(
+        `Sökning mot ${displayName} kunde inte genomföras`,
+        {
+          persist: false,
+          variant: "error",
+        }
+      );
+    });
     this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
       this.newGeometryFunctions[this.state.mode]();
     });
