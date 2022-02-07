@@ -7,11 +7,15 @@ import { Fill, Stroke, Style, Circle } from "ol/style";
 import Point from "ol/geom/Point";
 import Select from "ol/interaction/Select";
 import Snap from "ol/interaction/Snap";
+import Transform from "./Transformation/Transform";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
-import Transform from "./Transformation/Transform";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import { wfsConfig } from "./mockdata/mockdataWFS";
+import { polygon } from "@turf/helpers";
+import union from "@turf/union";
+import difference from "@turf/difference";
+import intersect from "@turf/intersect";
 
 class IntegrationModel {
   constructor(settings) {
@@ -43,8 +47,10 @@ class IntegrationModel {
     this.#initSearchModelFunctions();
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
+    this.#initAbortDrawingFunctions();
     this.#addLayers();
     this.#initActiveSource();
+    this.#initCombineNeighbours();
     this.addMapSelection();
   };
 
@@ -87,6 +93,7 @@ class IntegrationModel {
 
   #initSearchResponseFunctions = () => {
     this.searchResponseFunctions = {
+      combine: this.#combineWfsSearch,
       copy: this.#copyWfsSearch,
       search: this.#addWfsSearch,
       snap: this.#snapWfsSearch,
@@ -95,6 +102,10 @@ class IntegrationModel {
 
   #initDrawingFunctions = () => {
     this.drawingToolFunctions = {
+      combine: {
+        callback: this.#handleDrawCombineFeatureAdded,
+        source: this.#createNewVectorSource(),
+      },
       copy: {
         callback: this.#handleDrawCopyFeatureAdded,
         source: this.#createNewVectorSource(),
@@ -108,6 +119,19 @@ class IntegrationModel {
         source: this.#createNewVectorSource(),
       },
     };
+  };
+
+  #initAbortDrawingFunctions = () => {
+    this.drawingAbortToolFunctions = {
+      combine: this.#abortCombineTool,
+      copy: this.#abortCopyTool,
+      new: this.#abortNewTool,
+    };
+  };
+
+  startDrawCombinePoint = (mode) => {
+    this.drawingToolFunctions.combine.source.mode = mode;
+    this.#drawGeometry("combine", "Point", this.mapStyles.editFeatureStyle);
   };
 
   startDrawCopyPoint = (mode) => {
@@ -197,6 +221,13 @@ class IntegrationModel {
     this.map.addInteraction(this.selectInteraction);
   };
 
+  endDrawCombine = () => {
+    this.combineFeature = null;
+    this.combinedGeometries = null;
+    this.map.clickLock.delete("combine");
+    this.endDraw();
+  };
+
   endDrawCopy = () => {
     this.map.clickLock.delete("copy");
     this.endDraw();
@@ -251,7 +282,7 @@ class IntegrationModel {
 
   abortDrawFeature = (editMode) => {
     if (!editMode || editMode === "none") return;
-    this.#clearSource(this.editSources[editMode]);
+    this.drawingAbortToolFunctions[editMode]();
   };
 
   toggleFeatureStyleVisibility = (feature, shouldBeVisible) => {
@@ -359,6 +390,7 @@ class IntegrationModel {
       new: this.#createNewVectorSource(),
       copy: this.#createNewVectorSource(),
       combine: this.#createNewVectorSource(),
+      combineNeighbours: this.#createNewVectorSource(),
     };
 
     this.snapSources = {
@@ -390,6 +422,10 @@ class IntegrationModel {
       combine: this.#createNewVectorLayer(
         this.editSources.combine,
         this.#createLayerStyle(this.mapStyles.editFeatureStyle)
+      ),
+      combineNeighbours: this.#createNewVectorLayer(
+        this.editSources.combineNeighbours,
+        this.#createLayerStyle(this.mapStyles.combineNeighbourStyle)
       ),
     };
     this.#addArrayToObject(this.editLayers);
@@ -494,6 +530,10 @@ class IntegrationModel {
     this.activeSource = this.dataSources.array[0];
   };
 
+  #initCombineNeighbours = () => {
+    this.combineNeighbours = [];
+  };
+
   #drawGeometry = (drawingTool, drawType, style) => {
     this.drawingTool = drawingTool;
     const drawFunctionProps = {
@@ -529,30 +569,32 @@ class IntegrationModel {
     this.map.addInteraction(this.snapInteraction);
   };
 
+  #handleDrawCombineFeatureAdded = (e) => {
+    this.searchResponseTool = "combine";
+    this.searchModelFunctions[e.target.mode](e.feature);
+  };
+
   #handleDrawCopyFeatureAdded = (e) => {
     this.#clearSource(this.editSources.copy);
     this.searchResponseTool = "copy";
     this.searchModelFunctions[e.target.mode](e.feature);
-    this.#clearSource(this.drawingToolFunctions.new.source);
+    this.#clearSource(this.drawingToolFunctions.copy.source);
   };
 
   #handleDrawNewFeatureAdded = (e) => {
     this.#clearSource(this.editSources.new);
     const data = this.#createDataset(e.feature);
-    // TODO: I krav 3.6 kan även snap betyde källa combine
-    this.#addAndPublishNewFeature(data, this.editSources.new);
+    const updateStatus = this.#getNewOrRemovedFeature(
+      data,
+      this.editSources.new
+    );
+    const newFeature = updateStatus.addFeature ? updateStatus.feature : null;
+    this.#publishNewFeature(newFeature);
     this.#clearSource(this.drawingToolFunctions.new.source);
   };
 
   #createDataset = (feature) => {
-    let pairs = [];
-    for (let i = 0; i < feature.getGeometry().flatCoordinates.length; i += 2) {
-      pairs.push([
-        feature.getGeometry().flatCoordinates[i],
-        feature.getGeometry().flatCoordinates[i + 1],
-      ]);
-    }
-    const coordinates = [pairs];
+    const coordinates = this.#extractCoordintesFromFeature(feature);
     const features = [
       {
         geometry: {
@@ -572,6 +614,18 @@ class IntegrationModel {
       featureCollection: simulatedFeatureCollection,
       transformation: null,
     };
+  };
+
+  #extractCoordintesFromFeature = (feature) => {
+    let pairs = [];
+    for (let i = 0; i < feature.getGeometry().flatCoordinates.length; i += 2) {
+      pairs.push([
+        feature.getGeometry().flatCoordinates[i],
+        feature.getGeometry().flatCoordinates[i + 1],
+      ]);
+    }
+    const coordinates = [pairs];
+    return coordinates;
   };
 
   #handleDrawSearchFeatureAdded = (e) => {
@@ -677,16 +731,11 @@ class IntegrationModel {
       return { noFeaturesFound: true };
 
     const features = featureCollection.features.map((feature) => {
-      let geometry = new Transform().createGeometry(
+      let geometry = this.#createGeometry(
         feature.geometry.type,
         feature.geometry.coordinates
       );
-      if (transformation)
-        geometry = new Transform().transformGeometry(
-          geometry.clone(),
-          transformation.fromSrs,
-          transformation.toSrs
-        );
+      this.#transformGeometry(transformation, geometry);
       let newFeature = new Feature({
         geometry: geometry,
       });
@@ -696,6 +745,19 @@ class IntegrationModel {
 
     const pointClick = selectionGeometryType === "Point";
     return { features: features, addOrRemoveFeature: pointClick };
+  };
+
+  #createGeometry = (type, coordinates) => {
+    return new Transform().createGeometry(type, coordinates);
+  };
+
+  #transformGeometry = (transformation, geometry) => {
+    if (!transformation) return;
+    return new Transform().transformGeometry(
+      geometry.clone(),
+      transformation.fromSrs,
+      transformation.toSrs
+    );
   };
 
   #updateList = (source, data) => {
@@ -725,23 +787,238 @@ class IntegrationModel {
     });
   };
 
-  #copyWfsSearch = (data) => {
-    // TODO: I krav 3.6 kan även snap betyde källa combine
-    this.#clearSource(this.editSources.copy);
-    this.#addAndPublishNewFeature(data, this.editSources.copy);
+  #combineWfsSearch = (data) => {
+    this.#combineWfsSearchPoint(data);
+    //this.#combineWfsSearchPolygon(data);
   };
 
-  #addAndPublishNewFeature = (data, source) => {
+  #combineWfsSearchPoint = (data) => {
+    //if (data.searchType !== "Point") return;
+
+    if (!this.combinedGeometries) this.combinedGeometries = [];
+    let combineStatus = this.#storeCombinedIds(data);
+    const updateStatus = this.#getNewOrRemovedFeature(
+      data,
+      this.editSources.combine
+    );
+
+    if (this.combineFeature) {
+      const ansIntersect = intersect(
+        this.#getTurfPolygon(this.combineFeature),
+        this.#getTurfPolygon(updateStatus.feature)
+      );
+      //console.log("intersect", ansIntersect);
+      // const cf = this.#getTurfPolygon(this.combineFeature);
+      // const uf = this.#getTurfPolygon(updateStatus.feature);
+      // console.log("original", cf.geometry.coordinates);
+      // console.log("nytt obj", uf.geometry.coordinates);
+    }
+
+    this.#combineFeature(combineStatus, updateStatus);
+    this.combineFeature = this.editSources.combine.getFeatures()[0];
+    this.#publishNewFeature(this.combineFeature);
+
+    //this.#saveParentFeatureClickId(data);
+    //this.#addNewCombineFeature(updateStatus, data);
+    //this.#removeOldCombineFeatures(updateStatus, data);
+  };
+
+  #storeCombinedIds = (data) => {
+    let unionNewFeature = false;
+    const featureId =
+      data.featureCollection.features[0].properties[data.geometryField];
+    const arrayId = this.combinedGeometries.indexOf(featureId);
+    if (arrayId === -1) {
+      this.combinedGeometries.push(featureId);
+      unionNewFeature = true;
+    } else {
+      this.combinedGeometries.splice(arrayId, 1);
+    }
+
+    return {
+      unionNewFeature: unionNewFeature,
+      differenceNewFeature: !unionNewFeature,
+    };
+  };
+
+  #combineFeature = (combineStatus, updateStatus) => {
+    if (!this.combineFeature) return;
+
+    let combinedGeometry = null;
+    if (combineStatus.unionNewFeature)
+      combinedGeometry = union(
+        this.#getTurfPolygon(this.combineFeature),
+        this.#getTurfPolygon(updateStatus.feature)
+      );
+    if (combineStatus.differenceNewFeature)
+      combinedGeometry = difference(
+        this.#getTurfPolygon(this.combineFeature),
+        this.#getTurfPolygon(updateStatus.feature)
+      );
+
+    const featureCollection = {
+      searchType: "CombinePolygons",
+      featureCollection: { features: [combinedGeometry] },
+      transformation: null,
+    };
+    this.#clearSource(this.editSources.combine);
+    this.#addFeaturesToSource(this.editSources.combine, featureCollection);
+  };
+
+  #getTurfPolygon = (feature) => {
+    const coordiantes = this.#extractCoordintesFromFeature(feature);
+    return polygon(coordiantes);
+  };
+
+  #saveParentFeatureClickId = (data) => {
+    if (data.featureCollection.features.length === 0) {
+      this.combineParent = null;
+      return;
+    }
+
+    this.combineParent =
+      data.featureCollection.features[0].properties[data.geometryField];
+  };
+
+  #addNewCombineFeature = (updateStatus, data) => {
+    if (!updateStatus.addFeature) return;
+    this.searchModelFunctions[data.type](updateStatus.feature);
+  };
+
+  #removeOldCombineFeatures = (updateStatus, data) => {
+    if (!updateStatus.removeFeature) return;
+    console.log(this.editSources.combineNeighbours);
+  };
+
+  #combineWfsSearchPolygon = (data) => {
+    if (data.searchType !== "Polygon") return;
+
+    this.#updateCombineArray(data);
+    this.#addNewPossibleCombineFeature(
+      data,
+      this.editSources.combineNeighbours
+    );
+
+    const neighbourFeatures = this.#createFeaturesFromFeatureCollection(
+      data.featureCollection.searchType,
+      data.featureCollection.featureCollection,
+      data.featureCollection.transformation
+    );
+
+    // Lägg till grannarna här.
+    const compareField = data.geometryField;
+    neighbourFeatures.forEach((feature) => {
+      // Lägg till grannen om INTE den finns med sedan innan.
+      this.combineNeighbours.add({
+        neighbour: feature.getProperties()[compareField],
+        parent: this.selectedFeature.getProperties()[compareField],
+      });
+    });
+    //this.combineNeighbours
+    //data.selectionFeature
+  };
+
+  #updateCombineArray = (data) => {
+    if (!this.combineChildren) this.combineChildren = [];
+
+    data.featureCollection.features.forEach((feature) => {
+      const childId = feature.properties[data.geometryField];
+      if (childId === this.combineParent) return;
+
+      let alreadyExists = false;
+      this.combineChildren.forEach((child) => {
+        if (child.Id === childId) alreadyExists = true;
+      });
+
+      if (alreadyExists) {
+        this.combineChildren.forEach((child) => {
+          if (child.Id === childId) child.parentsId.push(this.combineParent);
+        });
+      }
+
+      if (!alreadyExists)
+        this.combineChildren.push({
+          Id: childId,
+          parentsId: [this.combineParent],
+        });
+    });
+  };
+
+  #copyWfsSearch = (data) => {
+    this.#clearSource(this.editSources.copy);
+    const updateStatus = this.#getNewOrRemovedFeature(
+      data,
+      this.editSources.copy
+    );
+    const newFeature = updateStatus.addFeature ? updateStatus.feature : null;
+    this.#publishNewFeature(newFeature);
+  };
+
+  #getNewOrRemovedFeature = (data, source) => {
     const previousFeatures = source.getFeatures();
     this.#addFeaturesToSource(source, data);
     const presentFeatures = source.getFeatures();
+    if (previousFeatures.length > presentFeatures)
+      return {
+        feature: previousFeatures[0],
+        addFeature: false,
+        removeFeature: true,
+        previousFeatures: previousFeatures,
+        presentFeatures: presentFeatures,
+      };
 
-    const newFeature = presentFeatures
-      .filter((feature) => {
-        return previousFeatures.indexOf(feature) === -1;
-      })
-      .shift();
+    const newFeature = presentFeatures.filter((feature) => {
+      return previousFeatures.indexOf(feature) === -1;
+    })[0];
+
+    return {
+      feature: newFeature,
+      addFeature: true,
+      removeFeature: false,
+      previousFeatures: previousFeatures,
+      presentFeatures: presentFeatures,
+    };
+  };
+
+  #publishNewFeature = (newFeature) => {
     this.localObserver.publish("mf-new-feature-pending", newFeature);
+  };
+
+  #addNewPossibleCombineFeature = (data, source) => {
+    const combineFeatures = this.editSources.combine.getFeatures();
+    const compareField = data.geometryField;
+    const newNeighbours = data.featureCollection.features.filter(
+      (neighbourFeature) => {
+        let alreadyExisits = false;
+        combineFeatures.forEach((combineFeature) => {
+          if (
+            neighbourFeature.properties[compareField] ===
+            combineFeature.getProperties()[compareField]
+          )
+            alreadyExisits = true;
+        });
+        if (alreadyExisits) return false;
+        return neighbourFeature;
+      }
+    );
+
+    const featureCollectionWithOnlyNeighbours =
+      data.featureCollection.features.filter((feature) => {
+        let isNewNeighbour = false;
+        newNeighbours.forEach((neighbourFeature) => {
+          if (
+            feature.properties[compareField] ===
+            neighbourFeature.properties[compareField]
+          )
+            isNewNeighbour = true;
+        });
+
+        if (!isNewNeighbour) return false;
+        return feature;
+      });
+    data.featureCollection.features = featureCollectionWithOnlyNeighbours;
+
+    this.#addFeaturesToSource(source, data);
   };
 
   #snapWfsSearch = (data) => {
@@ -755,6 +1032,19 @@ class IntegrationModel {
       this.activeSnapSource,
       data.geometryField
     );
+  };
+
+  #abortCombineTool = () => {
+    this.#clearSource(this.editSources.combine);
+    this.#clearSource(this.editSources.combineNeighbours);
+  };
+
+  #abortCopyTool = () => {
+    this.#clearSource(this.editSources.copy);
+  };
+
+  #abortNewTool = () => {
+    this.#clearSource(this.editSources.new);
   };
 
   #modeChanged = (mode) => {

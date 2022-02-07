@@ -12,6 +12,9 @@ const drawSearchFillColor = "rgba(255,255,255,0.07)";
 const snapStrokeColor = "rgba(74,74,74,0.5)";
 const snapFillColor = "rgba(74,74,74,0.07)";
 
+const combineNeighbourStrokeColor = "rgba(255,128,40,0.25)";
+const combineNeighbourFillColor = "rgba(255,128,40,0.07)";
+
 export const createMapStyles = (options) => {
   const listFeatureStyle = createListFeatureStyle(options);
   const selectedListFeatureStyle = createSelectedListFeatureStyle(options);
@@ -19,6 +22,7 @@ export const createMapStyles = (options) => {
   const editFeatureStyle = createEditFeatureStyle(options);
   const snapStyle = createSnapStyle();
   const drawSearchStyle = createDrawSearchStyle();
+  const combineNeighbourStyle = createCombineNeighbourStyle();
 
   return {
     listFeatureStyle: listFeatureStyle,
@@ -27,6 +31,7 @@ export const createMapStyles = (options) => {
     editFeatureStyle: editFeatureStyle,
     snapStyle: snapStyle,
     drawSearchStyle: drawSearchStyle,
+    combineNeighbourStyle: combineNeighbourStyle,
   };
 };
 
@@ -84,6 +89,17 @@ const createSnapStyle = () => {
 const createDrawSearchStyle = () => {
   const strokeColor = drawSearchStrokeColor;
   const fillColor = drawSearchFillColor;
+  return {
+    stroke: { color: strokeColor, width: defaultStrokeWidth },
+    fill: { color: fillColor },
+    circle: { radius: defaultCircleRadius, width: defaultStrokeWithCircle },
+  };
+};
+
+/* Styles for combine neighbours */
+const createCombineNeighbourStyle = () => {
+  const strokeColor = combineNeighbourStrokeColor;
+  const fillColor = combineNeighbourFillColor;
   return {
     stroke: { color: strokeColor, width: defaultStrokeWidth },
     fill: { color: fillColor },
