@@ -1,5 +1,5 @@
 //default, non admin configurable style values.
-
+export const selectedListFeatureBackgroudColor = "#c9f";
 const defaultStrokeWidth = 4;
 const highlightStrokeWidth = 6;
 const defaultCircleRadius = 6;

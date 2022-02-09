@@ -83,7 +83,6 @@ class IntegrationView extends React.PureComponent {
     this.localObserver = props.localObserver;
     this.model = props.model;
     this.app = props.app;
-    this.title = props.title;
 
     this.#init();
     this.#bindSubscriptions();
@@ -110,6 +109,17 @@ class IntegrationView extends React.PureComponent {
         variant: "info",
         persist: false,
       });
+    });
+    this.localObserver.subscribe("mf-wfs-failed-search", (error) => {
+      let displayName =
+        this.props.model.options.mapObjects[this.state.mode].displayName;
+      this.props.enqueueSnackbar(
+        `Sökning mot ${displayName} kunde inte genomföras`,
+        {
+          persist: false,
+          variant: "error",
+        }
+      );
     });
     this.localObserver.subscribe("mf-start-draw-new-geometry", () => {
       this.newGeometryFunctions[this.state.mode]();
@@ -878,29 +888,34 @@ class IntegrationView extends React.PureComponent {
             <div>
               {this.state.currentListResults[mode].length > 0 ? (
                 <div className={classes.itemList}>
-                  {this.state.currentListResults[mode].map((item) => (
-                    <ListResult
-                      key={item.id}
-                      item={item}
-                      listMode={mode}
-                      handleClickItem={(clickedItem, mode) => {
-                        this.#clickedRowFromList(clickedItem);
-                        this.#clickRow(clickedItem, mode);
-                      }}
-                      handledZoomItem={(clickedItem) => {
-                        this.#zoomFeatureInOrOut(clickedItem);
-                      }}
-                      handleRemoveItem={(item, mode) => {
-                        this.#removeFromResults(item, mode);
-                      }}
-                      handleRemoveCreatedItem={(item, mode) => {
-                        this.#removeCreatedItemFromResults(item, mode);
-                      }}
-                      handleToggleItemVisibilty={(item, mode) => {
-                        this.toggleResultItemVisibility(item, mode);
-                      }}
-                    />
-                  ))}
+                  {this.state.currentListResults[mode].map((item) => {
+                    let refName = item.feature.ol_uid;
+                    this.model.listItemRefs[refName] = React.createRef();
+                    return (
+                      <ListResult
+                        model={this.props.model}
+                        key={item.id}
+                        item={item}
+                        listMode={mode}
+                        handleClickItem={(clickedItem, mode) => {
+                          this.#clickedRowFromList(clickedItem);
+                          this.#clickRow(clickedItem, mode);
+                        }}
+                        handledZoomItem={(clickedItem) => {
+                          this.#zoomFeatureInOrOut(clickedItem);
+                        }}
+                        handleRemoveItem={(item, mode) => {
+                          this.#removeFromResults(item, mode);
+                        }}
+                        handleRemoveCreatedItem={(item, mode) => {
+                          this.#removeCreatedItemFromResults(item, mode);
+                        }}
+                        handleToggleItemVisibilty={(item, mode) => {
+                          this.toggleResultItemVisibility(item, mode);
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               ) : (
                 `Inga ${modeDisplay[mode]["displayNamePlural"]} valda.`

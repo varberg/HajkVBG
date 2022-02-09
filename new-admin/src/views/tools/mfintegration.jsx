@@ -168,8 +168,15 @@ class ToolOptions extends Component {
   createMapObjectState() {
     const tool = this.getTool();
     let mappedObjects = {};
+
+    //If there is no mapObjects in the config files at all, use the entire default state for mapObjects.
+    if (!tool.options?.mapObjects) {
+      return defaultState.mapObjects;
+    }
+
+    //If there is a mapObjects object in the config, replace any defaultState properties with the matching properties.
     for (const [key, value] of Object.entries(defaultState.mapObjects)) {
-      if (tool.options?.mapObjects[key]) {
+      if (tool.options.mapObjects[key]) {
         mappedObjects[key] = tool.options.mapObjects[key];
       } else {
         mappedObjects[key] = value;
@@ -402,7 +409,7 @@ class ToolOptions extends Component {
           </div>
           <div>
             <label htmlFor="panelDescription">
-              Description{" "}
+              Beskrivning{" "}
               <i
                 className="fa fa-question-circle"
                 data-toggle="tooltip"
@@ -471,6 +478,39 @@ class ToolOptions extends Component {
               <option value="left">Left</option>
               <option value="right">Right</option>
             </select>
+          </div>
+          <div className="separator">Övriga inställningar</div>
+          <div>
+            <input
+              id="visibleAtStart"
+              name="visibleAtStart"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+              checked={this.state.visibleAtStart}
+            />
+            &nbsp;
+            <label htmlFor="visibleAtStart">Synlig vid start</label>
+          </div>
+          <div>
+            <label htmlFor="instruction">
+              Instruktion{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Förklarande text som visas högst upp i verktygspanelen."
+              />
+            </label>
+            <textarea
+              type="text"
+              id="instruction"
+              name="instruction"
+              value={this.state.instruction}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
           </div>
           <div className="separator">Kartobjekt inställningar</div>
           <div>
@@ -1275,39 +1315,6 @@ class ToolOptions extends Component {
             />
           </div>
           <div className="separator">KUBB inställningar</div>
-          <div className="separator">Övriga inställningar</div>
-          <div>
-            <input
-              id="visibleAtStart"
-              name="visibleAtStart"
-              type="checkbox"
-              onChange={(e) => {
-                this.handleInputChange(e);
-              }}
-              checked={this.state.visibleAtStart}
-            />
-            &nbsp;
-            <label htmlFor="visibleAtStart">Synlig vid start</label>
-          </div>
-          <div>
-            <label htmlFor="instruction">
-              Instruction{" "}
-              <i
-                className="fa fa-question-circle"
-                data-toggle="tooltip"
-                title="Förklarande text som visas högst upp i verktygspanelen."
-              />
-            </label>
-            <input
-              id="instruction"
-              value={this.state.instruction}
-              type="text"
-              name="instruction"
-              onChange={(e) => {
-                this.handleInputChange(e);
-              }}
-            />
-          </div>
         </form>
       </div>
     );

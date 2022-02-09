@@ -7,7 +7,7 @@ import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import DeleteIcon from "@material-ui/icons/Delete";
 import InfoIcon from "@material-ui/icons/Info";
 import StarBorderIcon from "@material-ui/icons/StarBorder";
-import { clickBackgroudColor } from "./../mockdata/mockdataClickList";
+import { selectedListFeatureBackgroudColor } from "../MapStyles";
 import clsx from "clsx";
 
 const styles = (theme) => ({
@@ -35,7 +35,7 @@ const styles = (theme) => ({
   itemButton: {
     padding: theme.spacing(0.3),
   },
-  itemSelected: clickBackgroudColor(),
+  itemSelected: { backgroundColor: selectedListFeatureBackgroudColor },
   itemUnselected: { backgroundColor: "#fff" },
   infoDescription: { fontWeight: "bold", fontSize: "0.85rem" },
   infoText: { fontSize: "0.9rem" },
@@ -91,6 +91,7 @@ class ListResult extends React.PureComponent {
   render() {
     const {
       classes,
+      model,
       item,
       listMode,
       handleClickItem,
@@ -99,7 +100,10 @@ class ListResult extends React.PureComponent {
       handleToggleItemVisibilty,
     } = this.props;
     return (
-      <div className={classes.itemList}>
+      <div
+        className={classes.itemList}
+        ref={model.listItemRefs[item.feature.ol_uid]}
+      >
         <div
           key={item.id}
           className={

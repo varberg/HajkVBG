@@ -70,7 +70,7 @@ export const defaultModeConfig = {
 };
 
 //accept the tool options from the map configuration (e.g. map_1.json). and replace default values with config values.
-export const initModeConfig = (options) => {
+export const initModeConfig = (options = {}) => {
   let modeOptions = defaultModeConfig;
 
   Object.keys(options).forEach((mapMode) => {
