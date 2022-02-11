@@ -601,7 +601,12 @@ class IntegrationModel {
   #addWfsSearch = (data) => {
     this.#addFeaturesToSource(this.dataSources[data.type], data);
     this.#updateList(this.dataSources[data.type], data);
-    this.#zoomToSource(this.dataSources[data.type]);
+    this.#zoomToFeaturenWhenKubbSearch(data);
+  };
+
+  #zoomToFeaturenWhenKubbSearch = (data) => {
+    if (data.searchType === "List")
+      this.#zoomToSource(this.dataSources[data.type]);
   };
 
   #addFeaturesToSource = (source, featureCollection) => {
