@@ -1,6 +1,13 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { withStyles, Typography, IconButton, Tooltip } from "@material-ui/core";
+import {
+  withStyles,
+  Typography,
+  IconButton,
+  Tooltip,
+  Grid,
+  Box,
+} from "@material-ui/core";
 import VisibilityIcon from "@material-ui/icons/Visibility";
 import VisibilityOffIcon from "@material-ui/icons/VisibilityOff";
 import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
@@ -12,25 +19,8 @@ import clsx from "clsx";
 
 const styles = (theme) => ({
   listItemContainer: {
-    paddingLeft: "0",
-    paddingTop: "5px",
-    paddingBottom: "5px",
+    padding: theme.spacing(0.8),
     borderBottom: `${theme.spacing(0.2)}px solid ${theme.palette.divider}`,
-  },
-  listItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "5px",
-  },
-  listItemText: {
-    display: "flex",
-    alignItems: "center",
-    maxWidth: "70%",
-  },
-  itemButtons: {
-    display: "flex",
-    alignItems: "center",
-    marginLeft: theme.spacing(1),
   },
   itemButton: {
     padding: theme.spacing(0.3),
@@ -112,68 +102,71 @@ class ListResult extends React.PureComponent {
               : clsx(classes.listItemContainer, classes.itemUnselected)
           }
         >
-          <div className={classes.listItem}>
-            <div
-              id="itemText"
-              className={classes.listItemText}
-              onClick={(e) => handleClickItem(item, listMode)}
-            >
-              {item.isNew && <StarBorderIcon />}
-              <Typography noWrap>{item.name}</Typography>
-            </div>
-            <div className={classes.itemButtons}>
-              <div className={classes.itemButton}>
-                <Tooltip title="Information om objektet">
-                  <StyledIconButton
-                    onClick={() => {
-                      this.toggleInfo();
-                    }}
-                    aria-label="visa information"
-                  >
-                    <InfoIcon />
-                  </StyledIconButton>
-                </Tooltip>
-              </div>
-              <div className={classes.itemButton}>
-                <Tooltip title="Visa/dölj objekt i kartan">
-                  <StyledIconButton
-                    onClick={() => {
-                      handleToggleItemVisibilty(item, listMode);
-                    }}
-                    aria-label="växla synlighet"
-                  >
-                    {item.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                  </StyledIconButton>
-                </Tooltip>
-              </div>
-              {/* If the item is a newly created item (that is still temporary), it uses a different delete method. */}
-              <div className={classes.itemButton}>
-                {item.isNew ? (
-                  <Tooltip title="Ta bort markering">
+          <Grid container alignItems="center">
+            <Grid item xs={9} onClick={(e) => handleClickItem(item, listMode)}>
+              <Box alignItems="center">
+                {item.isNew && <StarBorderIcon />}
+                <Typography noWrap>{item.name}</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={3}>
+              <Box display="flex" justifyContent="flex-end" alignItems="center">
+                <div className={classes.itemButton}>
+                  <Tooltip title="Information om objektet">
                     <StyledIconButton
-                      onClick={(e) => {
-                        handleRemoveCreatedItem(item, listMode);
+                      onClick={() => {
+                        this.toggleInfo();
                       }}
-                      aria-label="välj bort"
+                      aria-label="visa information"
                     >
-                      <DeleteIcon />
+                      <InfoIcon />
                     </StyledIconButton>
                   </Tooltip>
-                ) : (
-                  <Tooltip title="Ta bort markering">
+                </div>
+                <div className={classes.itemButton}>
+                  <Tooltip title="Visa/dölj objekt i kartan">
                     <StyledIconButton
-                      onClick={(e) => {
-                        handleRemoveItem(item, listMode);
+                      onClick={() => {
+                        handleToggleItemVisibilty(item, listMode);
                       }}
-                      aria-label="välj bort"
+                      aria-label="växla synlighet"
                     >
-                      <CancelOutlinedIcon />
+                      {item.visible ? (
+                        <VisibilityIcon />
+                      ) : (
+                        <VisibilityOffIcon />
+                      )}
                     </StyledIconButton>
                   </Tooltip>
-                )}
-              </div>
-            </div>
-          </div>
+                </div>
+                <div className={classes.itemButton}>
+                  {item.isNew ? (
+                    <Tooltip title="Ta bort markering">
+                      <StyledIconButton
+                        onClick={(e) => {
+                          handleRemoveCreatedItem(item, listMode);
+                        }}
+                        aria-label="välj bort"
+                      >
+                        <DeleteIcon />
+                      </StyledIconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Ta bort markering">
+                      <StyledIconButton
+                        onClick={(e) => {
+                          handleRemoveItem(item, listMode);
+                        }}
+                        aria-label="välj bort"
+                      >
+                        <CancelOutlinedIcon />
+                      </StyledIconButton>
+                    </Tooltip>
+                  )}
+                </div>
+              </Box>
+            </Grid>
+          </Grid>
           {this.renderInfo(item)}
         </div>
       </div>
