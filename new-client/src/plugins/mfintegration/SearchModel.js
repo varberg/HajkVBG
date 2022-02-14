@@ -14,84 +14,24 @@ export default class SearchModel {
     this.options = settings.options;
     this.localObserver = settings.localObserver;
 
-    this.wfsConfigRealEstate = this.options.mapObjects.realEstate.wfsLayer;
-    this.wfsConfigCoordinates = this.options.mapObjects.coordinate.wfsLayer;
-    this.wfsConfigAreas = this.options.mapObjects.area.wfsLayer;
-    this.wfsConfigSurvey = this.options.mapObjects.survey.wfsLayer;
-    this.wfsConfigContamination =
-      this.options.mapObjects.contamination.wfsLayer;
+    this.wfsConfigRealEstate = this.options.mapObjects.realEstate;
+    this.wfsConfigCoordinates = this.options.mapObjects.coordinate;
+    this.wfsConfigAreas = this.options.mapObjects.area;
+    this.wfsConfigSurvey = this.options.mapObjects.survey;
+    this.wfsConfigContamination = this.options.mapObjects.contamination;
   }
 
   findRealEstatesWithGeometry = (selectionFeature) => {
-    const filter = this.#getSpatialFilter(
-      selectionFeature.getGeometry(),
-      this.#getTransformationMapToWfs(this.wfsConfigRealEstate),
-      this.wfsConfigRealEstate
-    );
-    const wfsRequest = this.#getWfsRequest(filter, this.wfsConfigRealEstate);
-    if (wfsRequest === null) {
-      console.warn(
-        "WFS anropet kunde inte skapas korrekt. Kolla verktygets konfiguration."
-      );
-    }
-
-    hfetch(this.wfsConfigRealEstate.url, wfsRequest).then((response) => {
-      response.json().then((featureCollection) => {
-        let answer = this.#createResponse(
-          featureCollection,
-          this.wfsConfigRealEstate.geometryField,
-          this.#getTransformationWfsToMap(this.wfsConfigRealEstate),
-          selectionFeature.getGeometry().getType()
-        );
-        answer.selectionFeature = selectionFeature;
-        answer.type = "realEstate";
-        this.localObserver.publish("mf-wfs-search", answer);
-      });
-    });
+    this.#findWithGeometry(selectionFeature, this.wfsConfigRealEstate);
   };
 
   findRealEstatesWithNumbers = (realEstatesList) => {
-    const filter = this.#getListFilter(
-      realEstatesList,
-      this.wfsConfigRealEstate
-    );
-    const wfsRequest = this.#getWfsRequest(filter, this.wfsConfigRealEstate);
-    if (wfsRequest === null) {
-      console.warn(
-        "WFS anropet kunde inte skapas korrekt. Kolla verktygets konfiguration."
-      );
-      this.localObserver.publish("mf-wfs-failed-search");
-      return;
-    }
-
-    //TODO - if we couldn't successfully create the request, we shouldn't send the request.
-    hfetch(this.wfsConfigRealEstate.url, wfsRequest)
-      .then((response) => {
-        response
-          .json()
-          .then((featureCollection) => {
-            let answer = this.#createResponse(
-              featureCollection,
-              this.wfsConfigRealEstate.geometryField,
-              this.#getTransformationWfsToMap(this.wfsConfigRealEstate),
-              "List"
-            );
-            answer.selectedRealEstates = realEstatesList;
-            answer.type = "realEstate";
-            this.localObserver.publish("mf-wfs-search", answer);
-          })
-          .catch((error) => {
-            console.warn(error);
-            this.localObserver.publish("mf-wfs-failed-search", error);
-          });
-      })
-      .catch((error) => {
-        console.warn(error);
-        this.localObserver.publish("mf-wfs-failed-search", error);
-      });
+    this.#findWithIds(realEstatesList, this.wfsConfigRealEstate);
   };
 
-  findCoordinatesWithGeometry = (selectionFeature) => {};
+  findCoordinatesWithGeometry = (selectionFeature) => {
+    this.#findWithGeometry(selectionFeature, this.wfsConfigCoordinates);
+  };
 
   findCoordinatesWithCoordinates = (coordinateList) => {
     let wfsConfig = this.options.mapObjects.coordinate.wfsLayer;
@@ -125,7 +65,9 @@ export default class SearchModel {
     this.localObserver.publish("mf-wfs-search", answer);
   };
 
-  findAreasWithGeometry = (selectionFeature) => {};
+  findAreasWithGeometry = (selectionFeature) => {
+    this.#findWithGeometry(selectionFeature, this.wfsConfigAreas);
+  };
 
   // Skall vara ett nummer, men är en koordinat i vår testkod
   findAreasWithNumbers = (areaList) => {
@@ -161,7 +103,9 @@ export default class SearchModel {
     this.localObserver.publish("mf-wfs-search", answer);
   };
 
-  findSurveysWithGeometry = (selectionFeature) => {};
+  findSurveysWithGeometry = (selectionFeature) => {
+    this.#findWithGeometry(selectionFeature, this.wfsConfigSurvey);
+  };
 
   findSurveysWithNumbers = (surveyList) => {
     let wfsConfig = this.options.mapObjects.survey.wfsLayer;
@@ -196,7 +140,9 @@ export default class SearchModel {
     this.localObserver.publish("mf-wfs-search", answer);
   };
 
-  findContaminationsWithGeometry = (selectionFeature) => {};
+  findContaminationsWithGeometry = (selectionFeature) => {
+    this.#findWithGeometry(selectionFeature, this.wfsConfigContamination);
+  };
 
   findContaminationsWithNumbers = (contaminationList) => {
     let wfsConfig = this.options.mapObjects.contamination.wfsLayer;
@@ -229,6 +175,72 @@ export default class SearchModel {
     answer.selectedCoordinates = contaminationList;
     answer.type = "contamination";
     this.localObserver.publish("mf-wfs-search", answer);
+  };
+
+  #findWithGeometry = (selectionFeature, config) => {
+    const filter = this.#getSpatialFilter(
+      selectionFeature.getGeometry(),
+      this.#getTransformationMapToWfs(config.wfsLayer),
+      config.wfsLayer
+    );
+    const wfsRequest = this.#getWfsRequest(filter, config.wfsLayer);
+    if (wfsRequest === null) {
+      console.warn(
+        "WFS anropet kunde inte skapas korrekt. Kolla verktygets konfiguration."
+      );
+    }
+
+    hfetch(config.wfsLayer.url, wfsRequest).then((response) => {
+      response.json().then((featureCollection) => {
+        let answer = this.#createResponse(
+          featureCollection,
+          config.wfsLayer.geometryField,
+          this.#getTransformationWfsToMap(config.wfsLayer),
+          selectionFeature.getGeometry().getType()
+        );
+        answer.searchedFeature = selectionFeature;
+        answer.type = config.name;
+        this.localObserver.publish("mf-wfs-search", answer);
+      });
+    });
+  };
+
+  #findWithIds = (listIds, config) => {
+    const filter = this.#getListFilter(listIds, config.wfsLayer);
+    const wfsRequest = this.#getWfsRequest(filter, config.wfsLayer);
+    if (wfsRequest === null) {
+      console.warn(
+        "WFS anropet kunde inte skapas korrekt. Kolla verktygets konfiguration."
+      );
+      this.localObserver.publish("mf-wfs-failed-search");
+      return;
+    }
+
+    //TODO - if we couldn't successfully create the request, we shouldn't send the request.
+    hfetch(config.wfsLayer.url, wfsRequest)
+      .then((response) => {
+        response
+          .json()
+          .then((featureCollection) => {
+            let answer = this.#createResponse(
+              featureCollection,
+              config.wfsLayer.geometryField,
+              this.#getTransformationWfsToMap(config.wfsLayer),
+              "List"
+            );
+            answer.searchedIds = listIds;
+            answer.type = config.name;
+            this.localObserver.publish("mf-wfs-search", answer);
+          })
+          .catch((error) => {
+            console.warn(error);
+            this.localObserver.publish("mf-wfs-failed-search", error);
+          });
+      })
+      .catch((error) => {
+        console.warn(error);
+        this.localObserver.publish("mf-wfs-failed-search", error);
+      });
   };
 
   #getSpatialFilter = (geometry, transformation, wfsConfig) => {
