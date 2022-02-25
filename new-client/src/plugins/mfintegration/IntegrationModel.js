@@ -11,6 +11,7 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Transform from "./Transformation/Transform";
 import { KUBB } from "./mockdata/mockdataKUBB";
+import { HubConnectionBuilder } from "@microsoft/signalr";
 
 class IntegrationModel {
   constructor(settings) {
@@ -874,6 +875,74 @@ class IntegrationModel {
     const contaminations = KUBB().contaminations;
     this.searchResponseTool = "search";
     this.searchModel.findContaminationsWithNumbers(contaminations);
+  };
+
+  getKubbAddress = () => {
+    const address = "http://sn800aa16.staden.gotheborg.net:64235"; //"http://martin/signalr"; // proxy för "http://10.1.17.73:64235";
+    return address;
+  };
+
+  getKubbconnectionParams = () => {
+    const connectionParams = {
+      user: "w3erik.arvroth",
+      organisation: "6766D96B-A51E-42F6-AA57-A3CAC4D57939", //"AD285DC5-73BE-4772-AC52-FE2C6117D4C0",
+      client: "webmapapp", //"GotMap",
+      clientType: "External", //"External",
+      path: "/GisAndRealEstate",
+    };
+
+    return connectionParams;
+  };
+
+  testEdpConnection = () => {
+    console.log("Test EDP connection");
+
+    var query =
+      "?user=w3erik.arvroth&organisation=6766D96B-A51E-42F6-AA57-A3CAC4D57939&clientType=External&client=webmapapp";
+    var path = "/GisAndRealEstate";
+    var address = "http://localhost:64235"; //"https://sn800aa16.staden.gotheborg.net:64235";
+
+    let url = address + path + query;
+    console.log("url", url);
+
+    const connection = new HubConnectionBuilder().withUrl(url).build();
+    console.log("connection", connection);
+
+    connection.on(
+      "HandleRealEstateIdentifiers",
+      function (realEstateIdentifiers) {
+        debugger;
+      }
+    );
+
+    connection.on("HandleAskingForRealEstateIdentifiers", function () {
+      var realEstateIdentifiers = [
+        {
+          Fnr: "030121108",
+          Name: "Tand 2:167",
+          Municipality: "Östersund",
+          Uuid: "909a6a84-91ae-90ec-e040-ed8f66444c3f",
+        },
+      ];
+      // var li = document.createElement("li");
+      // document.getElementById("messagesList").appendChild(li);
+      // li.textContent = `HandleAskingForRealEstateIdentifiers: returns: ${realEstateIdentifiers[0].Name}`;
+      debugger;
+      connection.invoke("SendRealEstateIdentifiers", realEstateIdentifiers);
+    });
+
+    connection
+      .start()
+      .then(function () {
+        debugger;
+        //document.getElementById("sendButton").disabled = false;
+      })
+      .catch(function (err) {
+        debugger;
+        return console.error(err.toString());
+      });
+
+    //hubConnection.start().catch((err) => console.error(err));
   };
 }
 
