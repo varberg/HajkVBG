@@ -1,5 +1,4 @@
 import React from "react";
-import { withStyles } from "@material-ui/core/styles";
 import {
   LineChart,
   Line,
@@ -7,32 +6,28 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend
+  Legend,
 } from "recharts";
-
-const styles = theme => ({});
+import { hfetch } from "utils/FetchWrapper";
 
 class DiagramView extends React.PureComponent {
   state = {
-    data: false
+    data: false,
   };
 
   // TODO: Add propTypes
 
   componentDidMount() {
     const { source, feature } = this.props;
-    var url = this.parse(source, feature.getProperties());
+    const url = this.parse(source, feature.getProperties());
     this.load(url);
   }
 
   parse(str, properties) {
     if (str && typeof str === "string") {
-      (str.match(/{(.*?)}/g) || []).forEach(property => {
+      (str.match(/{(.*?)}/g) || []).forEach((property) => {
         function lookup(o, s) {
-          s = s
-            .replace("{", "")
-            .replace("}", "")
-            .split(".");
+          s = s.replace("{", "").replace("}", "").split(".");
           switch (s.length) {
             case 1:
               return o[s[0]] || "";
@@ -52,16 +47,16 @@ class DiagramView extends React.PureComponent {
   }
 
   load(url) {
-    fetch(url).then(response => {
-      response.json().then(rsp => {
-        const data = rsp.features.map(feature => {
+    hfetch(url).then((response) => {
+      response.json().then((rsp) => {
+        const data = rsp.features.map((feature) => {
           return {
             date: feature.properties.datetime.split("T")[0],
-            value: feature.properties.value
+            value: feature.properties.value,
           };
         });
         this.setState({
-          data: data
+          data: data,
         });
       });
     });
@@ -78,7 +73,7 @@ class DiagramView extends React.PureComponent {
             top: 5,
             right: 30,
             left: 20,
-            bottom: 5
+            bottom: 5,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
@@ -95,4 +90,4 @@ class DiagramView extends React.PureComponent {
   }
 }
 
-export default withStyles(styles)(DiagramView);
+export default DiagramView;

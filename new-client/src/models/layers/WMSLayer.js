@@ -5,39 +5,40 @@ import ImageWMS from "ol/source/ImageWMS";
 import TileWMS from "ol/source/TileWMS";
 import GeoJSON from "ol/format/GeoJSON";
 import LayerInfo from "./LayerInfo.js";
-
-// var WmsLayerProperties = {
-//   url: "",
-//   projection: "EPSG:3006",
-//   serverType: "geoserver",
-//   crossOrigin: "anonymous",
-//   opacity: 1,
-//   status: "ok",
-//   params: {}
-// };
+import { equals } from "ol/extent";
+import { delay } from "../../utils/Delay";
+import { hfetch, overrideLayerSourceParams } from "utils/FetchWrapper";
 
 class WMSLayer {
   constructor(config, proxyUrl, globalObserver) {
     this.proxyUrl = proxyUrl;
     this.globalObserver = globalObserver;
     this.validInfo = true;
-    // this.defaultProperties = WmsLayerProperties;
     this.legend = config.legend;
     this.attribution = config.attribution;
     this.layerInfo = new LayerInfo(config);
     this.subLayers = config.params["LAYERS"].split(",");
 
-    var source = {
+    let source = {
       url: config.url,
       params: config.params,
       projection: config.projection,
       serverType: config.serverType,
-      crossOrigin: "anonymous",
+      crossOrigin: config.crossOrigin,
       imageFormat: config.imageFormat,
       attributions: config.attribution,
       cacheSize: this.subLayers.length > 1 ? 32 : 2048,
-      transition: this.subLayers.length > 1 ? 0 : 100
+      transition: this.subLayers.length > 1 ? 0 : 100,
     };
+
+    if (config.hidpi !== null) {
+      source.hidpi = config.hidpi;
+    }
+
+    overrideLayerSourceParams(source);
+
+    const minZoom = config?.minZoom >= 0 ? config.minZoom : undefined;
+    const maxZoom = config?.maxZoom >= 0 ? config.maxZoom : undefined;
 
     if (
       config.resolutions &&
@@ -47,12 +48,15 @@ class WMSLayer {
     ) {
       source.tileGrid = new TileGrid({
         resolutions: config.resolutions,
-        origin: config.origin
+        origin: config.origin,
       });
       source.extent = config.extent;
     }
 
     if (config.singleTile) {
+      if (config.customRatio >= 1) {
+        source.ratio = config.customRatio;
+      }
       this.layer = new ImageLayer({
         name: config.name,
         visible: config.visible,
@@ -60,7 +64,13 @@ class WMSLayer {
         opacity: config.opacity,
         source: new ImageWMS(source),
         layerInfo: this.layerInfo,
-        url: config.url
+        url: config.url,
+        timeSliderStart: config?.timeSliderStart,
+        timeSliderEnd: config?.timeSliderEnd,
+        minZoom: minZoom,
+        maxZoom: maxZoom,
+        minMaxZoomAlertOnToggleOnly:
+          config.minMaxZoomAlertOnToggleOnly || false,
       });
     } else {
       this.layer = new TileLayer({
@@ -70,30 +80,98 @@ class WMSLayer {
         opacity: config.opacity,
         source: new TileWMS(source),
         layerInfo: this.layerInfo,
-        url: config.url
+        url: config.url,
+        timeSliderStart: config?.timeSliderStart,
+        timeSliderEnd: config?.timeSliderEnd,
+        minZoom: minZoom,
+        maxZoom: maxZoom,
+        minMaxZoomAlertOnToggleOnly:
+          config.minMaxZoomAlertOnToggleOnly || false,
       });
     }
 
-    this.layer.getSource().on("tileloaderror", e => {
-      this.tileLoadError();
-    });
-
-    this.layer.getSource().on("tileloadend", e => {
-      this.tileLoadOk();
-    });
-
-    this.layer.on("change:visible", e => {
-      if (this.layer.get("visible")) {
-        this.tileLoadOk();
-      }
-    });
-
     this.layer.layersInfo = config.layersInfo;
     this.layer.subLayers = this.subLayers;
-    this.layer.layerType = this.subLayers.length > 1 ? "group" : "layer";
+    this.layer.layerType = this.getLayerType();
     this.layer.getSource().set("url", config.url);
     this.type = "wms";
+    this.bindHandlers();
   }
+
+  // If the layerType is set as a base-layer in the config-mapper,
+  // it should be kept as a base-layer, *even if it has sub-layers*.
+  // The old behavior (before this commit) was that the base-layer was
+  // "transformed" to a "group-layer" if it had more than one subLayer.
+  // Since base-layers might be constructed with several subLayers, we
+  // shouldn't do that transformation... If the baseLayer is transformed
+  // to a "group-layer" we will get several errors, since the baseLayers
+  // does not contain all necessary information to render a "group-layer".
+  getLayerType() {
+    // Destruct the layerType from the layerInfo
+    const { layerType } = this.layerInfo;
+    // Check if the type is set to "base", and if it is,
+    // return "base". If it is not, we check if we have more than
+    // one subLayer; if we do, we return "group", and otherwise it is
+    // a regular "layer".
+    return layerType === "base"
+      ? "base"
+      : this.subLayers.length > 1
+      ? "group"
+      : "layer";
+  }
+
+  /**
+   * Bind handlers for TileWMS and ImageWMS
+   * @instance
+   */
+  bindHandlers() {
+    const layerSource = this.layer.getSource();
+    if (layerSource instanceof TileWMS) {
+      layerSource.on("tileloaderror", this.onTileLoadError);
+      layerSource.on("tileloadend", this.onTileLoadOk);
+    }
+    if (layerSource instanceof ImageWMS) {
+      layerSource.on("imageloaderror", this.onImageError);
+    }
+  }
+
+  /**
+   * Triggers when a tile fails to load.
+   * @instance
+   */
+  onTileLoadError = () => {
+    this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
+      id: this.layer.get("name"),
+      status: "loaderror",
+    });
+  };
+
+  /**
+   * Triggers when a tile loads.
+   * @instance
+   */
+  onTileLoadOk = () => {
+    this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
+      id: this.layer.get("name"),
+      status: "ok",
+    });
+  };
+
+  /**
+   * If we get an error while loading Image we try to refresh it once per extent.
+   * This check is needed because we don't want to get stuck in an endless loop in case image repeatedly fails
+   * @instance
+   */
+  onImageError = async (e) => {
+    const layerSource = this.layer.getSource();
+    const previousErrorExtent = e.target.get("previousErrorExtent") || [];
+    const currentErrorExtent = e.image.extent;
+    if (!equals(previousErrorExtent, currentErrorExtent)) {
+      await delay(300); //Delay refresh of layers who caused error to not throttle the canvas and get new errors
+      layerSource.refresh();
+    }
+    e.target.set("previousErrorExtent", currentErrorExtent);
+  };
 
   /**
    * Load feature information.
@@ -102,12 +180,11 @@ class WMSLayer {
    * @return {external:"ol.style"} style
    */
   getFeatureInformation(params) {
-    var url;
     try {
       this.validInfo = true;
       this.featureInformationCallback = params.success;
 
-      url = this.getLayer()
+      let url = this.getLayer()
         .getSource()
         .getFeatureInfoUrl(
           params.coordinate,
@@ -115,10 +192,11 @@ class WMSLayer {
           params.projection,
           {
             INFO_FORMAT:
-              this.get("serverType") === "arcgis"
+              this.get("serverType") === "arcgis" ||
+              this.get("serverType") === "mapserver"
                 ? "application/geojson"
                 : "application/json",
-            feature_count: 100
+            feature_count: 100,
           }
         );
 
@@ -127,14 +205,14 @@ class WMSLayer {
           url = encodeURIComponent(url);
         }
 
-        fetch(this.proxyUrl + url)
-          .then(response => {
-            response.json().then(data => {
+        hfetch(this.proxyUrl + url)
+          .then((response) => {
+            response.json().then((data) => {
               var features = new GeoJSON().readFeatures(data);
               this.featureInformationCallback(features, this.getLayer());
             });
           })
-          .catch(err => {
+          .catch((err) => {
             params.error(err);
           });
       }
@@ -153,42 +231,6 @@ class WMSLayer {
     var legend = Object.assign({}, this.legend);
     legend[0].Url = legend[0].Url.replace(/LAYER=.*/, "LAYER=" + layerName);
     return legend;
-  }
-
-  /**
-   * Triggers when a tile fails to load.
-   * @instance
-   */
-  tileLoadError() {
-    this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
-      id: this.layer.get("name"),
-      status: "loaderror"
-    });
-  }
-
-  /**
-   * Triggers when a tile loads.
-   * @instance
-   */
-  tileLoadOk() {
-    this.globalObserver.publish("layerswitcher.wmsLayerLoadStatus", {
-      id: this.layer.get("name"),
-      status: "ok"
-    });
-  }
-
-  /**
-   * Parse response and trigger registred feature information callback.
-   * @param {XMLDocument} respose
-   * @instance
-   */
-  getFeatureInformationReponse(response) {
-    try {
-      var features = new GeoJSON().readFeatures(response);
-      this.featureInformationCallback(features, this.getLayer());
-    } catch (e) {
-      console.error(e);
-    }
   }
 }
 

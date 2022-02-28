@@ -1,20 +1,16 @@
 import React from "react";
-import { Button, Menu, MenuItem, Paper, Tooltip } from "@material-ui/core";
-import { withStyles } from "@material-ui/core/styles";
-import SwitchCameraIcon from "@material-ui/icons/SwitchCamera";
+import { IconButton, Menu, MenuItem, Paper, Tooltip } from "@mui/material";
+import { styled } from "@mui/material/styles";
+import SwitchCameraIcon from "@mui/icons-material/SwitchCamera";
+import { hfetch } from "utils/FetchWrapper";
 
-const styles = theme => ({
-  paper: {
-    marginBottom: theme.spacing(1)
-  },
-  button: {
-    minWidth: "unset"
-  }
-});
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  marginBottom: theme.spacing(1),
+}));
 
-const fetchConfig = {
-  credentials: "same-origin"
-};
+const StyledIconButton = styled(IconButton)(({ theme }) => ({
+  minWidth: "unset",
+}));
 
 class MapSwitcher extends React.PureComponent {
   // Will hold map configs
@@ -22,7 +18,7 @@ class MapSwitcher extends React.PureComponent {
 
   state = {
     anchorEl: null,
-    selectedIndex: null
+    selectedIndex: null,
   };
 
   constructor(props) {
@@ -31,25 +27,35 @@ class MapSwitcher extends React.PureComponent {
     this.map = this.props.appModel.getMap();
   }
 
+  handleLoading(maps) {
+    let { activeMap } = this.appModel.config;
+    // Save fetched map configs to global variable
+    this.maps = maps;
+
+    // Set selectedIndex to currently selected map
+    let selectedIndex = this.maps.findIndex((map) => {
+      return map.mapConfigurationName === activeMap;
+    });
+    this.setState({ selectedIndex });
+  }
+
   componentDidMount() {
     let { proxy, mapserviceBase } = this.appModel.config.appConfig;
-    let { activeMap } = this.appModel.config;
 
-    fetch(`${proxy}${mapserviceBase}/config/userspecificmaps`, fetchConfig)
-      .then(resp => resp.json())
-      .then(maps => {
-        // Save fetched map configs to global variable
-        this.maps = maps;
-
-        // Set selectedIndex to currently selected map
-        let selectedIndex = this.maps.findIndex(map => {
-          return map.mapConfigurationName === activeMap;
+    // If user specific maps is provided by the new API, the key will
+    // already exist in config and there's no need to fetch again.
+    // However, if it's undefined, it looks like we're using the old API
+    // and MapSwitcher must do the fetch by itself.
+    if (this.appModel.config.userSpecificMaps !== undefined) {
+      this.handleLoading(this.appModel.config.userSpecificMaps);
+    } else {
+      hfetch(`${proxy}${mapserviceBase}/config/userspecificmaps`)
+        .then((resp) => resp.json())
+        .then((maps) => this.handleLoading(maps))
+        .catch((err) => {
+          throw new Error(err);
         });
-        this.setState({ selectedIndex });
-      })
-      .catch(err => {
-        throw new Error(err);
-      });
+    }
   }
 
   renderMenuItems = () => {
@@ -60,7 +66,7 @@ class MapSwitcher extends React.PureComponent {
           key={index}
           // disabled={index === this.state.selectedIndex}
           selected={index === this.state.selectedIndex}
-          onClick={event => this.handleMenuItemClick(event, index)}
+          onClick={(event) => this.handleMenuItemClick(event, index)}
         >
           {item.mapConfigurationTitle}
         </MenuItem>
@@ -70,7 +76,7 @@ class MapSwitcher extends React.PureComponent {
   };
 
   // Show dropdown menu, anchored to the element clicked
-  handleClick = event => {
+  handleClick = (event) => {
     this.setState({ anchorEl: event.currentTarget });
   };
 
@@ -98,7 +104,6 @@ class MapSwitcher extends React.PureComponent {
 
   render() {
     const { anchorEl } = this.state;
-    const { classes } = this.props;
     const open = Boolean(anchorEl);
 
     const title =
@@ -108,17 +113,17 @@ class MapSwitcher extends React.PureComponent {
       // Render only if config says so
       this.props.appModel.config.mapConfig.map.mapselector && (
         <>
-          <Tooltip title={`Nuvarande karta: ${title}`}>
-            <Paper className={classes.paper}>
-              <Button
+          <Tooltip disableInteractive title={`Nuvarande karta: ${title}`}>
+            <StyledPaper>
+              <StyledIconButton
+                aria-label="Byt karta"
                 aria-owns={open ? "render-props-menu" : undefined}
                 aria-haspopup="true"
-                className={classes.button}
                 onClick={this.handleClick}
               >
                 <SwitchCameraIcon />
-              </Button>
-            </Paper>
+              </StyledIconButton>
+            </StyledPaper>
           </Tooltip>
           <Menu
             id="render-props-menu"
@@ -134,4 +139,4 @@ class MapSwitcher extends React.PureComponent {
   }
 }
 
-export default withStyles(styles)(MapSwitcher);
+export default MapSwitcher;

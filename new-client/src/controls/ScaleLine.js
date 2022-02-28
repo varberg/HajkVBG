@@ -1,56 +1,58 @@
 import React from "react";
-import { withStyles } from "@material-ui/core/styles";
+import { styled } from "@mui/material/styles";
 import { ScaleLine } from "ol/control";
-import { Paper, Tooltip } from "@material-ui/core";
+import { Paper, Tooltip } from "@mui/material";
 
-const styles = theme => {
-  return {
-    scaleLine: {
-      "& .ol-scale-line": {
-        position: "static",
-        right: "inherit",
-        bottom: "inherit",
-        padding: "3px",
-        background: theme.palette.background.paper,
-        boxShadow: theme.shadows[4],
-        border: "1px solid rgba(255 ,255, 255, 0.5)",
-        borderRadius: "2px"
-      },
-      "& .ol-scale-line-inner": {
-        cursor: "default",
-        borderColor: theme.palette.text.primary,
-        color: theme.palette.text.primary,
-        fontSize: "0.7em",
-        lineHeight: "1.5em"
-      }
-    },
-    scaleBadge: {
-      padding: "0 4px",
-      color: "rgba(0, 0, 0, 0.87)",
-      fontSize: "0.7em",
-      lineHeight: "25px",
-      borderRadius: "2px",
-      cursor: "default"
-    }
-  };
-};
+const Root = styled("div")(({ theme }) => ({
+  "& .ol-scale-line": {
+    position: "static",
+    right: "inherit",
+    bottom: "inherit",
+    padding: "3px",
+    background: theme.palette.background.paper,
+    boxShadow: theme.shadows[4],
+    borderRadius: theme.shape.borderRadius,
+  },
+  "& .ol-scale-line-inner": {
+    cursor: "default",
+    borderColor: theme.palette.text.primary,
+    color: theme.palette.text.primary,
+    fontSize: "0.7em",
+    lineHeight: "1.5em",
+  },
+}));
+
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  padding: "0 4px",
+  color: theme.palette.text.primary,
+  backgroundImage: "none",
+  fontSize: "0.7em",
+  lineHeight: "25px",
+  borderRadius: theme.shape.borderRadius,
+  cursor: "default",
+}));
 
 class ScaleLineControl extends React.PureComponent {
   state = {
-    scale: 0
+    scale: 0,
   };
+
+  constructor(props) {
+    super(props);
+    this.ref = React.createRef();
+  }
 
   componentDidUpdate() {
     // Important condition, to ensure that we don't add new ScaleLine and Binds each time value changes
-    if (this.props.map && this.refs.scaleLine.children.length === 0) {
+    if (this.props.map && this.ref.current.children.length === 0) {
       // Set initial value of scale
       this.setState({
-        scale: this.formatScale(this.getScale())
+        scale: this.formatScale(this.getScale()),
       });
 
       // Add ScaleLine
       const scaleLineControl = new ScaleLine({
-        target: this.refs.scaleLine
+        target: this.ref.current,
       });
       this.props.map.addControl(scaleLineControl);
 
@@ -58,7 +60,7 @@ class ScaleLineControl extends React.PureComponent {
       // Bind change event to update current scale
       this.props.map.getView().on("change:resolution", () => {
         this.setState({
-          scale: this.formatScale(this.getScale())
+          scale: this.formatScale(this.getScale()),
         });
       });
     }
@@ -71,10 +73,7 @@ class ScaleLineControl extends React.PureComponent {
    */
   getScale() {
     const dpi = 25.4 / 0.28,
-      mpu = this.props.map
-        .getView()
-        .getProjection()
-        .getMetersPerUnit(),
+      mpu = this.props.map.getView().getProjection().getMetersPerUnit(),
       inchesPerMeter = 39.37,
       res = this.props.map.getView().getResolution();
 
@@ -94,25 +93,21 @@ class ScaleLineControl extends React.PureComponent {
   }
 
   renderScaleBadge() {
-    const { classes } = this.props;
     return (
-      <Tooltip title="Nuvarande skala">
-        <Paper elevation={4} className={classes.scaleBadge}>
-          1:{this.state.scale}
-        </Paper>
+      <Tooltip disableInteractive title="Nuvarande skala">
+        <StyledPaper elevation={4}>1:{this.state.scale}</StyledPaper>
       </Tooltip>
     );
   }
 
   render() {
-    const { classes } = this.props;
     return (
       <>
-        <div ref="scaleLine" className={classes.scaleLine} />
+        <Root ref={this.ref} />
         {this.renderScaleBadge()}
       </>
     );
   }
 }
 
-export default withStyles(styles)(ScaleLineControl);
+export default ScaleLineControl;

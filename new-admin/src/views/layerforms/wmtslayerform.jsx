@@ -1,25 +1,3 @@
-// Copyright (C) 2016 Göteborgs Stad
-//
-// Denna programvara är fri mjukvara: den är tillåten att distribuera och modifiera
-// under villkoren för licensen CC-BY-NC-SA 4.0.
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the CC-BY-NC-SA 4.0 licence.
-//
-// http://creativecommons.org/licenses/by-nc-sa/4.0/
-//
-// Det är fritt att dela och anpassa programvaran för valfritt syfte
-// med förbehåll att följande villkor följs:
-// * Copyright till upphovsmannen inte modifieras.
-// * Programvaran används i icke-kommersiellt syfte.
-// * Licenstypen inte modifieras.
-//
-// Den här programvaran är öppen i syfte att den skall vara till nytta för andra
-// men UTAN NÅGRA GARANTIER; även utan underförstådd garanti för
-// SÄLJBARHET eller LÄMPLIGHET FÖR ETT VISST SYFTE.
-//
-// https://github.com/hajkmap/Hajk
-
 import React from "react";
 import { Component } from "react";
 import $ from "jquery";
@@ -34,6 +12,7 @@ const defaultState = {
   date: "Fylls i per automatik",
   infobox: "",
   legend: "",
+  legendIcon: "",
   url: "",
   queryable: true,
   drawOrder: 1,
@@ -57,7 +36,7 @@ const defaultState = {
     "10",
     "11",
     "12",
-    "13"
+    "13",
   ],
   layerType: "WMTS",
   attribution: "",
@@ -66,7 +45,12 @@ const defaultState = {
   infoText: "",
   infoUrl: "",
   infoUrlText: "",
-  infoOwner: ""
+  infoOwner: "",
+  timeSliderVisible: false,
+  timeSliderStart: "",
+  timeSliderEnd: "",
+  maxZoom: -1,
+  minZoom: -1,
 };
 
 /**
@@ -76,15 +60,21 @@ class WMTSLayerForm extends Component {
   componentDidMount() {
     defaultState.url = this.props.url;
     this.setState(defaultState);
-    this.props.model.on("change:legend", () => {
+    this.props.model.on("change:select-image", () => {
       this.setState({
-        legend: this.props.model.get("legend")
+        legend: this.props.model.get("select-image"),
+      });
+    });
+    this.props.model.on("change:select-legend-icon", () => {
+      this.setState({
+        legendIcon: this.props.model.get("select-legend-icon"),
       });
     });
   }
 
   componentWillUnmount() {
-    this.props.model.off("change:legend");
+    this.props.model.off("change:select-image");
+    this.props.model.off("change:select-legend-icon");
   }
 
   constructor() {
@@ -93,8 +83,14 @@ class WMTSLayerForm extends Component {
     this.layer = {};
   }
 
-  loadLegendImage(e) {
+  loadLegend(e) {
+    $("#select-image").attr("caller", "select-image");
     $("#select-image").trigger("click");
+  }
+
+  loadLegendIcon(e) {
+    $("#select-legend-icon").attr("caller", "select-legend-icon");
+    $("#select-legend-icon").trigger("click");
   }
 
   getLayer() {
@@ -106,6 +102,7 @@ class WMTSLayerForm extends Component {
       date: this.getValue("date"),
       content: this.getValue("content"),
       legend: this.getValue("legend"),
+      legendIcon: this.getValue("legendIcon"),
       layer: this.getValue("layer"),
       matrixSet: this.getValue("matrixSet"),
       style: this.getValue("style"),
@@ -119,21 +116,32 @@ class WMTSLayerForm extends Component {
       infoText: this.getValue("infoText"),
       infoUrl: this.getValue("infoUrl"),
       infoUrlText: this.getValue("infoUrlText"),
-      infoOwner: this.getValue("infoOwner")
+      infoOwner: this.getValue("infoOwner"),
+      timeSliderVisible: this.getValue("timeSliderVisible"),
+      timeSliderStart: this.getValue("timeSliderStart"),
+      timeSliderEnd: this.getValue("timeSliderEnd"),
+      maxZoom: this.getValue("maxZoom"),
+      minZoom: this.getValue("minZoom"),
     };
   }
 
   getValue(fieldName) {
     function create_date() {
-      return new Date().getTime();
+      return new Date().getTime().toString();
     }
 
     function format_layers(layers) {
-      return layers.map(layer => layer);
+      return layers.map((layer) => layer);
     }
 
     var input = this.refs["input_" + fieldName],
       value = input ? input.value : "";
+
+    // We must cast the following to Number, as String won't be accepted for those:
+    if (["maxZoom", "minZoom"].indexOf(fieldName) > -1) {
+      value = Number(value);
+      return value === 0 ? -1 : value;
+    }
 
     if (fieldName === "date") value = create_date();
     if (fieldName === "layers") value = format_layers(this.state.addedLayers);
@@ -147,6 +155,7 @@ class WMTSLayerForm extends Component {
     if (fieldName === "resolutions") value = value.split(",");
     if (fieldName === "matrixIds") value = value.split(",");
     if (fieldName === "infoVisible") value = input.checked;
+    if (fieldName === "timeSliderVisible") value = input.checked;
 
     return value;
   }
@@ -161,11 +170,11 @@ class WMTSLayerForm extends Component {
       "projection",
       "origin",
       "resolutions",
-      "matrixIds"
+      "matrixIds",
     ];
     var errors = [];
 
-    validationFields.forEach(field => {
+    validationFields.forEach((field) => {
       var valid = this.validateField(field, false, false);
       if (!valid) {
         errors.push(field);
@@ -173,7 +182,7 @@ class WMTSLayerForm extends Component {
     });
 
     this.setState({
-      validationErrors: errors
+      validationErrors: errors,
     });
 
     return errors.length === 0;
@@ -182,6 +191,18 @@ class WMTSLayerForm extends Component {
   validateField(fieldName, forcedValue, updateState) {
     var value = this.getValue(fieldName),
       valid = true;
+
+    function number(v) {
+      return !empty(v) && !isNaN(Number(v));
+    }
+
+    function empty(v) {
+      return typeof v === "string"
+        ? v.trim() === ""
+        : Array.isArray(v)
+        ? v[0] === ""
+        : false;
+    }
 
     switch (fieldName) {
       case "origin":
@@ -201,6 +222,12 @@ class WMTSLayerForm extends Component {
           valid = false;
         }
         break;
+      case "minZoom":
+      case "maxZoom":
+        if (!number(value) || empty(value)) {
+          valid = false;
+        }
+        break;
       default:
         valid = true;
         break;
@@ -209,13 +236,13 @@ class WMTSLayerForm extends Component {
     if (updateState !== false) {
       if (!valid) {
         this.setState({
-          validationErrors: [...this.state.validationErrors, fieldName]
+          validationErrors: [...this.state.validationErrors, fieldName],
         });
       } else {
         this.setState({
           validationErrors: this.state.validationErrors.filter(
-            v => v !== fieldName
-          )
+            (v) => v !== fieldName
+          ),
         });
       }
     }
@@ -224,16 +251,19 @@ class WMTSLayerForm extends Component {
   }
 
   getValidationClass(inputName) {
-    return this.state.validationErrors.find(v => v === inputName)
+    return this.state.validationErrors.find((v) => v === inputName)
       ? "validation-error"
       : "";
   }
 
   render() {
-    var imageLoader = this.state.imageLoad ? (
+    const imageLoader = this.state.imageLoad ? (
       <i className="fa fa-refresh fa-spin" />
     ) : null;
-    var infoClass = this.state.infoVisible ? "tooltip-info" : "hidden";
+    const infoClass = this.state.infoVisible ? "tooltip-info" : "hidden";
+    const timeSliderClass = this.state.timeSliderVisible
+      ? "tooltip-timeSlider"
+      : "hidden";
 
     return (
       <fieldset>
@@ -246,7 +276,7 @@ class WMTSLayerForm extends Component {
             ref="input_url"
             value={this.state.url}
             className={this.getValidationClass("url")}
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ url: e.target.value }, () =>
                 this.validateField("url")
               );
@@ -258,7 +288,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_layer"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ layer: v }, () => this.validateField("layer", v));
             }}
@@ -273,7 +303,7 @@ class WMTSLayerForm extends Component {
             ref="input_caption"
             value={this.state.caption}
             className={this.getValidationClass("caption")}
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ caption: e.target.value }, () =>
                 this.validateField("caption")
               );
@@ -286,16 +316,85 @@ class WMTSLayerForm extends Component {
             type="text"
             ref="input_legend"
             value={this.state.legend}
-            onChange={e => this.setState({ legend: e.target.value })}
+            onChange={(e) => this.setState({ legend: e.target.value })}
           />
           <span
-            onClick={e => {
-              this.props.parent.loadLegendImage(e);
+            onClick={(e) => {
+              this.loadLegend(e);
             }}
             className="btn btn-default"
           >
             Välj fil {imageLoader}
           </span>
+        </div>
+        <div>
+          <label>
+            Teckenförklar
+            <br />
+            ingsikon
+          </label>
+          <input
+            type="text"
+            ref="input_legendIcon"
+            value={this.state.legendIcon}
+            onChange={(e) => this.setState({ legendIcon: e.target.value })}
+          />
+          <span
+            onClick={(e) => {
+              this.loadLegendIcon(e);
+            }}
+            className="btn btn-default"
+          >
+            Välj fil {imageLoader}
+          </span>
+        </div>
+        <div>
+          <label>
+            Min zoom{" "}
+            <abbr title="Lägsta zoomnivå där lagret visas. OBS! Om man vill att lagret ska visas för skala 1:10 000, 1:5 000, 1:2 000 osv måste man ange den zoomnivå som skalsteget ovanför skala 1:10 000 har (t ex 1:20 000). Om 5 motsvarar 1:10 000 ska man då ange 4. Värdet på zoomnivån beror på aktuella inställningar i map_1.json, avsnitt ”map.resolutions”. '-1' betyder att lagret är synligt hela vägen till den lägsta zoomnivån. Se även inställning för Max zoom.">
+              (?)
+            </abbr>
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="-1"
+            max="100"
+            ref="input_minZoom"
+            value={this.state.minZoom}
+            className={
+              (this.getValidationClass("minZoom"), "control-fixed-width")
+            }
+            onChange={(e) => {
+              const v = e.target.value;
+              this.setState({ minZoom: v });
+            }}
+          />
+        </div>
+        <div>
+          <label>
+            Max zoom{" "}
+            <abbr title="Högsta zoomnivå vid vilket lagret visas. Om man t ex anger 5 för skala 1:10 000 kommer lagret att visas för skala 1:10 000 men inte för skala 1:5000. Värdet på zoomnivån beror på aktuella inställningar i map_1.json, avsnitt ”map.resolutions”. '-1' betyder att lagret är synligt hela vägen till den sista zoomnivån. Se även inställning för Min zoom.">
+              (?)
+            </abbr>
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="-1"
+            max="100"
+            ref="input_maxZoom"
+            value={this.state.maxZoom}
+            className={
+              (this.getValidationClass("minZoom"), "control-fixed-width")
+            }
+            onChange={(e) => {
+              const v = e.target.value;
+              this.setState({ maxZoom: v }, () =>
+                this.validateField("maxZoom")
+              );
+            }}
+          />
         </div>
         <div className="separator">Inställningar för request</div>
         <div>
@@ -303,7 +402,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_matrixSet"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ matrixSet: v }, () =>
                 this.validateField("matrixSet", v)
@@ -318,7 +417,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_style"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ style: v }, () => this.validateField("style", v));
             }}
@@ -331,7 +430,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_projection"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ projection: v }, () =>
                 this.validateField("projection", v)
@@ -346,7 +445,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_origin"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ origin: v }, () =>
                 this.validateField("origin", v)
@@ -361,7 +460,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_resolutions"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ resolutions: v }, () =>
                 this.validateField("resolutions", v)
@@ -376,7 +475,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_matrixIds"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ matrixIds: v }, () =>
                 this.validateField("matrixIds", v)
@@ -393,7 +492,7 @@ class WMTSLayerForm extends Component {
             type="text"
             ref="input_content"
             value={this.state.content}
-            onChange={e => {
+            onChange={(e) => {
               this.setState({ content: e.target.value });
             }}
           />
@@ -409,7 +508,7 @@ class WMTSLayerForm extends Component {
           <input
             type="text"
             ref="input_attribution"
-            onChange={e => {
+            onChange={(e) => {
               const v = e.target.value;
               this.setState({ attribution: e.target.value }, () =>
                 this.validateField("attribution", v)
@@ -425,7 +524,7 @@ class WMTSLayerForm extends Component {
               type="checkbox"
               ref="input_infoVisible"
               id="info-document"
-              onChange={e => {
+              onChange={(e) => {
                 this.setState({ infoVisible: e.target.checked });
               }}
               checked={this.state.infoVisible}
@@ -438,7 +537,7 @@ class WMTSLayerForm extends Component {
             <input
               type="text"
               ref="input_infoTitle"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoTitle: v }, () =>
                   this.validateField("infoTitle", v)
@@ -453,7 +552,7 @@ class WMTSLayerForm extends Component {
             <textarea
               type="text"
               ref="input_infoText"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoText: v }, () =>
                   this.validateField("infoText", v)
@@ -468,7 +567,7 @@ class WMTSLayerForm extends Component {
             <input
               type="text"
               ref="input_infoUrl"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoUrl: v }, () =>
                   this.validateField("infoUrl", v)
@@ -483,7 +582,7 @@ class WMTSLayerForm extends Component {
             <input
               type="text"
               ref="input_infoUrlText"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoUrlText: v }, () =>
                   this.validateField("infoUrlText", v)
@@ -498,7 +597,7 @@ class WMTSLayerForm extends Component {
             <input
               type="text"
               ref="input_infoOwner"
-              onChange={e => {
+              onChange={(e) => {
                 const v = e.target.value;
                 this.setState({ infoOwner: v }, () =>
                   this.validateField("infoOwner", v)
@@ -506,6 +605,45 @@ class WMTSLayerForm extends Component {
               }}
               value={this.state.infoOwner}
               className={this.getValidationClass("infoOwner")}
+            />
+          </div>
+        </div>
+        <div className="timeSlider-container">
+          <div>
+            <input
+              type="checkbox"
+              ref="input_timeSliderVisible"
+              id="timeSlider"
+              onChange={(e) => {
+                this.setState({ timeSliderVisible: e.target.checked });
+              }}
+              checked={this.state.timeSliderVisible}
+            />
+            &nbsp;
+            <label htmlFor="timeSlider">Tidslinjedatum</label>
+          </div>
+          <div className={timeSliderClass}>
+            <label>Tidslinje start</label>
+            <input
+              type="text"
+              placeholder="ÅÅÅÅMMDD"
+              ref="input_timeSliderStart"
+              onChange={(e) => {
+                this.setState({ timeSliderStart: e.target.value });
+              }}
+              value={this.state.timeSliderStart}
+            />
+          </div>
+          <div className={timeSliderClass}>
+            <label>Tidslinje slut</label>
+            <input
+              type="text"
+              placeholder="ÅÅÅÅMMDD"
+              ref="input_timeSliderEnd"
+              onChange={(e) => {
+                this.setState({ timeSliderEnd: e.target.value });
+              }}
+              value={this.state.timeSliderEnd}
             />
           </div>
         </div>

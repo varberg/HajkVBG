@@ -1,25 +1,3 @@
-// Copyright (C) 2016 Göteborgs Stad
-//
-// Denna programvara är fri mjukvara: den är tillåten att distribuera och modifiera
-// under villkoren för licensen CC-BY-NC-SA 4.0.
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the CC-BY-NC-SA 4.0 licence.
-//
-// http://creativecommons.org/licenses/by-nc-sa/4.0/
-//
-// Det är fritt att dela och anpassa programvaran för valfritt syfte
-// med förbehåll att följande villkor följs:
-// * Copyright till upphovsmannen inte modifieras.
-// * Programvaran används i icke-kommersiellt syfte.
-// * Licenstypen inte modifieras.
-//
-// Den här programvaran är öppen i syfte att den skall vara till nytta för andra
-// men UTAN NÅGRA GARANTIER; även utan underförstådd garanti för
-// SÄLJBARHET eller LÄMPLIGHET FÖR ETT VISST SYFTE.
-//
-// https://github.com/hajkmap/Hajk
-
 import React from "react";
 import { Component } from "react";
 import { SketchPicker } from "react-color";
@@ -28,20 +6,21 @@ import SaveIcon from "@material-ui/icons/SaveSharp";
 import { withStyles } from "@material-ui/core/styles";
 import { blue } from "@material-ui/core/colors";
 
-const ColorButtonBlue = withStyles(theme => ({
+const ColorButtonBlue = withStyles((theme) => ({
   root: {
     color: theme.palette.getContrastText(blue[500]),
     backgroundColor: blue[500],
     "&:hover": {
-      backgroundColor: blue[700]
-    }
-  }
+      backgroundColor: blue[700],
+    },
+  },
 }))(Button);
 
 var defaultState = {
   primaryColor: "#00F",
   secondaryColor: "#FF0",
-  validationErrors: []
+  preferredColorScheme: "user",
+  validationErrors: [],
 };
 
 class MapOptions extends Component {
@@ -51,32 +30,59 @@ class MapOptions extends Component {
   }
 
   componentDidMount() {
-    this.props.model.on("change:mapConfig", e => {
+    this.props.model.on("change:mapConfig", (e) => {
       var config = this.props.model.get("mapConfig");
       this.setState({
         primaryColor: config.colors.primaryColor,
         secondaryColor: config.colors.secondaryColor,
+        preferredColorScheme: config.colors.preferredColorScheme,
         projection: config.projection,
         zoom: config.zoom,
         maxZoom: config.maxZoom,
         minZoom: config.minZoom,
         center: config.center,
-        logo: config.logo,
+        logoLight: config.logoLight || "logoLight.png",
+        logoDark: config.logoDark || "logoDark.png",
         resolutions: config.resolutions,
+        extraPrintResolutions: config.extraPrintResolutions,
         extent: config.extent,
         origin: config.origin,
         constrainOnlyCenter: config.constrainOnlyCenter,
         constrainResolution: config.constrainResolution,
+        constrainResolutionMobile: config.constrainResolutionMobile,
+        enableDownloadLink: config.enableDownloadLink,
+        altShiftDragRotate: config.altShiftDragRotate || true,
+        onFocusOnly: config.onFocusOnly || false,
+        doubleClickZoom: config.doubleClickZoom || true,
+        keyboard: config.keyboard || true,
+        mouseWheelZoom: config.mouseWheelZoom || true,
+        shiftDragZoom: config.shiftDragZoom || true,
+        dragPan: config.dragPan || true,
+        pinchRotate: config.pinchRotate || true,
+        pinchZoom: config.pinchZoom || true,
         mapselector: config.mapselector,
         mapcleaner: config.mapcleaner,
+        mapresetter: config.mapresetter,
+        showThemeToggler: config.showThemeToggler,
+        showUserAvatar: config.showUserAvatar,
         drawerVisible: config.drawerVisible,
+        drawerVisibleMobile: config.drawerVisibleMobile,
         drawerPermanent: config.drawerPermanent,
+        zoomDelta: config.zoomDelta,
+        zoomDuration: config.zoomDuration,
         title: config.title ? config.title : "",
         geoserverLegendOptions: config.geoserverLegendOptions
           ? config.geoserverLegendOptions
           : "",
         defaultCookieNoticeMessage: config.defaultCookieNoticeMessage,
-        defaultCookieNoticeUrl: config.defaultCookieNoticeUrl
+        defaultCookieNoticeUrl: config.defaultCookieNoticeUrl,
+        crossOrigin: config.crossOrigin,
+        showCookieNotice:
+          config.showCookieNotice !== undefined
+            ? config.showCookieNotice
+            : true,
+        cookieUse3dPart:
+          config.cookieUse3dPart !== undefined ? config.cookieUse3dPart : false,
       });
       this.validate();
     });
@@ -86,7 +92,7 @@ class MapOptions extends Component {
     this.props.model.off("change:mapConfig");
   }
 
-  componentWillMount() {
+  UNSAFE_componentWillMount() {
     var mapConfig = this.props.model.get("mapConfig");
     this.setState({
       primaryColor:
@@ -97,29 +103,64 @@ class MapOptions extends Component {
         mapConfig.colors && mapConfig.colors.secondaryColor
           ? mapConfig.colors.secondaryColor
           : "#000",
+      preferredColorScheme:
+        mapConfig.colors && mapConfig.colors.preferredColorScheme
+          ? mapConfig.colors.preferredColorScheme
+          : "user",
       title: mapConfig.title,
       projection: mapConfig.projection,
       zoom: mapConfig.zoom,
       maxZoom: mapConfig.maxZoom,
       minZoom: mapConfig.minZoom,
       center: mapConfig.center,
-      logo: mapConfig.logo,
+      logoLight: mapConfig.logoLight || "logoLight.png",
+      logoDark: mapConfig.logoDark || "logoDark.png",
       resolutions: mapConfig.resolutions,
+      extraPrintResolutions: mapConfig.extraPrintResolutions,
       extent: mapConfig.extent,
       origin: mapConfig.origin,
       constrainOnlyCenter: mapConfig.constrainOnlyCenter,
       constrainResolution: mapConfig.constrainResolution,
+      constrainResolutionMobile: mapConfig.constrainResolutionMobile,
+      enableDownloadLink: mapConfig.enableDownloadLink,
+      altShiftDragRotate: mapConfig.altShiftDragRotate,
+      onFocusOnly: mapConfig.onFocusOnly,
+      doubleClickZoom: mapConfig.doubleClickZoom,
+      keyboard: mapConfig.keyboard,
+      mouseWheelZoom: mapConfig.mouseWheelZoom,
+      shiftDragZoom: mapConfig.shiftDragZoom,
+      dragPan: mapConfig.dragPan,
+      pinchRotate: mapConfig.pinchRotate,
+      pinchZoom: mapConfig.pinchZoom,
+      zoomDelta: mapConfig.zoomDelta,
+      zoomDuration: mapConfig.zoomDuration,
       mapselector: mapConfig.mapselector,
       mapcleaner: mapConfig.mapcleaner,
+      mapresetter: mapConfig.mapresetter,
+      showThemeToggler: mapConfig.showThemeToggler,
+      showUserAvatar: mapConfig.showUserAvatar,
       drawerVisible: mapConfig.drawerVisible,
+      drawerVisibleMobile: mapConfig.drawerVisibleMobile,
       drawerPermanent: mapConfig.drawerPermanent,
+      activeDrawerOnStart: mapConfig.activeDrawerOnStart
+        ? mapConfig.activeDrawerOnStart
+        : "plugins",
       geoserverLegendOptions: mapConfig.geoserverLegendOptions,
       defaultCookieNoticeMessage: mapConfig.defaultCookieNoticeMessage
         ? mapConfig.defaultCookieNoticeMessage
         : "Vi använder cookies för att följa upp användandet och ge en bra upplevelse av kartan. Du kan blockera cookies i webbläsaren men då visas detta meddelande igen.",
       defaultCookieNoticeUrl: mapConfig.defaultCookieNoticeUrl
         ? mapConfig.defaultCookieNoticeUrl
-        : "https://pts.se/sv/bransch/regler/lagar/lag-om-elektronisk-kommunikation/kakor-cookies/"
+        : "https://pts.se/sv/bransch/regler/lagar/lag-om-elektronisk-kommunikation/kakor-cookies/",
+      crossOrigin: mapConfig.crossOrigin ? mapConfig.crossOrigin : "anonymous",
+      showCookieNotice:
+        mapConfig.showCookieNotice !== undefined
+          ? mapConfig.showCookieNotice
+          : true,
+      cookieUse3dPart:
+        mapConfig.cookieUse3dPart !== undefined
+          ? mapConfig.cookieUse3dPart
+          : false,
     });
   }
 
@@ -131,10 +172,26 @@ class MapOptions extends Component {
       value = input.checked;
     }
 
-    if (fieldName === "center") value = value.split(",");
-    if (fieldName === "resolutions") value = value.split(",");
-    if (fieldName === "extent") value = value.split(",");
-    if (fieldName === "origin") value = value.split(",");
+    if (
+      ["zoom", "maxZoom", "minZoom", "zoomDelta", "zoomDuration"].includes(
+        fieldName
+      )
+    )
+      value = parseInt(value);
+    if (
+      [
+        "origin",
+        "extent",
+        "center",
+        "resolutions",
+        "extraPrintResolutions",
+      ].includes(fieldName)
+    )
+      value =
+        value.trim().length > 0
+          ? value.split(",").map((v) => parseFloat(v))
+          : [];
+
     if (fieldName === "title") {
       if (value === "") {
         value = this.props.model.get("mapFile");
@@ -151,11 +208,13 @@ class MapOptions extends Component {
         "zoom",
         "maxZoom",
         "minZoom",
-        "center"
+        "zoomDelta",
+        "zoomDuration",
+        "center",
       ],
       validationErrors = [];
 
-    validationFields.forEach(field => {
+    validationFields.forEach((field) => {
       var valid = this.validateField(field, false);
       if (!valid) {
         validationErrors.push(field);
@@ -164,7 +223,7 @@ class MapOptions extends Component {
 
     this.setState(
       {
-        validationErrors: validationErrors
+        validationErrors: validationErrors,
       },
       () => {
         if (callback) {
@@ -213,6 +272,11 @@ class MapOptions extends Component {
           valid = false;
         }
         break;
+      case "extraPrintResolutions":
+        if (!resolutions(value)) {
+          valid = false;
+        }
+        break;
       case "extent":
         if (!extent(value)) {
           valid = false;
@@ -231,6 +295,8 @@ class MapOptions extends Component {
           valid = false;
         }
         break;
+      case "zoomDelta":
+      case "zoomDuration":
       case "projection":
         if (empty(value)) {
           valid = false;
@@ -238,9 +304,24 @@ class MapOptions extends Component {
         break;
       case "constrainOnlyCenter":
       case "constrainResolution":
+      case "constrainResolutionMobile":
+      case "enableDownloadLink":
+      case "altShiftDragRotate":
+      case "onFocusOnly":
+      case "doubleClickZoom":
+      case "keyboard":
+      case "mouseWheelZoom":
+      case "shiftDragZoom":
+      case "dragPan":
+      case "pinchRotate":
+      case "pinchZoom":
       case "mapselector":
       case "mapcleaner":
+      case "mapresetter":
+      case "showThemeToggler":
+      case "showUserAvatar":
       case "drawerVisible":
+      case "drawVisibleMobile":
       case "drawerPermanent":
         if (value !== true && value !== false) {
           valid = false;
@@ -253,13 +334,13 @@ class MapOptions extends Component {
     if (updateState !== false) {
       if (!valid) {
         this.setState({
-          validationErrors: [...this.state.validationErrors, fieldName]
+          validationErrors: [...this.state.validationErrors, fieldName],
         });
       } else {
         this.setState({
           validationErrors: this.state.validationErrors.filter(
-            v => v !== fieldName
-          )
+            (v) => v !== fieldName
+          ),
         });
       }
     }
@@ -269,7 +350,7 @@ class MapOptions extends Component {
 
   save() {
     var config = this.props.model.get("mapConfig");
-    this.validate(valid => {
+    this.validate((valid) => {
       if (valid) {
         config.title = this.getValue("title");
         config.projection = this.getValue("projection");
@@ -277,28 +358,53 @@ class MapOptions extends Component {
         config.maxZoom = this.getValue("maxZoom");
         config.minZoom = this.getValue("minZoom");
         config.center = this.getValue("center");
-        config.logo = this.getValue("logo");
+        config.logoLight = this.getValue("logoLight");
+        config.logoDark = this.getValue("logoDark");
         config.resolutions = this.getValue("resolutions");
+        config.extraPrintResolutions = this.getValue("extraPrintResolutions");
         config.extent = this.getValue("extent");
         config.origin = this.getValue("origin");
         config.constrainOnlyCenter = this.getValue("constrainOnlyCenter");
         config.constrainResolution = this.getValue("constrainResolution");
+        config.constrainResolutionMobile = this.getValue(
+          "constrainResolutionMobile"
+        );
+        config.enableDownloadLink = this.getValue("enableDownloadLink");
+        config.altShiftDragRotate = this.getValue("altShiftDragRotate");
+        config.onFocusOnly = this.getValue("onFocusOnly");
+        config.doubleClickZoom = this.getValue("doubleClickZoom");
+        config.keyboard = this.getValue("keyboard");
+        config.mouseWheelZoom = this.getValue("mouseWheelZoom");
+        config.shiftDragZoom = this.getValue("shiftDragZoom");
+        config.dragPan = this.getValue("dragPan");
+        config.pinchRotate = this.getValue("pinchRotate");
+        config.pinchZoom = this.getValue("pinchZoom");
+        config.zoomDelta = this.getValue("zoomDelta");
+        config.zoomDuration = this.getValue("zoomDuration");
         config.mapselector = this.getValue("mapselector");
         config.mapcleaner = this.getValue("mapcleaner");
+        config.mapresetter = this.getValue("mapresetter");
+        config.showThemeToggler = this.getValue("showThemeToggler");
+        config.showUserAvatar = this.getValue("showUserAvatar");
         config.drawerVisible = this.getValue("drawerVisible");
+        config.drawerVisibleMobile = this.getValue("drawerVisibleMobile");
         config.drawerPermanent = this.getValue("drawerPermanent");
+        config.activeDrawerOnStart = this.getValue("activeDrawerOnStart");
         config.geoserverLegendOptions = this.getValue("geoserverLegendOptions");
         config.defaultCookieNoticeMessage = this.getValue(
           "defaultCookieNoticeMessage"
         );
         config.defaultCookieNoticeUrl = this.getValue("defaultCookieNoticeUrl");
-        this.props.model.updateMapConfig(config, success => {
+        config.crossOrigin = this.getValue("crossOrigin");
+        config.showCookieNotice = this.getValue("showCookieNotice");
+        config.cookieUse3dPart = this.getValue("cookieUse3dPart");
+        this.props.model.updateMapConfig(config, (success) => {
           var msg = success
             ? "Uppdateringen lyckades."
             : "Uppdateringen misslyckades.";
           this.props.parent.setState({
             alert: true,
-            alertMessage: msg
+            alertMessage: msg,
           });
         });
       }
@@ -311,7 +417,7 @@ class MapOptions extends Component {
     }
     this.props.model.get("mapConfig").colors.primaryColor = color.hex;
     this.setState({
-      primaryColor: color.hex
+      primaryColor: color.hex,
     });
   }
 
@@ -321,12 +427,22 @@ class MapOptions extends Component {
     }
     this.props.model.get("mapConfig").colors.secondaryColor = color.hex;
     this.setState({
-      secondaryColor: color.hex
+      secondaryColor: color.hex,
+    });
+  }
+
+  handlePreferredColorScheme(value) {
+    if (!this.props.model.get("mapConfig").colors) {
+      this.props.model.get("mapConfig").colors = {};
+    }
+    this.props.model.get("mapConfig").colors.preferredColorScheme = value;
+    this.setState({
+      preferredColorScheme: value,
     });
   }
 
   getValidationClass(inputName) {
-    return this.state.validationErrors.find(v => v === inputName)
+    return this.state.validationErrors.find((v) => v === inputName)
       ? "validation-error"
       : "";
   }
@@ -341,7 +457,7 @@ class MapOptions extends Component {
             <ColorButtonBlue
               variant="contained"
               className="btn"
-              onClick={e => this.save(e)}
+              onClick={(e) => this.save(e)}
               startIcon={<SaveIcon />}
             >
               Spara
@@ -361,7 +477,7 @@ class MapOptions extends Component {
                 ref="input_title"
                 value={this.state.title}
                 className={this.getValidationClass("title")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ title: e.target.value }, () =>
                     this.validateField("title")
                   );
@@ -385,7 +501,7 @@ class MapOptions extends Component {
                 ref="input_projection"
                 value={this.state.projection}
                 className={this.getValidationClass("projection")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ projection: e.target.value }, () =>
                     this.validateField("projection")
                   );
@@ -409,7 +525,7 @@ class MapOptions extends Component {
                 className={
                   (this.getValidationClass("zoom"), "control-fixed-width")
                 }
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ zoom: e.target.value }, () =>
                     this.validateField("zoom")
                   );
@@ -433,7 +549,7 @@ class MapOptions extends Component {
                 className={
                   (this.getValidationClass("maxZoom"), "control-fixed-width")
                 }
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ maxZoom: e.target.value }, () =>
                     this.validateField("maxZoom")
                   );
@@ -457,7 +573,7 @@ class MapOptions extends Component {
                 className={
                   (this.getValidationClass("minZoom"), "control-fixed-width")
                 }
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ minZoom: e.target.value }, () =>
                     this.validateField("minZoom")
                   );
@@ -478,7 +594,7 @@ class MapOptions extends Component {
                 ref="input_center"
                 value={this.state.center}
                 className={this.getValidationClass("center")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ center: e.target.value }, () =>
                     this.validateField("center")
                   );
@@ -499,9 +615,30 @@ class MapOptions extends Component {
                 ref="input_resolutions"
                 value={this.state.resolutions}
                 className={this.getValidationClass("resolutions")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ resolutions: e.target.value }, () =>
                     this.validateField("resolutions")
+                  );
+                }}
+              />
+            </div>
+            <div>
+              <label>
+                Upplösningar (Extra för utskrift){" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Extra upplösningar som läggs på befintliga upplösningar vid utskrift"
+                />
+              </label>
+              <input
+                type="text"
+                ref="input_extraPrintResolutions"
+                value={this.state.extraPrintResolutions}
+                className={this.getValidationClass("extraPrintResolutions")}
+                onChange={(e) => {
+                  this.setState({ extraPrintResolutions: e.target.value }, () =>
+                    this.validateField("extraPrintResolutions")
                   );
                 }}
               />
@@ -520,7 +657,7 @@ class MapOptions extends Component {
                 ref="input_extent"
                 value={this.state.extent}
                 className={this.getValidationClass("extent")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ extent: e.target.value }, () =>
                     this.validateField("extent")
                   );
@@ -541,7 +678,7 @@ class MapOptions extends Component {
                 ref="input_origin"
                 value={this.state.origin}
                 className={this.getValidationClass("origin")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ origin: e.target.value }, () =>
                     this.validateField("origin")
                   );
@@ -553,7 +690,7 @@ class MapOptions extends Component {
                 id="input_constrainOnlyCenter"
                 type="checkbox"
                 ref="input_constrainOnlyCenter"
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ constrainOnlyCenter: e.target.checked });
                 }}
                 checked={this.state.constrainOnlyCenter}
@@ -573,14 +710,14 @@ class MapOptions extends Component {
                 id="input_constrainResolution"
                 type="checkbox"
                 ref="input_constrainResolution"
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ constrainResolution: e.target.checked });
                 }}
                 checked={this.state.constrainResolution}
               />
               &nbsp;
               <label className="long-label" htmlFor="input_constrainResolution">
-                Lås zoom till satta upplösningar{" "}
+                Lås zoom till satta upplösningar för datorer{" "}
                 <i
                   className="fa fa-question-circle"
                   data-toggle="tooltip"
@@ -588,10 +725,243 @@ class MapOptions extends Component {
                 />
               </label>
             </div>
+            <div>
+              <input
+                id="input_constrainResolutionMobile"
+                type="checkbox"
+                ref="input_constrainResolutionMobile"
+                onChange={(e) => {
+                  this.setState({
+                    constrainResolutionMobile: e.target.checked,
+                  });
+                }}
+                checked={this.state.constrainResolutionMobile}
+              />
+              &nbsp;
+              <label
+                className="long-label"
+                htmlFor="input_constrainResolutionMobile"
+              >
+                Lås zoom till satta upplösningar för mobiltelefoner{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Styr ol.Views 'constrainResolution'-parameter. Om sant kommer det endast gå att zooma mellan satta resolutions"
+                />
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_enableDownloadLink"
+                type="checkbox"
+                ref="input_enableDownloadLink"
+                onChange={(e) => {
+                  this.setState({ enableDownloadLink: e.target.checked });
+                }}
+                checked={this.state.enableDownloadLink}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_enableDownloadLink">
+                Tillåt nedladdning av WMS-lager{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktivt kommer en nedladdningsknapp att visas brevid varje lager i Lagerhanteraren."
+                />
+              </label>
+            </div>
+            <div className="separator">Kartinteraktioner</div>
+            <div>
+              Se{" "}
+              <a href="https://openlayers.org/en/latest/apidoc/module-ol_interaction.html#.defaults">
+                OpenLayers-dokumentation
+              </a>{" "}
+              för detaljer kring vad varje inställning gör.
+            </div>
+            <div>
+              <input
+                id="input_altShiftDragRotate"
+                type="checkbox"
+                ref="input_altShiftDragRotate"
+                onChange={(e) => {
+                  this.setState({ altShiftDragRotate: e.target.checked });
+                }}
+                checked={this.state.altShiftDragRotate}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_altShiftDragRotate">
+                Whether Alt-Shift-drag rotate is desired{" "}
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_onFocusOnly"
+                type="checkbox"
+                ref="input_onFocusOnly"
+                onChange={(e) => {
+                  this.setState({ onFocusOnly: e.target.checked });
+                }}
+                checked={this.state.onFocusOnly}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_onFocusOnly">
+                Interact only when the map has the{" "}
+                <abbr
+                  title="This affects the
+                MouseWheelZoom and DragPan interactions and is useful when page
+                scroll is desired for maps that do not have the browser's focus."
+                >
+                  focus
+                </abbr>{" "}
+                (default: false).
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_doubleClickZoom"
+                type="checkbox"
+                ref="input_doubleClickZoom"
+                onChange={(e) => {
+                  this.setState({ doubleClickZoom: e.target.checked });
+                }}
+                checked={this.state.doubleClickZoom}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_doubleClickZoom">
+                Whether double click zoom is desired.
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_keyboard"
+                type="checkbox"
+                ref="input_keyboard"
+                onChange={(e) => {
+                  this.setState({ keyboard: e.target.checked });
+                }}
+                checked={this.state.keyboard}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_keyboard">
+                Whether keyboard interaction is desired.
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_mouseWheelZoom"
+                type="checkbox"
+                ref="input_mouseWheelZoom"
+                onChange={(e) => {
+                  this.setState({ mouseWheelZoom: e.target.checked });
+                }}
+                checked={this.state.mouseWheelZoom}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_mouseWheelZoom">
+                Whether mousewheel zoom is desired.
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_shiftDragZoom"
+                type="checkbox"
+                ref="input_shiftDragZoom"
+                onChange={(e) => {
+                  this.setState({ shiftDragZoom: e.target.checked });
+                }}
+                checked={this.state.shiftDragZoom}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_shiftDragZoom">
+                Whether Shift-drag zoom is desired.
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_dragPan"
+                type="checkbox"
+                ref="input_dragPan"
+                onChange={(e) => {
+                  this.setState({ dragPan: e.target.checked });
+                }}
+                checked={this.state.dragPan}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_dragPan">
+                Whether drag pan is desired.
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_pinchRotate"
+                type="checkbox"
+                ref="input_pinchRotate"
+                onChange={(e) => {
+                  this.setState({ pinchRotate: e.target.checked });
+                }}
+                checked={this.state.pinchRotate}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_pinchRotate">
+                Whether pinch rotate is desired.
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_pinchZoom"
+                type="checkbox"
+                ref="input_pinchZoom"
+                onChange={(e) => {
+                  this.setState({ pinchZoom: e.target.checked });
+                }}
+                checked={this.state.pinchZoom}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_pinchZoom">
+                Whether pinch zoom is desired.
+              </label>
+            </div>
+            <div>
+              <label>
+                Zoom level delta when using keyboard or double click zoom.
+              </label>
+              <input
+                type="number"
+                min="0"
+                ref="input_zoomDelta"
+                value={this.state.zoomDelta}
+                className={
+                  (this.getValidationClass("zoomDelta"), "control-fixed-width")
+                }
+                onChange={(e) => {
+                  this.setState({ zoomDelta: e.target.value }, () =>
+                    this.validateField("zoomDelta")
+                  );
+                }}
+              />
+            </div>
+            <div>
+              <label>Duration of the zoom animation in milliseconds.</label>
+              <input
+                type="number"
+                min="0"
+                ref="input_zoomDuration"
+                value={this.state.zoomDuration}
+                className={
+                  (this.getValidationClass("zoomDuration"),
+                  "control-fixed-width")
+                }
+                onChange={(e) => {
+                  this.setState({ zoomDuration: e.target.value }, () =>
+                    this.validateField("zoomDuration")
+                  );
+                }}
+              />
+            </div>
             <div className="separator">Extra inställningar</div>
             <div>
               <label>
-                Logo{" "}
+                Logo för ljust tema{" "}
                 <i
                   className="fa fa-question-circle"
                   data-toggle="tooltip"
@@ -600,12 +970,33 @@ class MapOptions extends Component {
               </label>
               <input
                 type="text"
-                ref="input_logo"
-                value={this.state.logo}
-                className={this.getValidationClass("logo")}
-                onChange={e => {
-                  this.setState({ logo: e.target.value }, () =>
-                    this.validateField("logo")
+                ref="input_logoLight"
+                value={this.state.logoLight}
+                className={this.getValidationClass("logoLight")}
+                onChange={(e) => {
+                  this.setState({ logoLight: e.target.value }, () =>
+                    this.validateField("logoLight")
+                  );
+                }}
+              />
+            </div>
+            <div>
+              <label>
+                Logo för mörkt tema{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Sökväg till logga att använda i <img>-taggen. Kan vara relativ Hajk-root eller absolut."
+                />
+              </label>
+              <input
+                type="text"
+                ref="input_logoDark"
+                value={this.state.logoDark}
+                className={this.getValidationClass("logoDark")}
+                onChange={(e) => {
+                  this.setState({ logoDark: e.target.value }, () =>
+                    this.validateField("logoDark")
                   );
                 }}
               />
@@ -630,10 +1021,50 @@ class MapOptions extends Component {
                 ref="input_geoserverLegendOptions"
                 value={this.state.geoserverLegendOptions}
                 className={this.getValidationClass("geoserverLegendOptions")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ geoserverLegendOptions: e.target.value });
                 }}
               />
+            </div>
+            <div>
+              <input
+                id="input_showCookieNotice"
+                type="checkbox"
+                ref="input_showCookieNotice"
+                onChange={(e) => {
+                  this.setState({ showCookieNotice: e.target.checked });
+                }}
+                checked={this.state.showCookieNotice}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_showCookieNotice">
+                Visa cookies-meddelande{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktiv kommer ett meddelande angående hantering av cookies visas för nya användare."
+                />
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_cookieUse3dPart"
+                type="checkbox"
+                ref="input_cookieUse3dPart"
+                onChange={(e) => {
+                  this.setState({ cookieUse3dPart: e.target.checked });
+                }}
+                checked={this.state.cookieUse3dPart}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_cookieUse3dPart">
+                Visa alternativ för 3:e part cookies{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktiv kommer en checkbox angående 3:e part cookies visas för nya användare."
+                />
+              </label>
             </div>
             <div>
               <label>
@@ -646,12 +1077,13 @@ class MapOptions extends Component {
               </label>
               <textarea
                 type="text"
+                disabled={!this.state.showCookieNotice}
                 ref="input_defaultCookieNoticeMessage"
                 value={this.state.defaultCookieNoticeMessage}
                 className={this.getValidationClass(
                   "defaultCookieNoticeMessage"
                 )}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState(
                     { defaultCookieNoticeMessage: e.target.value },
                     () => this.validateField("defaultCookieNoticeMessage")
@@ -671,10 +1103,31 @@ class MapOptions extends Component {
               <input
                 type="text"
                 ref="input_defaultCookieNoticeUrl"
+                disabled={!this.state.showCookieNotice}
                 value={this.state.defaultCookieNoticeUrl}
                 className={this.getValidationClass("defaultCookieNoticeUrl")}
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ defaultCookieNoticeUrl: e.target.value });
+                }}
+              />
+            </div>
+            <div>
+              <label>
+                Cross origin-parameter{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Ställer in vilket värde som används för 'crossOrigin'. Om osäker, används 'anonymous'. "
+                />
+              </label>
+              <input
+                type="text"
+                ref="input_crossOrigin"
+                disabled={!this.state.showCookieNotice}
+                value={this.state.crossOrigin}
+                className={this.getValidationClass("crossOrigin")}
+                onChange={(e) => {
+                  this.setState({ crossOrigin: e.target.value });
                 }}
               />
             </div>
@@ -684,7 +1137,7 @@ class MapOptions extends Component {
                 id="input_mapselector"
                 type="checkbox"
                 ref="input_mapselector"
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ mapselector: e.target.checked });
                 }}
                 checked={this.state.mapselector}
@@ -704,7 +1157,7 @@ class MapOptions extends Component {
                 id="input_mapcleaner"
                 type="checkbox"
                 ref="input_mapcleaner"
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ mapcleaner: e.target.checked });
                 }}
                 checked={this.state.mapcleaner}
@@ -719,18 +1172,78 @@ class MapOptions extends Component {
                 />
               </label>
             </div>
+            <div>
+              <input
+                id="input_mapresetter"
+                type="checkbox"
+                ref="input_mapresetter"
+                onChange={(e) => {
+                  this.setState({ mapresetter: e.target.checked });
+                }}
+                checked={this.state.mapresetter}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_mapresetter">
+                Visa en hemknapp som återställer kartans innehåll till startläge{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktiv kommer en hemknapp som återställer kartan att visas för användaren"
+                />
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_showThemeToggler"
+                type="checkbox"
+                ref="input_showThemeToggler"
+                onChange={(e) => {
+                  this.setState({ showThemeToggler: e.target.checked });
+                }}
+                checked={this.state.showThemeToggler}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_showThemeToggler">
+                Visa knapp för att byta mellan ljust och mörkt tema{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktiv kommer en knapp som möjliggör temaväxling att visas"
+                />
+              </label>
+            </div>
+            <div>
+              <input
+                id="input_showUserAvatar"
+                type="checkbox"
+                ref="input_showUserAvatar"
+                onChange={(e) => {
+                  this.setState({ showUserAvatar: e.target.checked });
+                }}
+                checked={this.state.showUserAvatar}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_showUserAvatar">
+                Visa en knapp med användarens initialer intill zoomknapparna{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om AD-kopplingen är aktiv kommer en avatar-ikon bestående av användarens initialer att visas bland kartkontrollerna"
+                />
+              </label>
+            </div>
             <div className="separator">Inställningar för sidopanel</div>
             <div>
               <input
                 id="input_drawerVisible"
                 type="checkbox"
                 ref="input_drawerVisible"
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ drawerVisible: e.target.checked });
                   // If visible gets unchecked, ensure that permanent is unchecked too
                   if (e.target.checked === false) {
                     this.setState({
-                      drawerPermanent: false
+                      drawerPermanent: false,
                     });
                   }
                 }}
@@ -748,10 +1261,30 @@ class MapOptions extends Component {
             </div>
             <div>
               <input
+                id="input_drawerVisibleMobile"
+                type="checkbox"
+                ref="input_drawerVisibleMobile"
+                onChange={(e) => {
+                  this.setState({ drawerVisibleMobile: e.target.checked });
+                }}
+                checked={this.state.drawerVisibleMobile}
+              />
+              &nbsp;
+              <label className="long-label" htmlFor="input_drawerVisibleMobile">
+                Starta med sidopanelen synlig i mobilläge{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Om aktiv kommer sidopanelen att vara öppen - men inte låst -  vid skärmens kant vid start"
+                />
+              </label>
+            </div>
+            <div>
+              <input
                 id="input_drawerPermanent"
                 type="checkbox"
                 ref="input_drawerPermanent"
-                onChange={e => {
+                onChange={(e) => {
                   this.setState({ drawerPermanent: e.target.checked });
                 }}
                 checked={this.state.drawerPermanent}
@@ -767,20 +1300,64 @@ class MapOptions extends Component {
                 />
               </label>
             </div>
+            <div>
+              <label>
+                Aktiv drawer innehåll{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Styra drawer innehåll som ska vara aktiv vid start. Gäller om flera verktyg som aktiveras via drawer knapp användas."
+                />
+              </label>
+              <input
+                type="text"
+                ref="input_activeDrawerOnStart"
+                value={this.state.activeDrawerOnStart}
+                className={this.getValidationClass("activeDrawerOnStart")}
+                onChange={(e) => {
+                  this.setState({ activeDrawerOnStart: e.target.value }, () =>
+                    this.validateField("activeDrawerOnStart")
+                  );
+                }}
+              />
+            </div>
             <div className="separator">Färginställningar för kartan</div>
+            <div>
+              <label htmlFor="target">
+                Ljus/mörkt färgtema{" "}
+                <i
+                  className="fa fa-question-circle"
+                  data-toggle="tooltip"
+                  title="Avgör om användarens preferenser gällande färgtema följs"
+                />
+              </label>
+              <select
+                id="preferredColorScheme"
+                name="preferredColorScheme"
+                className="control-fixed-width"
+                onChange={(e) => {
+                  this.handlePreferredColorScheme(e.target.value);
+                }}
+                value={this.state.preferredColorScheme}
+              >
+                <option value="user">Låt användaren bestämma (default)</option>
+                <option value="light">Ljust</option>
+                <option value="dark">Mörkt</option>
+              </select>
+            </div>
             <div className="clearfix">
               <span className="pull-left">
                 <div>Huvudfärg</div>
                 <SketchPicker
                   color={this.state.primaryColor}
-                  onChangeComplete={e => this.handlePrimaryColorComplete(e)}
+                  onChangeComplete={(e) => this.handlePrimaryColorComplete(e)}
                 />
               </span>
               <span className="pull-left" style={{ marginLeft: "10px" }}>
                 <div>Komplementfärg</div>
                 <SketchPicker
                   color={this.state.secondaryColor}
-                  onChangeComplete={e => this.handleSecondaryColorComplete(e)}
+                  onChangeComplete={(e) => this.handleSecondaryColorComplete(e)}
                 />
               </span>
             </div>
@@ -788,7 +1365,7 @@ class MapOptions extends Component {
             <ColorButtonBlue
               variant="contained"
               className="btn"
-              onClick={e => this.save(e)}
+              onClick={(e) => this.save(e)}
               startIcon={<SaveIcon />}
             >
               Spara

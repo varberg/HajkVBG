@@ -1,44 +1,40 @@
 import React from "react";
-import { withStyles } from "@material-ui/core/styles";
+import { hfetch } from "utils/FetchWrapper";
+import { styled } from "@mui/material/styles";
 
-const styles = theme => ({
-  table: {
-    borderCollapse: "collapse",
-    borderColor: "black",
-    margin: "10px",
-    "& th": {
-      textAlign: "left"
-    },
-    "& td": {
-      border: "1px solid #999"
-    },
-    "& thead": {
-      borderBottom: "2px solid"
-    }
-  }
-});
+const StyledTable = styled("table")(() => ({
+  borderCollapse: "collapse",
+  borderColor: "black",
+  margin: "10px",
+  "& th": {
+    textAlign: "left",
+  },
+  "& td": {
+    border: "1px solid #999",
+  },
+  "& thead": {
+    borderBottom: "2px solid",
+  },
+}));
 
 class TableView extends React.PureComponent {
   state = {
-    data: false
+    data: false,
   };
 
   // TODO: Add propTypes
 
   componentDidMount() {
     const { source, feature } = this.props;
-    var url = this.parse(source, feature.getProperties());
+    const url = this.parse(source, feature.getProperties());
     this.load(url);
   }
 
   parse(str, properties) {
     if (str && typeof str === "string") {
-      (str.match(/{(.*?)}/g) || []).forEach(property => {
+      (str.match(/{(.*?)}/g) || []).forEach((property) => {
         function lookup(o, s) {
-          s = s
-            .replace("{", "")
-            .replace("}", "")
-            .split(".");
+          s = s.replace("{", "").replace("}", "").split(".");
           switch (s.length) {
             case 1:
               return o[s[0]] || "";
@@ -58,26 +54,25 @@ class TableView extends React.PureComponent {
   }
 
   load(url) {
-    fetch(url).then(response => {
-      response.json().then(rsp => {
-        const data = rsp.features.map(feature => {
+    hfetch(url).then((response) => {
+      response.json().then((rsp) => {
+        const data = rsp.features.map((feature) => {
           return {
             date: feature.properties.datetime.split("T")[0],
-            value: feature.properties.value
+            value: feature.properties.value,
           };
         });
         this.setState({
-          data: data
+          data: data,
         });
       });
     });
   }
 
   render() {
-    const { classes } = this.props;
     if (this.state.data) {
       return (
-        <table className={classes.table}>
+        <StyledTable>
           <thead>
             <tr>
               <th>Datum</th>
@@ -92,7 +87,7 @@ class TableView extends React.PureComponent {
               </tr>
             ))}
           </tbody>
-        </table>
+        </StyledTable>
       );
     } else {
       return <div>Laddar</div>;
@@ -100,4 +95,4 @@ class TableView extends React.PureComponent {
   }
 }
 
-export default withStyles(styles)(TableView);
+export default TableView;

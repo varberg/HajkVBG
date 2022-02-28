@@ -1,25 +1,3 @@
-// Copyright (C) 2016 Göteborgs Stad
-//
-// Denna programvara är fri mjukvara: den är tillåten att distribuera och modifiera
-// under villkoren för licensen CC-BY-NC-SA 4.0.
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the CC-BY-NC-SA 4.0 licence.
-//
-// http://creativecommons.org/licenses/by-nc-sa/4.0/
-//
-// Det är fritt att dela och anpassa programvaran för valfritt syfte
-// med förbehåll att följande villkor följs:
-// * Copyright till upphovsmannen inte modifieras.
-// * Programvaran används i icke-kommersiellt syfte.
-// * Licenstypen inte modifieras.
-//
-// Den här programvaran är öppen i syfte att den skall vara till nytta för andra
-// men UTAN NÅGRA GARANTIER; även utan underförstådd garanti för
-// SÄLJBARHET eller LÄMPLIGHET FÖR ETT VISST SYFTE.
-//
-// https://github.com/hajkmap/Hajk
-
 import React from "react";
 import { Component } from "react";
 import Alert from "../views/alert.jsx";
@@ -30,34 +8,34 @@ import CancelIcon from "@material-ui/icons/Cancel";
 import { withStyles } from "@material-ui/core/styles";
 import { red, green, blue } from "@material-ui/core/colors";
 
-const ColorButtonRed = withStyles(theme => ({
+const ColorButtonRed = withStyles((theme) => ({
   root: {
     color: theme.palette.getContrastText(red[500]),
     backgroundColor: red[500],
     "&:hover": {
-      backgroundColor: red[700]
-    }
-  }
+      backgroundColor: red[700],
+    },
+  },
 }))(Button);
 
-const ColorButtonGreen = withStyles(theme => ({
+const ColorButtonGreen = withStyles((theme) => ({
   root: {
     color: theme.palette.getContrastText(green[700]),
     backgroundColor: green[500],
     "&:hover": {
-      backgroundColor: green[700]
-    }
-  }
+      backgroundColor: green[700],
+    },
+  },
 }))(Button);
 
-const ColorButtonBlue = withStyles(theme => ({
+const ColorButtonBlue = withStyles((theme) => ({
   root: {
     color: theme.palette.getContrastText(blue[500]),
     backgroundColor: blue[500],
     "&:hover": {
-      backgroundColor: blue[700]
-    }
-  }
+      backgroundColor: blue[700],
+    },
+  },
 }))(Button);
 
 const defaultState = {
@@ -69,20 +47,23 @@ const defaultState = {
   addedLayers: [],
   id: "",
   caption: "",
+  internalLayerName: "",
   date: "Fylls i per automatik",
   searchFields: "",
   infobox: "",
   aliasDict: "",
   displayFields: "",
+  shortDisplayFields: "",
   geometryField: "",
   url: "",
   outputFormat: undefined,
+  serverType: "geoserver",
   alert: false,
   corfirm: false,
   alertMessage: "",
   content: "",
   confirmAction: () => {},
-  denyAction: () => {}
+  denyAction: () => {},
 };
 /**
  *
@@ -103,7 +84,7 @@ class Search extends Component {
     this.props.model.getConfig(this.props.config.url_layers);
     this.props.model.on("change:layers", () => {
       this.setState({
-        layers: this.props.model.get("layers")
+        layers: this.props.model.get("layers"),
       });
     });
 
@@ -126,12 +107,12 @@ class Search extends Component {
       confirm: true,
       alertMessage: "Lagret kommer att tas bort. Är detta ok?",
       confirmAction: () => {
-        this.props.model.removeLayer(layer, success => {
+        this.props.model.removeLayer(layer, (success) => {
           if (success) {
             this.props.model.getConfig(this.props.config.url_layers);
             this.setState({
               alert: true,
-              alertMessage: `Lagret ${layer.caption} togs bort!`
+              alertMessage: `Lagret ${layer.caption} togs bort!`,
             });
             if (this.state.id === layer.id) {
               this.abort();
@@ -139,11 +120,11 @@ class Search extends Component {
           } else {
             this.setState({
               alert: true,
-              alertMessage: "Lagret kunde inte tas bort. Försök igen senare."
+              alertMessage: "Lagret kunde inte tas bort. Försök igen senare.",
             });
           }
         });
-      }
+      },
     });
     e.stopPropagation();
   }
@@ -155,38 +136,44 @@ class Search extends Component {
       mode: "edit",
       id: layer.id,
       caption: layer.caption,
+      internalLayerName: layer.internalLayerName || layer.caption,
       searchFields: layer.searchFields,
       infobox: layer.infobox,
       aliasDict: layer.aliasDict,
       displayFields: layer.displayFields,
+      shortDisplayFields: layer.shortDisplayFields,
       geometryField: layer.geometryField,
       outputFormat: layer.outputFormat || "GML3",
+      serverType: layer.serverType || "geoserver",
       url: layer.url,
-      addedLayers: []
+      addedLayers: [],
     });
 
     setTimeout(() => {
       this.validateField("url", true);
       this.validateField("searchFields", true);
       this.validateField("displayFields", true);
+      this.validateField("shortDisplayFields", true);
       this.validateField("geometryField", true);
       this.validateField("outputFormat", true);
+      this.validateField("serverType", true);
 
       this.loadWMSCapabilities(undefined, () => {
         this.setState({
-          addedLayers: layer.layers
+          addedLayers: layer.layers,
         });
 
         this.validateField("layers", true);
 
-        Object.keys(this.refs).forEach(element => {
+        Object.keys(this.refs).forEach((element) => {
           if (this.refs[element].dataset.type === "wms-layer") {
             this.refs[element].checked = false;
           }
         });
 
-        layer.layers.forEach(layer => {
-          this.refs[layer].checked = true;
+        layer.layers.forEach((layer) => {
+          if (this && this.refs && this.refs[layer])
+            this.refs[layer].checked = true;
         });
       });
     }, 0);
@@ -204,7 +191,7 @@ class Search extends Component {
       addedLayers: [],
       capabilities: false,
       layerProperties: undefined,
-      layerPropertiesName: undefined
+      layerPropertiesName: undefined,
     });
 
     if (this.state.capabilities) {
@@ -213,15 +200,15 @@ class Search extends Component {
       });
     }
 
-    this.props.model.getWMSCapabilities(this.state.url, capabilities => {
+    this.props.model.getWMSCapabilities(this.state.url, (capabilities) => {
       this.setState({
         capabilities: capabilities,
-        load: false
+        load: false,
       });
       if (capabilities === false) {
         this.setState({
           alert: true,
-          alertMessage: "Servern svarar inte. Försök med en annan URL."
+          alertMessage: "Servern svarar inte. Försök med en annan URL.",
         });
       }
       if (callback) {
@@ -236,7 +223,7 @@ class Search extends Component {
     if (e.target.checked === true) {
       this.setState(
         {
-          addedLayers: [checkedLayer]
+          addedLayers: [checkedLayer],
         },
         () => this.validateField("layers"),
         true
@@ -245,8 +232,8 @@ class Search extends Component {
       this.setState(
         {
           addedLayers: this.state.addedLayers.filter(
-            layer => layer !== checkedLayer
-          )
+            (layer) => layer !== checkedLayer
+          ),
         },
         () => this.validateField("layers"),
         true
@@ -263,8 +250,8 @@ class Search extends Component {
       this.appendLayer(
         {
           target: {
-            checked: false
-          }
+            checked: false,
+          },
         },
         layer
       );
@@ -284,15 +271,22 @@ class Search extends Component {
    */
   filterLayers(e) {
     this.setState({
-      filter: e.target.value
+      filter: e.target.value,
     });
   }
   /**
    *
    */
   getLayersWithFilter(filter) {
-    return this.props.model.get("layers").filter(layer => {
-      return new RegExp(this.state.filter).test(layer.caption.toLowerCase());
+    return this.props.model.get("layers").filter((layer) => {
+      return (
+        new RegExp(this.state.filter.toLowerCase()).test(
+          layer.caption.toLowerCase()
+        ) ||
+        new RegExp(this.state.filter.toLowerCase()).test(
+          layer.internalLayerName?.toLowerCase()
+        )
+      );
     });
   }
   /**
@@ -307,32 +301,48 @@ class Search extends Component {
     var alphabetically = [];
 
     if (this.state.filter) {
-      layers.forEach(layer => {
-        layer.caption.toLowerCase().indexOf(this.state.filter) === 0
+      layers.forEach((layer) => {
+        layer.caption.toLowerCase().indexOf(this.state.filter.toLowerCase()) ===
+          0 ||
+        layer.internalLayerName
+          ?.toLowerCase()
+          .indexOf(this.state.filter.toLowerCase()) === 0
           ? startsWith.push(layer)
           : alphabetically.push(layer);
       });
 
-      startsWith.sort(function(a, b) {
-        if (a.caption.toLowerCase() < b.caption.toLowerCase()) return -1;
-        if (a.caption.toLowerCase() > b.caption.toLowerCase()) return 1;
+      startsWith.sort(function (a, b) {
+        let aName = a.internalLayerName ? a.internalLayerName : a.caption;
+        aName = aName.toLowerCase();
+        let bName = b.internalLayerName ? b.internalLayerName : b.caption;
+        bName = bName.toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
         return 0;
       });
 
-      alphabetically.sort(function(a, b) {
-        if (a.caption.toLowerCase() < b.caption.toLowerCase()) return -1;
-        if (a.caption.toLowerCase() > b.caption.toLowerCase()) return 1;
+      alphabetically.sort(function (a, b) {
+        let aName = a.internalLayerName ? a.internalLayerName : a.caption;
+        aName = aName.toLowerCase();
+        let bName = b.internalLayerName ? b.internalLayerName : b.caption;
+        bName = bName.toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
         return 0;
       });
 
       layers = startsWith.concat(alphabetically);
     }
     return layers.map((layer, i) => (
-      <li onClick={e => this.loadLayer(e, layer)} key={Math.random()}>
-        <span>{layer.caption}</span>
+      <li onClick={(e) => this.loadLayer(e, layer)} key={Math.random()}>
+        <span>
+          {layer.internalLayerName?.length > 0
+            ? layer.internalLayerName
+            : layer.caption}
+        </span>
         <i
           title="Radera lager"
-          onClick={e => this.removeLayer(e, layer)}
+          onClick={(e) => this.removeLayer(e, layer)}
           className="fa fa-trash"
         />
       </li>
@@ -351,8 +361,9 @@ class Search extends Component {
 
     switch (fieldName) {
       case "displayFields":
+      case "shortDisplayFields":
       case "searchFields":
-        valid = value.every(val => /^\w+$/.test(val));
+        valid = value.every((val) => /^\w+$/.test(val));
         if (value.length === 1 && value[0] === "") {
           valid = true;
         }
@@ -371,6 +382,7 @@ class Search extends Component {
         }
         break;
       case "outputFormat":
+      case "serverType":
         if (value === "") {
           valid = false;
         }
@@ -382,13 +394,13 @@ class Search extends Component {
     if (updateState !== false) {
       if (!valid) {
         this.setState({
-          validationErrors: [...this.state.validationErrors, fieldName]
+          validationErrors: [...this.state.validationErrors, fieldName],
         });
       } else {
         this.setState({
           validationErrors: this.state.validationErrors.filter(
-            v => v !== fieldName
-          )
+            (v) => v !== fieldName
+          ),
         });
       }
     }
@@ -401,11 +413,11 @@ class Search extends Component {
    */
   getValue(fieldName) {
     function create_date() {
-      return new Date().getTime();
+      return new Date().getTime().toString();
     }
 
     function format_layers(layers) {
-      return layers.map(layer => layer);
+      return layers.map((layer) => layer);
     }
 
     var input = this.refs["input_" + fieldName],
@@ -415,6 +427,7 @@ class Search extends Component {
     if (fieldName === "layers") value = format_layers(this.state.addedLayers);
     if (fieldName === "searchFields") value = value.split(",");
     if (fieldName === "displayFields") value = value.split(",");
+    if (fieldName === "shortDisplayFields") value = value.split(",");
 
     return value;
   }
@@ -453,68 +466,74 @@ class Search extends Component {
         "layers",
         "searchFields",
         "displayFields",
+        "shortDisplayFields",
         "geometryField",
-        "outputFormat"
+        "outputFormat",
+        "serverType",
       ];
 
-    validationFields.forEach(fieldName => {
+    validationFields.forEach((fieldName) => {
       if (!this.validateField(fieldName, false)) {
         validationErrors.push(fieldName);
       }
     });
 
     this.setState({
-      validationErrors: validationErrors
+      validationErrors: validationErrors,
     });
 
     if (validationErrors.length === 0) {
       let layer = {
         id: this.state.id,
         caption: this.getValue("caption"),
+        internalLayerName: this.getValue("internalLayerName"),
         url: this.getValue("url"),
         layers: this.getValue("layers"),
         searchFields: this.getValue("searchFields"),
         infobox: this.getValue("infobox"),
         aliasDict: this.getValue("aliasDict"),
         displayFields: this.getValue("displayFields"),
+        shortDisplayFields: this.getValue("shortDisplayFields"),
         geometryField: this.getValue("geometryField"),
-        outputFormat: this.getValue("outputFormat")
+        outputFormat: this.getValue("outputFormat"),
+        serverType: this.getValue("serverType"),
       };
 
       if (this.state.mode === "add") {
         layer.id = this.createGuid(this.props.model.get("layers"));
-        this.props.model.addLayer(layer, success => {
+        this.props.model.addLayer(layer, (success) => {
           if (success) {
             this.props.model.getConfig(this.props.config.url_layers);
             this.abort();
             this.setState({
               alert: true,
               alertMessage:
-                "Lagret har lagt till i listan av tillgängliga lager."
+                "Lagret har lagt till i listan av tillgängliga lager.",
             });
           } else {
             this.setState({
               alert: true,
-              alertMessage: "Lagret kunde inte läggas till. Försök igen senare."
+              alertMessage:
+                "Lagret kunde inte läggas till. Försök igen senare.",
             });
           }
         });
       }
       if (this.state.mode === "edit") {
-        this.props.model.updateLayer(layer, success => {
+        this.props.model.updateLayer(layer, (success) => {
           if (success) {
             this.props.model.getConfig(this.props.config.url_layers);
             this.setState({
               alert: true,
-              alertMessage: "Uppdateringen lyckades!"
+              alertMessage: "Uppdateringen lyckades!",
             });
             this.setState({
-              date: layer.date
+              date: layer.date,
             });
           } else {
             this.setState({
               alert: true,
-              alertMessage: "Uppdateringen misslyckades."
+              alertMessage: "Uppdateringen misslyckades.",
             });
           }
         });
@@ -533,7 +552,7 @@ class Search extends Component {
    *
    */
   getValidationClass(inputName) {
-    return this.state.validationErrors.find(v => v === inputName)
+    return this.state.validationErrors.find((v) => v === inputName)
       ? "validation-error"
       : "";
   }
@@ -546,10 +565,10 @@ class Search extends Component {
       this.refs.input_url.value,
       layer,
       arcgis,
-      properties => {
+      (properties) => {
         this.setState({
           layerProperties: properties,
-          layerPropertiesName: layer.name
+          layerPropertiesName: layer.name,
         });
       }
     );
@@ -560,7 +579,7 @@ class Search extends Component {
   closeDetails() {
     this.setState({
       layerProperties: undefined,
-      layerPropertiesName: undefined
+      layerPropertiesName: undefined,
     });
   }
   /**
@@ -617,7 +636,7 @@ class Search extends Component {
               type="radio"
               name="featureType"
               data-type="wms-layer"
-              onChange={e => {
+              onChange={(e) => {
                 this.appendLayer(e, layer.name);
               }}
             />
@@ -625,7 +644,7 @@ class Search extends Component {
             <label htmlFor={"layer" + i}>{layer.name}</label>
             <i
               className={classNames}
-              onClick={e => this.describeLayer(e, layer)}
+              onClick={(e) => this.describeLayer(e, layer)}
             />
           </li>
         );
@@ -655,7 +674,7 @@ class Search extends Component {
         this.setState({
           alert: false,
           confirm: false,
-          alertMessage: ""
+          alertMessage: "",
         });
       },
       denyAction: () => {
@@ -663,15 +682,15 @@ class Search extends Component {
         this.setState({
           alert: false,
           confirm: false,
-          alertMessage: ""
+          alertMessage: "",
         });
       },
       onClick: () => {
         this.setState({
           alert: false,
-          alertMessage: ""
+          alertMessage: "",
         });
-      }
+      },
     };
   }
   /**
@@ -686,7 +705,7 @@ class Search extends Component {
         <ColorButtonRed
           variant="contained"
           className="btn btn-danger"
-          onClick={e => this.abort(e)}
+          onClick={(e) => this.abort(e)}
           startIcon={<CancelIcon />}
         >
           Avbryt
@@ -700,7 +719,7 @@ class Search extends Component {
           <input
             placeholder="filtrera"
             type="text"
-            onChange={e => this.filterLayers(e)}
+            onChange={(e) => this.filterLayers(e)}
           />
           <ul className="config-layer-list">{this.renderLayersFromConfig()}</ul>
         </aside>
@@ -708,7 +727,7 @@ class Search extends Component {
           <form
             method="post"
             action=""
-            onSubmit={e => {
+            onSubmit={(e) => {
               this.submit(e);
             }}
           >
@@ -721,10 +740,10 @@ class Search extends Component {
                   type="text"
                   ref="input_url"
                   value={this.state.url}
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState(
                       {
-                        url: e.target.value
+                        url: e.target.value,
                       },
                       () => this.validateField("url", true)
                     );
@@ -732,7 +751,7 @@ class Search extends Component {
                   className={this.getValidationClass("url")}
                 />
                 <span
-                  onClick={e => {
+                  onClick={(e) => {
                     this.loadWMSCapabilities(e);
                   }}
                   className="btn btn-default"
@@ -746,17 +765,42 @@ class Search extends Component {
                   ref="input_outputFormat"
                   value={this.state.outputFormat}
                   className="control-fixed-width"
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState(
                       {
-                        outputFormat: e.target.value
+                        outputFormat: e.target.value,
                       },
                       () => this.validateField("outputFormat", true)
                     );
                   }}
                 >
+                  <option value="application/json">application/json</option>
+                  <option value="application/vnd.geo+json">
+                    application/vnd.geo+json
+                  </option>
                   <option value="GML3">GML3</option>
                   <option value="GML2">GML2</option>
+                </select>
+              </div>
+              <div>
+                <label>Servertyp</label>
+                <select
+                  ref="input_serverType"
+                  value={this.state.serverType}
+                  className="control-fixed-width"
+                  onChange={(e) => {
+                    this.setState(
+                      {
+                        serverType: e.target.value,
+                      },
+                      () => this.validateField("serverType", true)
+                    );
+                  }}
+                >
+                  <option value="geoserver">GeoServer</option>
+                  <option value="qgis">QGIS Server</option>
+                  <option value="arcgis">ArcGIS Server</option>
+                  <option value="mapserver">MapServer</option>
                 </select>
               </div>
               <div className="separator">Tillgängliga lager</div>
@@ -782,10 +826,10 @@ class Search extends Component {
                   type="text"
                   ref="input_caption"
                   value={this.state.caption}
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState(
                       {
-                        caption: e.target.value
+                        caption: e.target.value,
                       },
                       () => this.validateField("caption", true)
                     );
@@ -793,13 +837,24 @@ class Search extends Component {
                   className={this.getValidationClass("caption")}
                 />
               </div>
-
+              <div>
+                <label>Visningsnamn Admin</label>
+                <input
+                  type="text"
+                  ref="input_internalLayerName"
+                  value={this.state.internalLayerName || ""}
+                  onChange={(e) => {
+                    this.setState({ internalLayerName: e.target.value });
+                    this.validateField("internalLayerName");
+                  }}
+                />
+              </div>
               <div>
                 <label>Inforuta</label>
                 <textarea
                   ref="input_infobox"
                   value={this.state.infobox}
-                  onChange={e => this.setState({ infobox: e.target.value })}
+                  onChange={(e) => this.setState({ infobox: e.target.value })}
                 />
               </div>
               <div>
@@ -807,7 +862,7 @@ class Search extends Component {
                 <textarea
                   ref="input_aliasDict"
                   value={this.state.aliasDict}
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState({ aliasDict: e.target.value });
                   }}
                 />
@@ -817,10 +872,10 @@ class Search extends Component {
                 <input
                   type="text"
                   ref="input_searchFields"
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState(
                       {
-                        searchFields: e.target.value
+                        searchFields: e.target.value,
                       },
                       () => this.validateField("searchFields", true)
                     );
@@ -834,10 +889,10 @@ class Search extends Component {
                 <input
                   type="text"
                   ref="input_displayFields"
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState(
                       {
-                        displayFields: e.target.value
+                        displayFields: e.target.value,
                       },
                       () => this.validateField("displayFields", true)
                     );
@@ -847,14 +902,31 @@ class Search extends Component {
                 />
               </div>
               <div>
+                <label>Kort visningsfält</label>
+                <input
+                  type="text"
+                  ref="input_shortDisplayFields"
+                  onChange={(e) => {
+                    this.setState(
+                      {
+                        shortDisplayFields: e.target.value,
+                      },
+                      () => this.validateField("shortDisplayFields", true)
+                    );
+                  }}
+                  value={this.state.shortDisplayFields}
+                  className={this.getValidationClass("shortDisplayFields")}
+                />
+              </div>
+              <div>
                 <label>Geometrifält</label>
                 <input
                   type="text"
                   ref="input_geometryField"
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState(
                       {
-                        geometryField: e.target.value
+                        geometryField: e.target.value,
                       },
                       () => this.validateField("geometryField", true)
                     );

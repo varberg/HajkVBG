@@ -19,7 +19,7 @@ export default class ConfigMapper {
         // First get index if we're dealing with array
         let getIndex =
           args.layersInfo !== null
-            ? args.layersInfo.findIndex(l => l.id === layer)
+            ? args.layersInfo.findIndex((l) => l.id === layer)
             : null;
         // Next, use that index to grab correct style and save its name for later use
         let style =
@@ -27,21 +27,33 @@ export default class ConfigMapper {
           getIndex >= 0 &&
           args.layersInfo[getIndex].style;
 
-        /**
-         * GeoServer allows finer control over the legend appearance via the vendor parameter LEGEND_OPTIONS.
-         * See: https://docs.geoserver.org/latest/en/user/services/wms/get_legend_graphic/index.html#controlling-legend-appearance-with-legend-options
-         */
-        // Use custom legend options if specified by admin
-        const geoserverLegendOptions = properties.mapConfig.map.hasOwnProperty(
-          "geoserverLegendOptions"
-        )
-          ? "LEGEND_OPTIONS=" + properties.mapConfig.map.geoserverLegendOptions
-          : "";
+        let geoserverLegendOptions = "";
+        let qgisOptions = "";
 
-        // TODO: Make width and height of WMS legend graphics customizable via admin
-        const w = 30;
-        const h = 30;
-        legendUrl = `${proxy}${args.url}?REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&WIDTH=${w}&HEIGHT=${h}&LAYER=${layer}&STYLE=${style}&${geoserverLegendOptions}`;
+        if (args.serverType === "geoserver") {
+          /**
+           * GeoServer allows finer control over the legend appearance via the vendor parameter LEGEND_OPTIONS.
+           * See: https://docs.geoserver.org/latest/en/user/services/wms/get_legend_graphic/index.html#controlling-legend-appearance-with-legend-options
+           */
+          // Use custom legend options if specified by admin
+          geoserverLegendOptions = properties.mapConfig.map.hasOwnProperty(
+            "geoserverLegendOptions"
+          )
+            ? "&LEGEND_OPTIONS=" +
+              properties.mapConfig.map.geoserverLegendOptions
+            : "";
+        }
+
+        // QGIS Server requires the SERVICE parameter to be set, see issue #880.
+        if (args.serverType === "qgis") {
+          qgisOptions = "&SERVICE=WMS";
+        }
+
+        // If layers URL already includes a query string separator (ie question mark), we want
+        // to append the remaining values with &.
+        const theGlue = args.url.includes("?") ? "&" : "?";
+
+        legendUrl = `${proxy}${args.url}${theGlue}REQUEST=GetLegendGraphic&VERSION=1.0.0&FORMAT=image/png&LAYER=${layer}&STYLE=${style}${geoserverLegendOptions}${qgisOptions}`;
       }
       // If there's a legend URL specified in admin, use it as is
       else {
@@ -54,10 +66,10 @@ export default class ConfigMapper {
     }
 
     function getLegends() {
-      return args.layers.map(layer => {
+      return args.layers.map((layer) => {
         return {
           url: getLegendUrl(layer),
-          description: "Teckenförklaring"
+          description: "Teckenförklaring",
         };
       });
     }
@@ -94,38 +106,61 @@ export default class ConfigMapper {
       projection = new Projection({
         code: projCode,
         axisOrientation: "neu",
-        extent: properties.mapConfig.map.extent
+        extent: properties.mapConfig.map.extent,
       });
     }
 
     // In the GetMap operation the srs parameter is called crs in 1.3.0,
     // see: https://docs.geoserver.org/latest/en/user/services/wms/basics.html#differences-between-wms-versions
     const srsOrCrs = args.version === "1.3.0" ? "CRS" : "SRS";
+
+    if (args.minZoom === 0 && args.maxZoom === 0) {
+      // backend returns 0 if not set in past
+      args.minZoom = undefined;
+      args.maxZoom = undefined;
+    }
+
     let config = {
       type: "wms",
       options: {
         id: args.id,
-        url: (this.proxy || "") + args.url,
+        url:
+          (this.proxy || "") +
+          (this.getPotentialCustomUrl(args.customGetMapUrl) || args.url),
         name: args.id, // FIXME: Should this be "args.caption"?
         layerType: args.layerType,
         caption: args.caption,
         visible: args.visibleAtStart,
         opacity: args.opacity || 1,
-        //information: args.infobox,
-        resolutions: properties.mapConfig.map.resolutions,
+        maxZoom: args.maxZoom,
+        minZoom: args.minZoom,
+        minMaxZoomAlertOnToggleOnly: args.minMaxZoomAlertOnToggleOnly,
+        infoClickSortType: args.infoClickSortType,
+        infoClickSortDesc: args.infoClickSortDesc,
+        infoClickSortProperty: args.infoClickSortProperty,
+        information: args.infobox,
+        resolutions: properties.mapConfig.map.allResolutions,
         projection: projection || "EPSG:3006",
         origin: properties.mapConfig.map.origin,
         extent: properties.mapConfig.map.extent,
         singleTile: args.singleTile || false,
+        hidpi: args.hidpi,
+        customRatio: args.customRatio,
         imageFormat: args.imageFormat || "image/png",
-        serverType: args.serverType || "geoserver",
+        serverType:
+          args.serverType === "arcgis"
+            ? "mapserver"
+            : args.serverType || "geoserver",
+        crossOrigin: properties.mapConfig.map.crossOrigin || "anonymous",
         attribution: args.attribution,
         searchUrl: args.searchUrl,
         searchPropertyName: args.searchPropertyName,
         searchDisplayName: args.searchDisplayName,
+        searchShortDisplayName: args.searchShortDisplayName,
         searchOutputFormat: args.searchOutputFormat,
         searchGeometryField: args.searchGeometryField,
         legend: getLegends(),
+        legendIcon: args.legendIcon,
         params: {
           LAYERS: args.layers.join(","),
           ...(args.cqlFilter && { CQL_FILTER: args.cqlFilter }), // nice way to add property only if needed
@@ -135,8 +170,8 @@ export default class ConfigMapper {
           [srsOrCrs]: projection || "EPSG:3006",
           TILED: args.tiled,
           STYLES: Array.isArray(args.layersInfo)
-            ? args.layersInfo.map(l => l.style || "").join(",")
-            : null
+            ? args.layersInfo.map((l) => l.style || "").join(",")
+            : null,
         },
         layersInfo: mapLayersInfo(args.layersInfo, args.infobox),
         infoVisible: args.infoVisible || false,
@@ -145,8 +180,10 @@ export default class ConfigMapper {
         infoUrl: args.infoUrl,
         infoUrlText: args.infoUrlText,
         infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow
-      }
+        hideExpandArrow: args.hideExpandArrow,
+        timeSliderStart: args.timeSliderStart,
+        timeSliderEnd: args.timeSliderEnd,
+      },
     };
 
     if (args.searchFields && args.searchFields[0]) {
@@ -158,14 +195,27 @@ export default class ConfigMapper {
         displayName: args.displayFields
           ? args.displayFields
           : args.searchFields[0] || "Sökträff",
-        srsName: properties.mapConfig.map.projection || "EPSG:3006"
+        srsName: properties.mapConfig.map.projection || "EPSG:3006",
+        serverType: config.options.serverType,
       };
     }
 
     return config;
   }
 
+  // There might be a custom getMap-url provided in the config. If there
+  // is, we have to make sure to override the url-value with the custom getMap-url.
+  // See #345 for more information.
+  getPotentialCustomUrl(customGetMapUrl) {
+    return customGetMapUrl?.trim().length > 0 ? customGetMapUrl : null;
+  }
+
   mapWMTSConfig(args, properties) {
+    if (args.minZoom === 0 && args.maxZoom === 0) {
+      args.minZoom = undefined;
+      args.maxZoom = undefined;
+    }
+
     var config = {
       type: "wmts",
       options: {
@@ -177,7 +227,10 @@ export default class ConfigMapper {
         extent: properties.mapConfig.map.extent,
         queryable: false,
         opacity: args.opacity || 1,
+        maxZoom: args.maxZoom,
+        minZoom: args.minZoom,
         format: "image/png",
+        crossOrigin: properties.mapConfig.map.crossOrigin || "anonymous",
         wrapX: false,
         url: args.url,
         layer: args.layer,
@@ -189,14 +242,17 @@ export default class ConfigMapper {
         matrixIds: args.matrixIds,
         attribution: args.attribution,
         legend: args.legend,
+        legendIcon: args.legendIcon,
         infoVisible: args.infoVisible || false,
         infoTitle: args.infoTitle,
         infoText: args.infoText,
         infoUrl: args.infoUrl,
         infoUrlText: args.infoUrlText,
         infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow
-      }
+        hideExpandArrow: args.hideExpandArrow,
+        timeSliderStart: args.timeSliderStart,
+        timeSliderEnd: args.timeSliderEnd,
+      },
     };
     return config;
   }
@@ -214,8 +270,8 @@ export default class ConfigMapper {
         opacity: 1,
         queryable: args.queryable !== false,
         extent: args.extent,
-        projection: args.projection
-      }
+        projection: args.projection,
+      },
     };
 
     return config;
@@ -225,66 +281,62 @@ export default class ConfigMapper {
     var config = {
       type: "vector",
       options: {
-        id: args.id,
-        dataFormat: args.dataFormat,
-        name: args.id,
-        layerType: args.layerType,
+        attribution: args.attribution,
         caption: args.caption,
-        visible: args.visibleAtStart,
-        opacity: args.opacity,
-        serverType: "arcgis",
-        loadType: "ajax",
-        projection: args.projection,
-        fillColor: args.fillColor,
-        lineColor: args.lineColor,
-        lineStyle: args.lineStyle,
-        lineWidth: args.lineWidth,
-        url: args.url,
-        queryable: args.queryable,
+        content: args.content,
+        dataFormat: args.dataFormat,
         filterable: args.filterable,
-        information: args.infobox,
-        icon: args.legend,
-        symbolXOffset: args.symbolXOffset,
-        symbolYOffset: args.symbolYOffset,
-        pointSize: args.pointSize,
-        filterComparer: args.filterComparer,
         filterAttribute: args.filterAttribute,
+        filterComparer: args.filterComparer,
         filterValue: args.filterValue,
-        labelAlign: args.labelAlign,
-        labelBaseline: args.labelBaseline,
-        labelSize: args.labelSize,
-        labelOffsetX: args.labelOffsetX,
-        labelOffsetY: args.labelOffsetY,
-        labelWeight: args.labelWeight,
-        labelFont: args.labelFont,
-        labelFillColor: args.labelFillColor,
-        labelOutlineColor: args.labelOutlineColor,
-        labelOutlineWidth: args.labelOutlineWidth,
-        labelAttribute: args.labelAttribute,
-        showLabels: args.showLabels,
-        featureId: "FID",
+        icon: args.legend,
+        id: args.id,
+        infoOwner: args.infoOwner,
+        information: args.infobox,
+        infoText: args.infoText,
+        infoTitle: args.infoTitle,
+        infoUrl: args.infoUrl,
+        infoUrlText: args.infoUrlText,
+        infoVisible: args.infoVisible || false,
+        infoClickSortType: args.infoClickSortType,
+        infoClickSortDesc: args.infoClickSortDesc,
+        infoClickSortProperty: args.infoClickSortProperty,
+        layerType: args.layerType,
         legend: [
           {
             url: args.legend,
-            description: args.caption
-          }
+            description: args.caption,
+          },
         ],
+        legendIcon: args.legendIcon,
+        maxZoom: args.maxZoom,
+        minZoom: args.minZoom,
+        name: args.id,
+        opacity: args.opacity,
         params: {
           service: "WFS",
-          version: "1.1.0",
           request: "GetFeature",
+          version: args.version || "1.1.0",
+          outputFormat:
+            args.dataFormat === "GeoJSON" // If GeoJSON,
+              ? "application/json" // set correct outputFormat (see https://docs.geoserver.org/latest/en/user/services/wfs/outputformats.html)
+              : args.version === "1.0.0" // else (if dataFormat is not GeoJSON), check which WFS version we have and
+              ? "GML2" // use the GML2 parser for WFS 1.0.0, or
+              : "GML3", // GML3 for version > 1.0.0 (again, see above link).
           typename: args.layer,
           srsname: args.projection,
-          bbox: ""
+          bbox: "",
         },
-        infoVisible: args.infoVisible || false,
-        infoTitle: args.infoTitle,
-        infoText: args.infoText,
-        infoUrl: args.infoUrl,
-        infoUrlText: args.infoUrlText,
-        infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow
-      }
+        projection: args.projection,
+        queryable: args.queryable,
+        sldStyle: args.sldStyle,
+        sldText: args.sldText,
+        sldUrl: args.sldUrl,
+        url: args.url,
+        visible: args.visibleAtStart,
+        timeSliderStart: args.timeSliderStart,
+        timeSliderEnd: args.timeSliderEnd,
+      },
     };
 
     return config;
@@ -319,13 +371,13 @@ export default class ConfigMapper {
         opacity: args.opacity,
         attribution: args.attribution,
         params: {
-          LAYERS: "show:" + args.layers.join(",")
+          LAYERS: "show:" + args.layers.join(","),
         },
         legend: [
           {
             url: getLegendUrl(args),
-            description: "Teckenförklaring"
-          }
+            description: "Teckenförklaring",
+          },
         ],
         infoVisible: args.infoVisible || false,
         infoTitle: args.infoTitle,
@@ -333,8 +385,10 @@ export default class ConfigMapper {
         infoUrl: args.infoUrl,
         infoUrlText: args.infoUrlText,
         infoOwner: args.infoOwner,
-        hideExpandArrow: args.hideExpandArrow
-      }
+        hideExpandArrow: args.hideExpandArrow,
+        timeSliderStart: args.timeSliderStart,
+        timeSliderEnd: args.timeSliderEnd,
+      },
     };
 
     return config;

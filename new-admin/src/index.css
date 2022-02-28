@@ -1,11 +1,10 @@
 body {
-  margin: 20px;
-  width: 1400px;
+  padding: 20px;
   font-size: 12pt !important;
   color: #373d3f;
 }
 
-input[type="text"] {
+input[type="text"]:not(#documentEditor input):not(#fmeGroupArea input) {
   border: 1px solid #ccc;
   padding: 5px;
   border-radius: 3px;
@@ -41,8 +40,8 @@ article textarea {
   border: 1px solid #999;
 }
 
-article label {
-  width: 150px;
+article label:not(.sketch-picker label):not(#fmeWorkspaceInfo label) {
+  width: 160px;
   display: inline-block;
   margin: 0;
   vertical-align: top;
@@ -60,7 +59,7 @@ article label.full {
   white-space: nowrap;
 }
 
-article input[type="text"] {
+article input[type="text"]:not(#fmeGroupArea input) {
   width: 400px;
   margin-right: 5px;
   margin-bottom: 5px;
@@ -363,6 +362,10 @@ body.dragging * {
   margin: 0 !important;
 }
 
+.edit-fields-table-default {
+  width: 184px !important;
+}
+
 .list-value:first-child {
   margin-left: 0 !important;
 }
@@ -523,6 +526,12 @@ body.dragging * {
   border-left: 1px solid gray;
 }
 
+.tooltip-timeSlider {
+  padding-left: 8px;
+  padding-top: 8px;
+  border-left: 1px solid gray;
+}
+
 textarea.form-control {
   height: 150px;
 }
@@ -617,6 +626,7 @@ figure img {
 
 .chapters {
   display: inline-block;
+  background-color: #f4f4f4;
 }
 
 .chapter {
@@ -717,7 +727,7 @@ figure img {
   border: 1px solid #ccc;
   padding: 5px;
   border-radius: 3px;
-  width: 150px;
+  width: 400px;
 }
 
 #map {
@@ -822,4 +832,61 @@ figure img {
   margin-bottom: 5px;
   border-radius: 4px;
   padding: 5px;
+}
+
+.DocumentTextEditorContainer {
+  position: sticky;
+}
+
+.DocumentTextEditorContainer .RichEditor-blockquote {
+  background-color: #eeeeee;
+  border-top: 2px solid #786aaf;
+  border-bottom: 2px solid #786aaf;
+  color: #666;
+  font-family: "Hoefler Text", "Georgia", serif;
+  font-style: italic;
+  margin: 16px 0;
+  padding: 10px 20px;
+}
+
+.modal-body input {
+  margin-top: 10px;
+}
+
+.modal-body select {
+  width: 100%;
+  border: 1px solid #ccc;
+  padding: 5px;
+  border-radius: 3px;
+}
+
+.DraftEditor-root {
+  font-size: 0.875rem;
+  font-family: "Open Sans", Arial, sans-serif;
+  font-weight: 400;
+  line-height: 1.5;
+  margin-bottom: 0.5em;
+}
+
+.DraftEditor-root figure {
+  width: 100%;
+}
+
+.DraftEditor-root a {
+  color: #0076bc !important;
+}
+
+.public-DraftStyleDefault-block {
+  margin-bottom: 0.5em;
+}
+
+.document-blockquote {
+  padding-left: 0.5rem;
+  background-color: #f7fafc;
+  border-top: 4px solid #edf2f7;
+  border-bottom: 4px solid #edf2f7;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }

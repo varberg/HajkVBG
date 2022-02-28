@@ -1,39 +1,19 @@
-// Copyright (C) 2016 Göteborgs Stad
-//
-// Denna programvara är fri mjukvara: den är tillåten att distribuera och modifiera
-// under villkoren för licensen CC-BY-NC-SA 4.0.
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the CC-BY-NC-SA 4.0 licence.
-//
-// http://creativecommons.org/licenses/by-nc-sa/4.0/
-//
-// Det är fritt att dela och anpassa programvaran för valfritt syfte
-// med förbehåll att följande villkor följs:
-// * Copyright till upphovsmannen inte modifieras.
-// * Programvaran används i icke-kommersiellt syfte.
-// * Licenstypen inte modifieras.
-//
-// Den här programvaran är öppen i syfte att den skall vara till nytta för andra
-// men UTAN NÅGRA GARANTIER; även utan underförstådd garanti för
-// SÄLJBARHET eller LÄMPLIGHET FÖR ETT VISST SYFTE.
-//
-// https://github.com/hajkmap/Hajk
-
 import React, { Component } from "react";
 import Button from "@material-ui/core/Button";
 import SaveIcon from "@material-ui/icons/SaveSharp";
 import { withStyles } from "@material-ui/core/styles";
 import { blue } from "@material-ui/core/colors";
+import { MenuItem, Select } from "@material-ui/core";
+import { SketchPicker } from "react-color";
 
-const ColorButtonBlue = withStyles(theme => ({
+const ColorButtonBlue = withStyles((theme) => ({
   root: {
     color: theme.palette.getContrastText(blue[500]),
     backgroundColor: blue[500],
     "&:hover": {
-      backgroundColor: blue[700]
-    }
-  }
+      backgroundColor: blue[700],
+    },
+  },
 }))(Button);
 
 var defaultState = {
@@ -42,10 +22,24 @@ var defaultState = {
   index: 0,
   target: "toolbar",
   instruction: "",
+  copyright: "",
+  disclaimer: "",
   scales: "200, 400, 1000, 2000, 5000, 10000, 25000, 50000, 100000, 200000",
+  dpis: "72, 150, 300",
+  paperFormats: "A2, A3, A4",
   logo: "https://github.com/hajkmap/Hajk/raw/master/design/logo_small.png",
+  logoMaxWidth: 40,
+  northArrow: "",
+  visibleForGroups: [],
   visibleAtStart: false,
-  visibleForGroups: []
+  includeLogo: true,
+  logoPlacement: "topRight",
+  includeScaleBar: true,
+  scaleBarPlacement: "bottomLeft",
+  includeNorthArrow: true,
+  northArrowPlacement: "topLeft",
+  useMargin: false,
+  mapTextColor: "#000000",
 };
 
 class ToolOptions extends Component {
@@ -65,29 +59,55 @@ class ToolOptions extends Component {
         active: true,
         index: tool.index,
         target: tool.options.target || "toolbar",
+        copyright: tool.options.copyright || this.state.copyright,
+        disclaimer: tool.options.disclaimer || this.state.disclaimer,
         position: tool.options.position,
         width: tool.options.width,
         height: tool.options.height,
         instruction: tool.options.instruction,
         scales: tool.options.scales || this.state.scales,
+        dpis: tool.options.dpis || this.state.dpis,
+        paperFormats: tool.options.paperFormats || this.state.paperFormats,
         logo: tool.options.logo,
+        logoMaxWidth: tool.options.logoMaxWidth || this.state.logoMaxWidth,
+        northArrow: tool.options.northArrow || this.state.northArrow,
+        useMargin:
+          typeof tool.options.useMargin !== "undefined"
+            ? tool.options.useMargin
+            : this.state.useMargin,
+        mapTextColor: tool.options.mapTextColor || this.state.mapTextColor,
         visibleAtStart: tool.options.visibleAtStart,
         visibleForGroups: tool.options.visibleForGroups
           ? tool.options.visibleForGroups
-          : []
+          : [],
+        includeLogo:
+          tool.options.includeLogo === "boolean"
+            ? tool.options.includeLogo
+            : this.state.includeLogo,
+        logoPlacement: tool.options.logoPlacement || this.state.logoPlacement,
+        includeScaleBar:
+          tool.options.includeScaleBar === "boolean"
+            ? tool.options.includeScaleBar
+            : this.state.includeScaleBar,
+        scaleBarPlacement:
+          tool.options.scaleBarPlacement || this.state.scaleBarPlacement,
+        includeNorthArrow:
+          tool.options.includeNorthArrow === "boolean"
+            ? tool.options.includeNorthArrow
+            : this.state.includeNorthArrow,
+        northArrowPlacement:
+          tool.options.northArrowPlacement || this.state.northArrowPlacement,
       });
     } else {
       this.setState({
-        active: false
+        active: false,
       });
     }
   }
 
-  componentWillUnmount() {}
   /**
    *
    */
-  componentWillMount() {}
 
   handleInputChange(event) {
     var target = event.target;
@@ -100,14 +120,14 @@ class ToolOptions extends Component {
       value = btoa(value);
     }
     this.setState({
-      [name]: value
+      [name]: value,
     });
   }
 
   getTool() {
     return this.props.model
       .get("toolConfig")
-      .find(tool => tool.type === this.type);
+      .find((tool) => tool.type === this.type);
   }
 
   add(tool) {
@@ -118,12 +138,12 @@ class ToolOptions extends Component {
     this.props.model.set({
       toolConfig: this.props.model
         .get("toolConfig")
-        .filter(tool => tool.type !== this.type)
+        .filter((tool) => tool.type !== this.type),
     });
   }
 
   replace(tool) {
-    this.props.model.get("toolConfig").forEach(t => {
+    this.props.model.get("toolConfig").forEach((t) => {
       if (t.type === this.type) {
         t.options = tool.options;
         t.index = tool.index;
@@ -139,17 +159,31 @@ class ToolOptions extends Component {
       options: {
         target: this.state.target,
         position: this.state.position,
+        copyright: this.state.copyright,
+        disclaimer: this.state.disclaimer,
         width: this.state.width,
         height: this.state.height,
         scales: this.state.scales,
         logo: this.state.logo,
+        logoMaxWidth: this.state.logoMaxWidth,
+        dpis: this.state.dpis,
+        paperFormats: this.state.paperFormats,
+        northArrow: this.state.northArrow,
+        useMargin: this.state.useMargin,
+        mapTextColor: this.state.mapTextColor,
         instruction: this.state.instruction,
         visibleAtStart: this.state.visibleAtStart,
         visibleForGroups: this.state.visibleForGroups.map(
           Function.prototype.call,
           String.prototype.trim
-        )
-      }
+        ),
+        includeLogo: this.state.includeLogo,
+        logoPlacement: this.state.logoPlacement,
+        includeScaleBar: this.state.includeScaleBar,
+        scaleBarPlacement: this.state.scaleBarPlacement,
+        includeNorthArrow: this.state.includeNorthArrow,
+        northArrowPlacement: this.state.northArrowPlacement,
+      },
     };
 
     var existing = this.getTool();
@@ -160,7 +194,7 @@ class ToolOptions extends Component {
         () => {
           this.props.parent.props.parent.setState({
             alert: true,
-            alertMessage: "Uppdateringen lyckades"
+            alertMessage: "Uppdateringen lyckades",
           });
         }
       );
@@ -177,7 +211,7 @@ class ToolOptions extends Component {
             this.remove();
             update.call(this);
             this.setState(defaultState);
-          }
+          },
         });
       } else {
         this.remove();
@@ -205,7 +239,7 @@ class ToolOptions extends Component {
     }
 
     this.setState({
-      visibleForGroups: value !== "" ? groups : []
+      visibleForGroups: value !== "" ? groups : [],
     });
   }
 
@@ -219,7 +253,7 @@ class ToolOptions extends Component {
             value={this.state.visibleForGroups}
             type="text"
             name="visibleForGroups"
-            onChange={e => {
+            onChange={(e) => {
               this.handleAuthGrpsChange(e);
             }}
           />
@@ -229,6 +263,42 @@ class ToolOptions extends Component {
       return null;
     }
   }
+
+  renderPlacementSelect = (currentValue, name) => {
+    return (
+      <Select
+        id={name}
+        name={name}
+        className="control-fixed-width"
+        value={currentValue}
+        onChange={(e) => {
+          this.handleInputChange(e);
+        }}
+      >
+        <MenuItem value={"topLeft"}>Uppe till vänster</MenuItem>
+        <MenuItem value={"topRight"}>Uppe till höger</MenuItem>
+        <MenuItem value={"bottomRight"}>Nere till höger</MenuItem>
+        <MenuItem value={"bottomLeft"}>Nere till vänster</MenuItem>
+      </Select>
+    );
+  };
+
+  renderIncludeSelect = (currentValue, name) => {
+    return (
+      <Select
+        id={name}
+        name={name}
+        value={currentValue}
+        className="control-fixed-width"
+        onChange={(e) => {
+          this.handleInputChange(e);
+        }}
+      >
+        <MenuItem value={true}>Ja</MenuItem>
+        <MenuItem value={false}>Nej</MenuItem>
+      </Select>
+    );
+  };
 
   /**
    *
@@ -241,7 +311,7 @@ class ToolOptions extends Component {
             <ColorButtonBlue
               variant="contained"
               className="btn"
-              onClick={e => {
+              onClick={(e) => {
                 e.preventDefault();
                 this.save();
               }}
@@ -264,7 +334,7 @@ class ToolOptions extends Component {
               id="active"
               name="active"
               type="checkbox"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               checked={this.state.active}
@@ -282,7 +352,7 @@ class ToolOptions extends Component {
               type="number"
               min="0"
               className="control-fixed-width"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               value={this.state.index}
@@ -294,7 +364,7 @@ class ToolOptions extends Component {
               id="target"
               name="target"
               className="control-fixed-width"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               value={this.state.target}
@@ -318,7 +388,7 @@ class ToolOptions extends Component {
               id="position"
               name="position"
               className="control-fixed-width"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               value={this.state.position}
@@ -342,7 +412,7 @@ class ToolOptions extends Component {
               type="number"
               min="0"
               className="control-fixed-width"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               value={this.state.width}
@@ -354,16 +424,15 @@ class ToolOptions extends Component {
               <i
                 className="fa fa-question-circle"
                 data-toggle="tooltip"
-                title="Höjd i pixlar på verktygets fönster. Anges som ett numeriskt värde. Lämna tomt för att använda maximal höjd."
+                title="Höjd i pixlar på verktygets fönster. Anges antingen numeriskt (pixlar), 'dynamic' för att automatiskt anpassa höjden efter innehållet eller 'auto' att använda maximal höjd."
               />
             </label>
             <input
               id="height"
               name="height"
-              type="number"
-              min="0"
+              type="text"
               className="control-fixed-width"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               value={this.state.height}
@@ -371,12 +440,56 @@ class ToolOptions extends Component {
           </div>
           <div className="separator">Inställningar för utskrift</div>
           <div>
+            <label htmlFor="copyright">Copyright</label>
+            <input
+              type="text"
+              name="copyright"
+              value={this.state.copyright}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="disclaimer">Disclaimer</label>
+            <input
+              type="text"
+              name="disclaimer"
+              value={this.state.disclaimer}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
             <label htmlFor="scales">Skalor</label>
             <input
               type="text"
               name="scales"
               value={this.state.scales}
-              onChange={e => {
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="dpis">DPIer</label>
+            <input
+              type="text"
+              name="dpis"
+              value={this.state.dpis}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="paperFormats">Pappersformat</label>
+            <input
+              type="text"
+              name="paperFormats"
+              value={this.state.paperFormats}
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
             />
@@ -394,9 +507,156 @@ class ToolOptions extends Component {
               type="text"
               name="logo"
               value={this.state.logo}
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
+            />
+          </div>
+          <div>
+            <label htmlFor="includeLogo">
+              Inkludera logga{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för om loggan skall inkluderas som standard. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderIncludeSelect(this.state.includeLogo, "includeLogo")}
+          </div>
+          <div>
+            <label htmlFor="logoPlacement">
+              Logoplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för loggans standardplacering. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderPlacementSelect(
+              this.state.logoPlacement,
+              "logoPlacement"
+            )}
+          </div>
+          <div>
+            <label htmlFor="logoMaxWidth">
+              Logo maxbredd{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="0 betyder att storleken på loggans bild används"
+              />
+            </label>
+            <input
+              id="logoMaxWidth"
+              name="logoMaxWidth"
+              type="number"
+              min="0"
+              className="control-fixed-width"
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+              value={this.state.logoMaxWidth}
+            />
+          </div>
+          <div>
+            <label htmlFor="logo">
+              Norrpil{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Sökväg till norrpil att använda i utskrifterna. Kan vara relativ Hajk-root eller absolut."
+              />
+            </label>
+            <input
+              type="text"
+              name="northArrow"
+              value={this.state.northArrow}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            />
+          </div>
+          <div>
+            <label htmlFor="includeNorthArrow">
+              Inkludera norrpil{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för om norrpilen skall inkluderas som standard. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderIncludeSelect(
+              this.state.includeNorthArrow,
+              "includeNorthArrow"
+            )}
+          </div>
+          <div>
+            <label htmlFor="logoPlacement">
+              Norrpilsplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för norrpilens standardplacering. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderPlacementSelect(
+              this.state.northArrowPlacement,
+              "northArrowPlacement"
+            )}
+          </div>
+          <div>
+            <label htmlFor="includeScaleBar">
+              Inkludera skalstock{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för om skalstocken skall inkluderas som standard. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderIncludeSelect(
+              this.state.includeScaleBar,
+              "includeScaleBar"
+            )}
+          </div>
+          <div>
+            <label htmlFor="logoPlacement">
+              Skalstocksplacering{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för skalstockens standardplacering. Användarna kan ändra detta själva."
+              />
+            </label>
+            {this.renderPlacementSelect(
+              this.state.scaleBarPlacement,
+              "scaleBarPlacement"
+            )}
+          </div>
+          <div>
+            <input
+              id="useMargin"
+              name="useMargin"
+              type="checkbox"
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+              checked={this.state.useMargin}
+            />
+            &nbsp;
+            <label htmlFor="useMargin">Marginal runt karta (förval)</label>
+          </div>
+          <div>
+            <div>
+              Textfärg{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Inställning för textens förvalda färg."
+              />
+            </div>
+            <SketchPicker
+              color={this.state.mapTextColor}
+              onChangeComplete={(e) => this.setState({ mapTextColor: e.hex })}
             />
           </div>
           <div className="separator">Övriga inställningar</div>
@@ -405,7 +665,7 @@ class ToolOptions extends Component {
               id="visibleAtStart"
               name="visibleAtStart"
               type="checkbox"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               checked={this.state.visibleAtStart}
@@ -426,7 +686,7 @@ class ToolOptions extends Component {
               type="text"
               id="instruction"
               name="instruction"
-              onChange={e => {
+              onChange={(e) => {
                 this.handleInputChange(e);
               }}
               value={
