@@ -8,7 +8,7 @@ import { AppBar, Tab, Tabs } from "@mui/material";
 import BackgroundSwitcher from "./components/BackgroundSwitcher.js";
 import LayerGroup from "./components/LayerGroup";
 import BreadCrumbs from "./components/BreadCrumbs.js";
-import LayersView from "./beta/LayersView";
+import LayersView from "./beta/LayersViewTwo";
 
 // The styled-component below might seem unnecessary since we are using the sx-prop
 // on it as well. However, since we cannot use the sx-prop on a non-MUI-component
@@ -141,7 +141,7 @@ class LayersSwitcherView extends React.PureComponent {
   };
 
   render() {
-    const { windowVisible } = this.props;
+    const { windowVisible, options } = this.props;
     return (
       <Root sx={{ display: windowVisible ? "block" : "none" }}>
         <StyledAppBar
@@ -168,9 +168,9 @@ class LayersSwitcherView extends React.PureComponent {
             display={this.state.activeTab === 1}
             layers={this.state.baseLayers}
             layerMap={this.props.model.layerMap}
-            backgroundSwitcherBlack={this.options.backgroundSwitcherBlack}
-            backgroundSwitcherWhite={this.options.backgroundSwitcherWhite}
-            enableOSM={this.options.enableOSM}
+            backgroundSwitcherBlack={options.backgroundSwitcherBlack}
+            backgroundSwitcherWhite={options.backgroundSwitcherWhite}
+            enableOSM={options.enableOSM}
             map={this.props.map}
             app={this.props.app}
           />

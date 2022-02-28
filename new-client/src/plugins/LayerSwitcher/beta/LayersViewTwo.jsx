@@ -1,28 +1,26 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { withStyles } from "@material-ui/core/styles";
-// import LayerGroup from "./LayerGroup.js";
-import { TextField } from "@material-ui/core";
-import { TreeView, TreeItem } from "@material-ui/lab";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import ChevronRightIcon from "@material-ui/icons/ChevronRight";
-import CheckBoxIcon from "@material-ui/icons/CheckBox";
-import CheckBoxOutlineBlankIcon from "@material-ui/icons/CheckBoxOutlineBlank";
-// import IndeterminateCheckBoxIcon from "@material-ui/icons/IndeterminateCheckBox";
+import { TextField } from "@mui/material";
+import TreeItem, { treeItemClasses } from "@mui/lab/TreeItem";
+import TreeView from "@mui/lab/TreeView";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 
-const styles = theme => ({
+const styles = (theme) => ({
   iconContainer: {
-    width: "auto"
+    width: "auto",
   },
   group: {
-    marginLeft: 32
+    marginLeft: 32,
   },
   treeItemRoot: {
-    marginLeft: -18
+    marginLeft: -18,
   },
   treeViewRoot: {
-    marginLeft: 20
-  }
+    marginLeft: 20,
+  },
 });
 
 class LayersView extends React.PureComponent {
@@ -30,10 +28,9 @@ class LayersView extends React.PureComponent {
 
   static propTypes = {
     app: PropTypes.object.isRequired,
-    classes: PropTypes.object.isRequired,
     display: PropTypes.bool.isRequired,
     groups: PropTypes.array.isRequired,
-    model: PropTypes.object.isRequired
+    model: PropTypes.object.isRequired,
   };
 
   defaultExpanded = [];
@@ -59,29 +56,29 @@ class LayersView extends React.PureComponent {
       layersFilterValue: "",
       filteredTreeData: this.treeData,
       expanded: this.defaultExpanded,
-      selected: this.defaultSelected
+      selected: this.defaultSelected,
     };
 
     // Let all layers subscribe to visibility changed event (fired from App.js).
     // We do it to ensure that our checkboxes are updated whether layer visibility is changed
     // in some other way than by clicking on a layer in LayerSwitcher.
-    props.app.globalObserver.subscribe("core.layerVisibilityChanged", e => {
+    props.app.globalObserver.subscribe("core.layerVisibilityChanged", (e) => {
       // See what's currently visible
-      const visibleLayers = this.props.model.getVisibleLayers();
+      const visibleLayers = this.model.getVisibleLayers();
       // console.table(visibleLayers.map(l => l));
 
       /**
-       * Just a demo of how to get URLs for legend grahpic. We should
+       * Just a demo of how to get URLs for legend graphic. We should
        * do something like this in the upcoming Legend Graphic in Drawer
        * Component.
        */
       // Prepare Array of URLs to get legend graphic
       const urls = [];
       visibleLayers
-        .map(layer => layer.get("layerInfo"))
-        .map(layerInfo => layerInfo.legend)
-        .map(legend => {
-          return legend.map(subLayer => {
+        .map((layer) => layer.get("layerInfo"))
+        .map((layerInfo) => layerInfo.legend)
+        .map((legend) => {
+          return legend.map((subLayer) => {
             return urls.push(subLayer.url);
           });
         });
@@ -94,10 +91,10 @@ class LayersView extends React.PureComponent {
     });
 
     // If Informative is loaded, inject the "chapters" so we can take care of rendering "go-to chapter" buttons next to layer's name.
-    props.app.globalObserver.subscribe("informativeLoaded", chapters => {
+    props.app.globalObserver.subscribe("informativeLoaded", (chapters) => {
       if (Array.isArray(chapters)) {
         this.setState({
-          chapters: chapters
+          chapters: chapters,
         });
       }
     });
@@ -108,15 +105,15 @@ class LayersView extends React.PureComponent {
    * @param {*} groups
    * @returns {Object[]} Groups of groups and layers
    */
-  fixIncomingData = groups => {
-    const iterateLayers = layers => {
-      return layers.map(l => {
-        const mapLayer = this.props.model.layerMap[Number(l.id)];
+  fixIncomingData = (groups) => {
+    const iterateLayers = (layers) => {
+      return layers.map((l) => {
+        const mapLayer = this.props.model.layerMap[l.id];
         let children = null;
         // Handle Hajk layer groups (NB, not the same as OGC/GeoServer Layer Groups!).
         // Hajk layer groups can never contain more layer groups, so no recursion is needed here.
         if (mapLayer.layerType === "group") {
-          children = Object.values(mapLayer.layersInfo).map(sl => {
+          children = Object.values(mapLayer.layersInfo).map((sl) => {
             return { id: sl.id, title: sl.caption };
           });
         }
@@ -128,13 +125,13 @@ class LayersView extends React.PureComponent {
           id: l.id,
           title: mapLayer.get("caption"),
           ...(children && { children }), // nice way to add property only if it exists
-          type: children ? "hajkGroup" : "layer"
+          type: children ? "hajkGroup" : "layer",
         };
       });
     };
 
-    const iterateGroups = groups => {
-      return groups.map(g => {
+    const iterateGroups = (groups) => {
+      return groups.map((g) => {
         // If config says that current group should be expanded at start, put it into our state
         g.expanded === true && this.defaultExpanded.push(g.id);
 
@@ -142,7 +139,7 @@ class LayersView extends React.PureComponent {
           id: g.id,
           title: g.name,
           children: [...iterateGroups(g.groups), ...iterateLayers(g.layers)],
-          type: "group"
+          type: "group",
         };
       });
     };
@@ -153,7 +150,7 @@ class LayersView extends React.PureComponent {
   toggleCheckboxForLayer(layerId) {
     // this.state.selected is an array that holds ids of visible layers.
     // By updating the array, we ensure that React checks the correct checkboxes.
-    this.setState(state => {
+    this.setState((state) => {
       const selected = this.toggleArrayValue(state.selected, layerId);
       return { selected };
     });
@@ -162,7 +159,7 @@ class LayersView extends React.PureComponent {
   toggleExpandedForId(id) {
     // this.state.selected is an array that holds ids of visible layers.
     // By updating the array, we ensure that React checks the correct checkboxes.
-    this.setState(state => {
+    this.setState((state) => {
       const expanded = this.toggleArrayValue(state.expanded, id);
       return { expanded };
     });
@@ -174,11 +171,11 @@ class LayersView extends React.PureComponent {
 
   toggleArrayValue(arrayList, arrayValue) {
     return arrayList.includes(arrayValue)
-      ? arrayList.filter(el => el !== arrayValue)
+      ? arrayList.filter((el) => el !== arrayValue)
       : [...arrayList, arrayValue];
   }
 
-  filterLayers = o => {
+  filterLayers = (o) => {
     // GOOD STARTING POINT: https://stackoverflow.com/questions/38132146/recursively-filter-array-of-objects
     const { layersFilterValue } = this.state;
     // Check top level, if match, return, including all children
@@ -202,12 +199,12 @@ class LayersView extends React.PureComponent {
    * @memberof LayersView
    */
   grabAllIdsFromTree = (tree = this.treeData) => {
-    const getIds = array => {
+    const getIds = (array) => {
       return array.reduce((r, o) => {
         if ("id" in o) {
           r.push(o.id);
         }
-        Object.values(o).forEach(v => {
+        Object.values(o).forEach((v) => {
           if (Array.isArray(v)) r.push(...getIds(v));
         });
         return r;
@@ -217,7 +214,7 @@ class LayersView extends React.PureComponent {
     return getIds(tree);
   };
 
-  handleChangeInLayersFilter = e => {
+  handleChangeInLayersFilter = (e) => {
     // We want to expand all nodes before we filter.
     // However, in order to restore the expanded state
     // to the one prior this expansion, we must first
@@ -256,7 +253,7 @@ class LayersView extends React.PureComponent {
 
   handleClickOnCheckbox = (event, nodeId) => {
     console.log("handleClickOnCheckbox: ", nodeId);
-    const layerId = Number(nodeId);
+    const layerId = nodeId;
 
     // Handle click on Hajk groups - they will have an MD5 as ID, so we can filter them out that way.
     if (Number.isNaN(layerId)) return;
@@ -267,20 +264,18 @@ class LayersView extends React.PureComponent {
     mapLayer.setVisible(!this.isLayerVisible(nodeId));
   };
 
-  renderTree = nodes => {
-    // console.log("nodes: ", nodes);
-    const { classes } = this.props;
+  renderTree = (nodes) => {
     const hasChildren = Array.isArray(nodes.children);
 
     const checkboxIcon = this.isLayerVisible(nodes.id) ? (
       <CheckBoxIcon
-        onClick={e => {
+        onClick={(e) => {
           this.handleClickOnCheckbox(e, nodes.id);
         }}
       />
     ) : (
       <CheckBoxOutlineBlankIcon
-        onClick={e => {
+        onClick={(e) => {
           this.handleClickOnCheckbox(e, nodes.id);
         }}
       />
@@ -289,7 +284,7 @@ class LayersView extends React.PureComponent {
     const collapseIcon = hasChildren ? (
       <>
         <ExpandMoreIcon
-          onClick={e => {
+          onClick={(e) => {
             this.handleClickOnToggle(e, nodes.id);
           }}
         />
@@ -301,7 +296,7 @@ class LayersView extends React.PureComponent {
     const expandIcon = hasChildren ? (
       <>
         <ChevronRightIcon
-          onClick={e => {
+          onClick={(e) => {
             this.handleClickOnToggle(e, nodes.id);
           }}
         />
@@ -313,7 +308,7 @@ class LayersView extends React.PureComponent {
 
     const label = (
       <div
-        onClick={e => {
+        onClick={(e) => {
           this.handleClickOnCheckbox(e, nodes.id);
         }}
       >
@@ -336,35 +331,44 @@ class LayersView extends React.PureComponent {
         // onLabelClick={(e, v) => {
         //   console.log("onLabelClick", e, v);
         // }}
-        classes={{
-          iconContainer: classes.iconContainer,
-          group: classes.group,
-          // If item has children, it will have a collapse/expand button. In that case, we need
-          // justify a bit to compensate for the margin, so that all checkboxes will line up nicely.
-          root: hasChildren ? classes.treeItemRoot : false
+        sx={{
+          [`& .${treeItemClasses.group}`]: {
+            marginLeft: 2,
+          },
+          [`& .${treeItemClasses.iconContainer}`]: {
+            width: "auto",
+          },
+          ...(hasChildren && {
+            [`& .${treeItemClasses.root}`]: {
+              marginLeft: -1,
+            },
+          }),
+
+          // // If item has children, it will have a collapse/expand button. In that case, we need
+          // // justify a bit to compensate for the margin, so that all checkboxes will line up nicely.
+          // root: hasChildren ? classes.treeItemRoot : false,
         }}
       >
         <>
           {Array.isArray(nodes.children)
-            ? nodes.children.map(node => this.renderTree(node))
+            ? nodes.children.map((node) => this.renderTree(node))
             : null}
         </>
       </TreeItem>
     );
   };
 
-  isLayerVisible = nodeId => {
+  isLayerVisible = (nodeId) => {
     return this.state.selected.includes(nodeId);
   };
 
   render() {
     const { layersFilterValue, filteredTreeData } = this.state;
-    const { classes } = this.props;
 
     return (
       <div
         style={{
-          display: this.props.display ? "block" : "none" // This is a View in the Tabs component
+          display: this.props.display ? "block" : "none", // This is a View in the Tabs component
         }}
       >
         <TextField
@@ -383,7 +387,9 @@ class LayersView extends React.PureComponent {
           //   console.log("onNodeToggle", e, nids);
           // }}
           // onNodeSelect={this.onNodeSelect}
-          className={classes.treeViewRoot}
+          sx={{
+            marginLeft: 2,
+          }}
         >
           {filteredTreeData.map(this.renderTree)}
         </TreeView>
@@ -392,4 +398,4 @@ class LayersView extends React.PureComponent {
   }
 }
 
-export default withStyles(styles)(LayersView);
+export default LayersView;

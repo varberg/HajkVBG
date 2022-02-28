@@ -28,7 +28,7 @@ class LayerSwitcherModel {
     return this.olMap
       .getLayers()
       .getArray()
-      .filter(layer => {
+      .filter((layer) => {
         return layer.layerType !== undefined && layer.get("visible") === true;
       });
   }
