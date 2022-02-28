@@ -24,6 +24,9 @@ const defaultOptions = {
   unsavedFeatureStrokeColor: "rgba(100, 220, 50, 1)",
   editFeatureFillColor: "rgba(255,0,0,0.07)",
   editFeatureStrokeColor: "rgba(255,0,0,0.5)",
+  kubbAddress: "https://address:64235",
+  kubbOrganisationId: "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+  kubbPathEndpoint: "GisAndRealEstate",
   mapObjects: defaultModeConfig,
 };
 

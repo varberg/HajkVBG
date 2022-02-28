@@ -11,6 +11,7 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Transform from "./Transformation/Transform";
 import { KUBB } from "./mockdata/mockdataKUBB";
+import { HubConnectionBuilder } from "@microsoft/signalr";
 
 class IntegrationModel {
   constructor(settings) {
@@ -874,6 +875,66 @@ class IntegrationModel {
     const contaminations = KUBB().contaminations;
     this.searchResponseTool = "search";
     this.searchModel.findContaminationsWithNumbers(contaminations);
+  };
+
+  testEdpConnection = () => {
+    console.log("Test EDP connection");
+
+    var address = this.getKubbAddress();
+    var path = this.getKubbPath();
+    var query = this.getKubbQuery();
+
+    const url = address + path + query;
+    console.log("url", url);
+
+    const connection = new HubConnectionBuilder().withUrl(url).build();
+    console.log("connection", connection);
+
+    connection.on(
+      "HandleRealEstateIdentifiers",
+      function (realEstateIdentifiers) {
+        debugger;
+      }
+    );
+
+    connection.on("HandleAskingForRealEstateIdentifiers", function () {
+      var realEstateIdentifiers = [
+        {
+          Fnr: "030121108",
+          Name: "Tand 2:167",
+          Municipality: "Östersund",
+          Uuid: "909a6a84-91ae-90ec-e040-ed8f66444c3f",
+        },
+      ];
+      debugger;
+      connection.invoke("SendRealEstateIdentifiers", realEstateIdentifiers);
+    });
+
+    connection
+      .start()
+      .then(function () {
+        debugger;
+      })
+      .catch(function (err) {
+        debugger;
+        return console.error(err.toString());
+      });
+  };
+
+  getKubbAddress = () => {
+    return this.options.kubbAddress;
+  };
+
+  getKubbPath = () => {
+    if (this.options.kubbPathEndpoint.charAt(0) === "/")
+      return this.options.kubbPathEndpoint;
+    return "/" + this.options.kubbPathEndpoint;
+  };
+
+  getKubbQuery = () => {
+    const name = "w3erik.arvroth";
+    const organisation = this.options.kubbOrganisationId;
+    return `?user=${name}&organisation=${organisation}&clientType=External&client=webmapapp`;
   };
 }
 

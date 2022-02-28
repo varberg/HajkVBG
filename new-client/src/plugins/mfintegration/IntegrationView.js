@@ -766,7 +766,8 @@ class IntegrationView extends React.PureComponent {
             <Button
               startIcon={<CancelOutlinedIcon />}
               onClick={() => {
-                this.props.model.testRealEstatesFromKUBB();
+                //this.props.model.testRealEstatesFromKUBB();
+                this.props.model.testEdpConnection();
               }}
               color="primary"
               variant="contained"
