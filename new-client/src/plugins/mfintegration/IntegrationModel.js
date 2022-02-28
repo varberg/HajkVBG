@@ -877,32 +877,14 @@ class IntegrationModel {
     this.searchModel.findContaminationsWithNumbers(contaminations);
   };
 
-  getKubbAddress = () => {
-    const address = "http://sn800aa16.staden.gotheborg.net:64235"; //"http://martin/signalr"; // proxy för "http://10.1.17.73:64235";
-    return address;
-  };
-
-  getKubbconnectionParams = () => {
-    const connectionParams = {
-      user: "w3erik.arvroth",
-      organisation: "6766D96B-A51E-42F6-AA57-A3CAC4D57939", //"AD285DC5-73BE-4772-AC52-FE2C6117D4C0",
-      client: "webmapapp", //"GotMap",
-      clientType: "External", //"External",
-      path: "/GisAndRealEstate",
-    };
-
-    return connectionParams;
-  };
-
   testEdpConnection = () => {
     console.log("Test EDP connection");
 
-    var query =
-      "?user=w3erik.arvroth&organisation=6766D96B-A51E-42F6-AA57-A3CAC4D57939&clientType=External&client=webmapapp";
-    var path = "/GisAndRealEstate";
-    var address = "http://localhost:64235"; //"https://sn800aa16.staden.gotheborg.net:64235";
+    var address = this.getKubbAddress();
+    var path = this.getKubbPath();
+    var query = this.getKubbQuery();
 
-    let url = address + path + query;
+    const url = address + path + query;
     console.log("url", url);
 
     const connection = new HubConnectionBuilder().withUrl(url).build();
@@ -924,9 +906,6 @@ class IntegrationModel {
           Uuid: "909a6a84-91ae-90ec-e040-ed8f66444c3f",
         },
       ];
-      // var li = document.createElement("li");
-      // document.getElementById("messagesList").appendChild(li);
-      // li.textContent = `HandleAskingForRealEstateIdentifiers: returns: ${realEstateIdentifiers[0].Name}`;
       debugger;
       connection.invoke("SendRealEstateIdentifiers", realEstateIdentifiers);
     });
@@ -935,14 +914,27 @@ class IntegrationModel {
       .start()
       .then(function () {
         debugger;
-        //document.getElementById("sendButton").disabled = false;
       })
       .catch(function (err) {
         debugger;
         return console.error(err.toString());
       });
+  };
 
-    //hubConnection.start().catch((err) => console.error(err));
+  getKubbAddress = () => {
+    return this.options.kubbAddress;
+  };
+
+  getKubbPath = () => {
+    if (this.options.kubbPathEndpoint.charAt(0) === "/")
+      return this.options.kubbPathEndpoint;
+    return "/" + this.options.kubbPathEndpoint;
+  };
+
+  getKubbQuery = () => {
+    const name = "w3erik.arvroth";
+    const organisation = this.options.kubbOrganisationId;
+    return `?user=${name}&organisation=${organisation}&clientType=External&client=webmapapp`;
   };
 }
 
