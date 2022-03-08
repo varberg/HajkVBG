@@ -988,8 +988,18 @@ class IntegrationModel {
       nativeType: "koordinater",
       nativeKind: "receive",
     });
+    debugger;
+    const coordinateList = coordinates.map((coordinate) => {
+      return {
+        northing: String(coordinate.northing),
+        easting: String(coordinate.easting),
+        spatialReferenceSystemIdentifier:
+          coordinate.spatialReferenceSystemIdentifier,
+        label: coordinate.label,
+      };
+    });
     this.searchResponseTool = "search";
-    this.searchModel.findCoordinatesWithCoordinates(coordinates);
+    this.searchModel.findCoordinatesWithCoordinates(coordinateList);
   };
 
   #sendcoordiantesToKubb = (connection) => {
