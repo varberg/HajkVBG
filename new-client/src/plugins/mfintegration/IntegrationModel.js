@@ -988,7 +988,6 @@ class IntegrationModel {
       nativeType: "koordinater",
       nativeKind: "receive",
     });
-    debugger;
     const coordinateList = coordinates.map((coordinate) => {
       return {
         northing: String(coordinate.northing),
