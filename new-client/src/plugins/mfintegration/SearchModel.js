@@ -44,11 +44,11 @@ export default class SearchModel {
       return {
         geometry: {
           type: "Point",
-          coordinates: [coordinate.Easting, coordinate.Northing],
+          coordinates: [coordinate.easting, coordinate.northing],
         },
         id: "koordinat." + ++id,
         geometry_name: "geom",
-        properties: { label: coordinate.Label },
+        properties: { label: coordinate.label },
         type: "Feature",
       };
     });
@@ -216,7 +216,6 @@ export default class SearchModel {
       return;
     }
 
-    //TODO - if we couldn't successfully create the request, we shouldn't send the request.
     hfetch(config.wfsLayer.url, wfsRequest)
       .then((response) => {
         response
