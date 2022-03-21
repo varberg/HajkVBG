@@ -17,10 +17,6 @@ import {
   ButtonGroup,
   Button,
   Box,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
 } from "@material-ui/core";
 import { ToggleButton } from "@material-ui/lab";
 import ExpandMore from "@material-ui/icons/ExpandMore";
@@ -30,6 +26,7 @@ import OpenWithIcon from "@material-ui/icons/OpenWith";
 import FormatShapesIcon from "@material-ui/icons/FormatShapes";
 import CloseIcon from "@material-ui/icons/Close";
 import CopyingControl from "./CopyingControl";
+import CombineControl from "./CombineControl";
 import SnappingControl from "./SnappingControl";
 
 const styles = (theme) => {
@@ -138,10 +135,6 @@ class EditMenu extends React.PureComponent {
     this.setState({ editOpen: !this.state.editOpen });
   };
 
-  #handleChangeCombineLayer = (layerId) => {
-    this.setState({ activeCombineLayer: layerId });
-  };
-
   #getAvailableWfsLayers = () => {
     let mapModes = this.props.model.options.mapObjects;
     let availableLayers = [];
@@ -159,9 +152,10 @@ class EditMenu extends React.PureComponent {
   };
 
   renderStepOne = () => {
-    const { classes, copyEditMode, localObserver } = this.props;
-    const disableCopy = copyEditMode === "point";
-    const disableCombine = copyEditMode === "point";
+    const { classes, copyEditMode, combineEditMode, localObserver } =
+      this.props;
+    const disableCopy = copyEditMode !== "point";
+    const disableCombine = combineEditMode !== "point";
     return (
       <Grid container item xs={12}>
         <ButtonGroup style={{ width: "100%" }}>
@@ -323,6 +317,7 @@ class EditMenu extends React.PureComponent {
                 </Tooltip>
                 <Button
                   className={classes.stepButtonGroup}
+                  disabled={!this.state.isNewEdit}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
                     this.setState({ isNewEdit: false });
@@ -330,6 +325,10 @@ class EditMenu extends React.PureComponent {
                       editMode: editMode,
                       saveGeometry: true,
                     });
+                    localObserver.publish(
+                      "mf-edit-noSupportLayer",
+                      this.supportLayer
+                    );
                   }}
                   aria-label="OK"
                 >
@@ -346,52 +345,10 @@ class EditMenu extends React.PureComponent {
       return (
         <Grid container item xs={12} spacing={(2, 2)}>
           <Grid item xs={12}>
-            <Typography>
-              Välj två angränsande objekt i kartan att kombinera till nytt
-              objekt
-            </Typography>
-          </Grid>
-          <Grid item xs={12}>
-            <FormControl margin="none">
-              <InputLabel disableAnimation>Från lager</InputLabel>
-              <Select
-                style={{ minWidth: 200 }}
-                value={this.state.activeCombineLayer}
-                onChange={(e) => this.#handleChangeCombineLayer(e.target.value)}
-              >
-                <MenuItem key={"1"} value={"1"}>
-                  {"example layer"}
-                </MenuItem>
-                <MenuItem key={"2"} value={"2"}>
-                  {"example layer 2"}
-                </MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12}>
-            <TooltipToggleButton
-              size="small"
-              title="Välj objekt att slå ihop"
-              aria-label="Välj objekt att slå ihop"
-              selected={this.state.selectCombineActive}
-              value={"selectCombineActive"}
-              onChange={() => {
-                this.setState({
-                  selectCombineActive: !this.state.selectCombineActive,
-                });
-              }}
-            >
-              <Typography variant="button">&nbsp; Välj Objekt</Typography>
-            </TooltipToggleButton>
-            <Button
-              variant="outlined"
-              style={{ marginLeft: "8px" }}
-              onClick={() => {
-                console.log("kombinera");
-              }}
-            >
-              Kombinera
-            </Button>
+            <CombineControl
+              availableCombineLayers={this.#getAvailableWfsLayers()}
+              localObserver={localObserver}
+            />
           </Grid>
           <Grid item xs={12}>
             {this.renderStepTwoControls()}
@@ -405,10 +362,10 @@ class EditMenu extends React.PureComponent {
                     startIcon={<ChevronLeftIcon />}
                     onClick={() => {
                       this.setState({ activeStep: 0, isNewEdit: false });
-                      localObserver.publish(
-                        "mf-end-draw-new-geometry",
-                        editMode
-                      );
+                      localObserver.publish("mf-end-draw-new-geometry", {
+                        editMode: editMode,
+                        saveGeometry: false,
+                      });
                       localObserver.publish(
                         "mf-edit-noSupportLayer",
                         this.supportLayer
@@ -421,9 +378,18 @@ class EditMenu extends React.PureComponent {
                 </Tooltip>
                 <Button
                   className={classes.stepButtonGroup}
+                  disabled={!this.state.isNewEdit}
                   onClick={() => {
                     this.setState({ activeStep: 2 });
                     this.setState({ isNewEdit: false });
+                    localObserver.publish("mf-end-draw-new-geometry", {
+                      editMode: editMode,
+                      saveGeometry: true,
+                    });
+                    localObserver.publish(
+                      "mf-edit-noSupportLayer",
+                      this.supportLayer
+                    );
                   }}
                   aria-label="OK"
                 >

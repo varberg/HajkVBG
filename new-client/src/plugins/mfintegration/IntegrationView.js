@@ -186,6 +186,10 @@ class IntegrationView extends React.PureComponent {
 
   #initDrawFunctions = () => {
     this.drawFunctions = {
+      pointcombine: {
+        start: this.props.model.startDrawCombinePoint,
+        end: this.props.model.endDrawCombine,
+      },
       pointcopy: {
         start: this.props.model.startDrawCopyPoint,
         end: this.props.model.endDrawCopy,
@@ -222,6 +226,10 @@ class IntegrationView extends React.PureComponent {
   #initEditFunctions = () => {
     this.editFunctions = {
       copy: { start: this.model.startDrawCopyPoint, end: this.model.endDraw },
+      combine: {
+        start: this.model.startDrawCombinePoint,
+        end: this.model.endDraw,
+      },
       snap: {
         start: this.model.addSnapInteraction,
         end: this.model.endSnapInteraction,
@@ -240,6 +248,13 @@ class IntegrationView extends React.PureComponent {
   //TODO - this should come from the where the modes (realEstate etc are configured).
   #initDrawTypes = () => {
     this.drawTypes = {
+      combine: {
+        realEstate: "none",
+        coordinate: "none",
+        area: "point",
+        survey: "point",
+        contamination: "point",
+      },
       copy: {
         realEstate: "none",
         coordinate: "point",
@@ -729,7 +744,8 @@ class IntegrationView extends React.PureComponent {
         model={this.props.model}
         localObserver={this.localObserver}
         layerMode={this.state.mode}
-        copyEditMode={this.drawTypes.new[this.state.mode]}
+        combineEditMode={this.drawTypes.combine[this.state.mode]}
+        copyEditMode={this.drawTypes.copy[this.state.mode]}
         newEditMode={this.drawTypes.new[this.state.mode]}
         handleUpdateEditToolsMode={this.#handleUpdateEditTools}
         handleUpdateEditOpen={(open) => {

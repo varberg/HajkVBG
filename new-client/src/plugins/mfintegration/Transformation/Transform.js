@@ -1,3 +1,4 @@
+import MultiPolygon from "ol/geom/MultiPolygon";
 import Polygon from "ol/geom/Polygon";
 import Point from "ol/geom/Point";
 
@@ -5,6 +6,7 @@ export default class Transform {
   createGeometry = (type, coordinates) => {
     if (type === "Point") return this.createPoint(coordinates);
     if (type === "Polygon") return this.createPolygon(coordinates);
+    if (type === "MultiPolgyon") return this.createMultiPolygon(coordinates);
   };
 
   createPoint = (coordinates) => {
@@ -13,6 +15,10 @@ export default class Transform {
 
   createPolygon = (coordinates) => {
     return new Polygon(coordinates);
+  };
+
+  createMultiPolygon = (coordinates) => {
+    return new MultiPolygon(coordinates);
   };
 
   createTransformationRelationships = (fromEpsg, toEpsg) => {

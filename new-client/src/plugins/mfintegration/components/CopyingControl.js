@@ -13,7 +13,7 @@ const styles = (theme) => {
   return {};
 };
 
-class Copyingontrol extends React.PureComponent {
+class CopyingControl extends React.PureComponent {
   state = {
     copyTargetName: "",
   };
@@ -71,4 +71,4 @@ class Copyingontrol extends React.PureComponent {
   }
 }
 
-export default withStyles(styles)(Copyingontrol);
+export default withStyles(styles)(CopyingControl);
