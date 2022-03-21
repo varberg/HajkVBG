@@ -12,11 +12,9 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import { HubConnectionBuilder } from "@microsoft/signalr";
-import { wfsConfig } from "./mockdata/mockdataWFS";
 import { polygon } from "@turf/helpers";
 import union from "@turf/union";
 import difference from "@turf/difference";
-import intersect from "@turf/intersect";
 
 class IntegrationModel {
   constructor(settings) {
@@ -1208,10 +1206,10 @@ class IntegrationModel {
     connection
       .start()
       .then(function () {
-        debugger;
+        //debugger;
       })
       .catch(function (err) {
-        debugger;
+        //debugger;
         return console.error(err.toString());
       });
   };
