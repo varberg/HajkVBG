@@ -51,7 +51,6 @@ class IntegrationModel {
     this.#addLayers();
     this.#initActiveSource();
     this.#initCombineNeighbours();
-    this.addMapSelection();
   };
 
   #initSnap = (mode) => {
@@ -150,13 +149,13 @@ class IntegrationModel {
   };
 
   startDrawSearchPoint = (mode) => {
-    this.removeMapSelect();
+    this.#removeMapSelecton();
     this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Point", this.mapStyles.drawSearchStyle);
   };
 
   startDrawSearchPolygon = (mode) => {
-    this.removeMapSelect();
+    this.#removeMapSelecton();
     this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Polygon", this.mapStyles.drawSearchStyle);
   };
@@ -169,7 +168,7 @@ class IntegrationModel {
     this.map.addInteraction(this.snapInteraction);
   };
 
-  addMapSelection = () => {
+  #addMapSelection = () => {
     this.selectInteraction = new Select({
       condition: click,
       style: null,
@@ -205,7 +204,7 @@ class IntegrationModel {
     }
   };
 
-  removeMapSelect = () => {
+  #removeMapSelecton = () => {
     this.map.removeInteraction(this.selectInteraction);
   };
 
@@ -803,10 +802,10 @@ class IntegrationModel {
     );
 
     if (this.combineFeature) {
-      const ansIntersect = intersect(
-        this.#getTurfPolygon(this.combineFeature),
-        this.#getTurfPolygon(updateStatus.feature)
-      );
+      // const ansIntersect = intersect(
+      //   this.#getTurfPolygon(this.combineFeature),
+      //   this.#getTurfPolygon(updateStatus.feature)
+      // );
       //console.log("intersect", ansIntersect);
       // const cf = this.#getTurfPolygon(this.combineFeature);
       // const uf = this.#getTurfPolygon(updateStatus.feature);
@@ -1054,6 +1053,11 @@ class IntegrationModel {
     this.#setActiveSource(mode);
     this.#setActiveNewSource(mode);
     this.#zoomToSource(this.dataSources[mode]);
+
+    // Adding these lines here due to a bug with the interactions adds an extra time.
+    // These two rows counteract the bug.
+    this.#removeMapSelecton();
+    this.#addMapSelection();
   };
 
   #hideAllLayers = () => {
