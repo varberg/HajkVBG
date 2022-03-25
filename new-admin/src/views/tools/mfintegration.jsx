@@ -24,6 +24,9 @@ const defaultState = {
   visibleAtStart: false,
   position: "right",
   instruction: "",
+  kubbAddress: "",
+  kubbOrganisationId: "",
+  kubbPathEndpoint: "",
   mapObjects: {
     realEstate: {
       wfsId: "",
@@ -131,6 +134,11 @@ class ToolOptions extends Component {
         visibleAtStart: tool.options.visibleAtStart,
         position: tool.options?.position ?? defaultState.position,
         instruction: tool.options?.instruction ?? defaultState.instruction,
+        kubbAddress: tool.options?.kubbAddress ?? defaultState.kubbAddress,
+        kubbOrganisationId:
+          tool.options?.kubbOrganisationId ?? defaultState.kubbOrganisationId,
+        kubbPathEndpoint:
+          tool.options?.kubbPathEndpoint ?? defaultState.kubbPathEndpoint,
         listFeatureFillColor:
           tool.options?.listFeatureFillColor ??
           defaultState.listFeatureFillColor,
@@ -266,6 +274,9 @@ class ToolOptions extends Component {
         position: this.state.position,
         visibleAtStart: this.state.visibleAtStart,
         instruction: this.state.instruction,
+        kubbAddress: this.state.kubbAddress,
+        kubbOrganisationId: this.state.kubbOrganisationId,
+        kubbPathEndpoint: this.state.kubbPathEndpoint,
         listFeatureFillColor: this.state.listFeatureFillColor,
         listFeatureStrokeColor: this.state.listFeatureStrokeColor,
         selectedListFeatureFillColor: this.state.selectedListFeatureFillColor,
@@ -478,6 +489,70 @@ class ToolOptions extends Component {
               <option value="left">Left</option>
               <option value="right">Right</option>
             </select>
+          </div>
+          <div className="separator">EDP KUBB inställningar</div>
+          <div>
+            <p>
+              EDP Kubb är ett interface för att kommunicera med EDP Vision. Här
+              ställer du in uppgifter så att verktyget kan kommunicera med EDP.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="kubbAddress">
+              Kubb adress{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Adress till server och port där den EDP KUBB tjänst som ska kommunicera med Hajk är uppsatt. t.ex. https://mykubb.se:64235"
+              />
+            </label>
+            <input
+              id="kubbAddress"
+              name="kubbAddress"
+              type="text"
+              value={this.state.kubbAddress}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            ></input>
+          </div>
+          <div>
+            <label htmlFor="kubbPathEndpoint">
+              Kubb endpoint{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Namn på den Edp Kubb endpoint som kartan ska kommunicera med - t.ex. GisAndRealEstate"
+              />
+            </label>
+            <input
+              id="kubbPathEndpoint"
+              name="kubbPathEndpoint"
+              type="text"
+              value={this.state.kubbPathEndpoint}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            ></input>
+          </div>
+          <div>
+            <label htmlFor="kubbOrganisationId">
+              Kubb organisation ID{" "}
+              <i
+                className="fa fa-question-circle"
+                data-toggle="tooltip"
+                title="Det Unikt ID som EDP Vision använder för att identiera din organisation."
+              />
+            </label>
+            <input
+              id="kubbOrganisationId"
+              name="kubbOrganisationId"
+              type="text"
+              value={this.state.kubbOrganisationId}
+              onChange={(e) => {
+                this.handleInputChange(e);
+              }}
+            ></input>
           </div>
           <div className="separator">Övriga inställningar</div>
           <div>
@@ -1314,7 +1389,6 @@ class ToolOptions extends Component {
               }
             />
           </div>
-          <div className="separator">KUBB inställningar</div>
         </form>
       </div>
     );
