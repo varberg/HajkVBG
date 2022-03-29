@@ -594,16 +594,21 @@ class IntegrationModel {
   };
 
   #handleDrawCombineFeatureAdded = (e) => {
-    // if (this.selectedFeatureFromMap) {
-    //   const featureCollection = {
-    //     searchType: "SelectFromMap",
-    //     featureCollection: { features: [this.selectedFeatureFromMap] },
-    //     transformation: null,
-    //     type: "area",
-    //   };
-    //   this.#combineWfsSearch(featureCollection);
-    //   return;
-    // }
+    if (this.selectedFeatureFromMap) {
+      let feature = this.selectedFeatureFromMap;
+      feature.geometry = {
+        coordinates: this.selectedFeatureFromMap,
+        type: "Polygon",
+      };
+      const featureCollection = {
+        searchType: "SelectFromMap",
+        featureCollection: { features: [feature] },
+        transformation: null,
+        type: "area",
+      };
+      this.#combineWfsSearch(featureCollection);
+      return;
+    }
     this.searchResponseTool = "combine";
     this.searchModelFunctions[e.target.mode](e.feature);
   };
@@ -1143,6 +1148,7 @@ class IntegrationModel {
   };
 
   #highlightItem = (item) => {
+    debugger;
     if (item.selectedFromMap) {
       let featureId = item.feature.ol_uid;
       this.listItemRefs[featureId].current.scrollIntoView();
@@ -1156,21 +1162,27 @@ class IntegrationModel {
       this.selectedFeatureFromMap = item.feature;
     } else this.selectedFeatureFromMap = null;
 
-    console.log("this.searchResponseTool", this.searchResponseTool);
+    //console.log("this.searchResponseTool", this.searchResponseTool);
     //debugger;
 
     // FIXME
-    if (this.searchResponseTool === "combine") {
-      if (this.selectedFeatureFromMap) {
-        const featureCollection = {
-          searchType: "SelectFromMap",
-          featureCollection: { features: [this.selectedFeatureFromMap] },
-          transformation: null,
-          type: "area",
-        };
-        this.#combineWfsSearch(featureCollection);
-      }
-    }
+    // if (this.searchResponseTool === "combine") {
+    //   if (this.selectedFeatureFromMap) {
+    //     let feature = this.selectedFeatureFromMap;
+    //     feature.geometry = {
+    //       coordinates: this.selectedFeatureFromMap,
+    //       type: "Polygon",
+    //     };
+    //     const featureCollection = {
+    //       searchType: "SelectFromMap",
+    //       featureCollection: { features: [feature] },
+    //       transformation: null,
+    //       type: "area",
+    //     };
+    //     this.#combineWfsSearch(featureCollection);
+    //     return;
+    //   }
+    // }
   };
 
   #isFeatureHighlighted = (feature) => {
