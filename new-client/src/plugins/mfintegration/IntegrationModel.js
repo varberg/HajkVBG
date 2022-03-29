@@ -38,14 +38,14 @@ class IntegrationModel {
   };
 
   #bindSubscriptions = () => {
-    this.localObserver.subscribe("mf-wfs-search", (data) => {
-      this.#handleWfsSearch(data);
-    });
     this.localObserver.subscribe("mf-new-mode", (mode) => {
       this.#modeChanged(mode);
     });
     this.localObserver.subscribe("mf-item-list-clicked", (clickedItem) => {
       this.#highlightItem(clickedItem);
+    });
+    this.localObserver.subscribe("mf-wfs-search", (data) => {
+      this.#handleWfsSearch(data);
     });
   };
 
@@ -179,6 +179,10 @@ class IntegrationModel {
   };
 
   #addMapSelection = () => {
+    // Fix for multiple select interactions, they have an ability to multiply themselves.
+    // Removing all select interactions will counteract the bug.
+    if (this.selectInteraction) this.#removeMapSelecton();
+
     this.selectInteraction = new Select({
       condition: click,
       style: null,
@@ -214,8 +218,19 @@ class IntegrationModel {
     }
   };
 
+  /**
+   * Removes all select mapinteractions. They have an ability to multiply themselves.
+   */
   #removeMapSelecton = () => {
-    this.map.removeInteraction(this.selectInteraction);
+    const selectInteractions = this.map
+      .getInteractions()
+      .array_.filter((interaction) => {
+        if (interaction === this.selectInteraction) return true;
+        return false;
+      });
+    selectInteractions.forEach((interaction) => {
+      this.map.removeInteraction(this.selectInteraction);
+    });
   };
 
   clearInteractions = () => {
@@ -227,7 +242,7 @@ class IntegrationModel {
     this.map.removeInteraction(this.drawInteraction);
     this.map.clickLock.delete(this.drawingTool);
     this.drawingTool = "none";
-    this.map.addInteraction(this.selectInteraction);
+    this.#addMapSelection();
   };
 
   endDrawCombine = () => {
@@ -579,6 +594,21 @@ class IntegrationModel {
   };
 
   #handleDrawCombineFeatureAdded = (e) => {
+    if (this.selectedFeatureFromMap) {
+      let feature = this.selectedFeatureFromMap;
+      feature.geometry = {
+        coordinates: this.selectedFeatureFromMap,
+        type: "Polygon",
+      };
+      const featureCollection = {
+        searchType: "SelectFromMap",
+        featureCollection: { features: [feature] },
+        transformation: null,
+        type: "area",
+      };
+      this.#combineWfsSearch(featureCollection);
+      return;
+    }
     this.searchResponseTool = "combine";
     this.searchModelFunctions[e.target.mode](e.feature);
   };
@@ -597,9 +627,17 @@ class IntegrationModel {
       data,
       this.editSources.new
     );
-    const newFeature = updateStatus.addFeature ? updateStatus.feature : null;
+    let newFeature = updateStatus.addFeature ? updateStatus.feature : null;
+    this.#setGeomtryProperty(newFeature);
     this.#publishNewFeature(newFeature);
     this.#clearSource(this.drawingToolFunctions.new.source);
+  };
+
+  #setGeomtryProperty = (feature) => {
+    feature.geometry = feature.getGeometry();
+    feature.coordiantes = [];
+    feature.coordiantes.push(feature.geometry.getCoordinates());
+    feature.type = "Polygon"; // Måste ändras kan vara en multipolygon också.
   };
 
   #createDataset = (feature) => {
@@ -744,7 +782,14 @@ class IntegrationModel {
     if (featureCollection.features.length === 0)
       return { noFeaturesFound: true };
 
+    if (featureCollection.searchType === "SelectFromMap")
+      return {
+        features: featureCollection.features[0],
+        addOrRemoveFeature: true,
+      };
+
     const features = featureCollection.features.map((feature) => {
+      console.log("feature.geometry", feature.geometry);
       let geometry = this.#createGeometry(
         feature.geometry.type,
         feature.geometry.coordinates
@@ -816,6 +861,9 @@ class IntegrationModel {
       this.editSources.combine
     );
 
+    if (!updateStatus.previousFeatures) return;
+
+    //debugger;
     if (this.combineFeature) {
       // const ansIntersect = intersect(
       //   this.#getTurfPolygon(this.combineFeature),
@@ -839,8 +887,9 @@ class IntegrationModel {
 
   #storeCombinedIds = (data) => {
     let unionNewFeature = false;
-    const featureId =
-      data.featureCollection.features[0].properties[data.geometryField];
+    const featureId = data.featureCollection.features[0].properties
+      ? data.featureCollection.features[0].properties[data?.geometryField]
+      : data.featureCollection.features[0].ol_uid;
     const arrayId = this.combinedGeometries.indexOf(featureId);
     if (arrayId === -1) {
       this.combinedGeometries.push(featureId);
@@ -1069,9 +1118,7 @@ class IntegrationModel {
     this.#setActiveNewSource(mode);
     this.#zoomToSource(this.dataSources[mode]);
 
-    // Adding these lines here due to a bug with the interactions adds an extra time.
-    // These two rows counteract the bug.
-    this.#removeMapSelecton();
+    // Adding this line of code here due to a bug with the interactions adds an extra time.
     this.#addMapSelection();
   };
 
@@ -1101,6 +1148,7 @@ class IntegrationModel {
   };
 
   #highlightItem = (item) => {
+    debugger;
     if (item.selectedFromMap) {
       let featureId = item.feature.ol_uid;
       this.listItemRefs[featureId].current.scrollIntoView();
@@ -1113,6 +1161,28 @@ class IntegrationModel {
       this.highlightSource.addFeature(item.feature);
       this.selectedFeatureFromMap = item.feature;
     } else this.selectedFeatureFromMap = null;
+
+    //console.log("this.searchResponseTool", this.searchResponseTool);
+    //debugger;
+
+    // FIXME
+    // if (this.searchResponseTool === "combine") {
+    //   if (this.selectedFeatureFromMap) {
+    //     let feature = this.selectedFeatureFromMap;
+    //     feature.geometry = {
+    //       coordinates: this.selectedFeatureFromMap,
+    //       type: "Polygon",
+    //     };
+    //     const featureCollection = {
+    //       searchType: "SelectFromMap",
+    //       featureCollection: { features: [feature] },
+    //       transformation: null,
+    //       type: "area",
+    //     };
+    //     this.#combineWfsSearch(featureCollection);
+    //     return;
+    //   }
+    // }
   };
 
   #isFeatureHighlighted = (feature) => {
@@ -1186,7 +1256,7 @@ class IntegrationModel {
     connection.on(
       "HandleRealEstateIdentifiers",
       function (realEstateIdentifiers) {
-        debugger;
+        //debugger;
       }
     );
 
@@ -1199,17 +1269,14 @@ class IntegrationModel {
           Uuid: "909a6a84-91ae-90ec-e040-ed8f66444c3f",
         },
       ];
-      debugger;
+      //qdebugger;
       connection.invoke("SendRealEstateIdentifiers", realEstateIdentifiers);
     });
 
     connection
       .start()
-      .then(function () {
-        //debugger;
-      })
+      .then(function () {})
       .catch(function (err) {
-        //debugger;
         return console.error(err.toString());
       });
   };
