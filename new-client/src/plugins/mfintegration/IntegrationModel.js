@@ -15,6 +15,7 @@ import { HubConnectionBuilder } from "@microsoft/signalr";
 import { polygon } from "@turf/helpers";
 import union from "@turf/union";
 import difference from "@turf/difference";
+import { ModeCommentRounded } from "@material-ui/icons";
 
 class IntegrationModel {
   constructor(settings) {
@@ -112,7 +113,7 @@ class IntegrationModel {
   #initDrawingFunctions = () => {
     this.drawingToolFunctions = {
       combine: {
-        callback: this.#handleDrawCombineFeatureAdded,
+        callback: this.#handleDrawCombineFeatureAddedDelayed,
         source: this.#createNewVectorSource(),
       },
       copy: {
@@ -139,9 +140,21 @@ class IntegrationModel {
   };
 
   startDrawCombinePoint = (mode) => {
+    this.#makeCopyyOfNewAndDataSources(mode);
     this.drawingToolFunctions.combine.source.mode = mode;
     this.#drawGeometry("combine", "Point", this.mapStyles.editFeatureStyle);
   };
+
+  #makeCopyyOfNewAndDataSources = (mode) => {
+    this.#clearSource(this.editSources.combine);
+    this.#copyFeatures(this.newSources[mode], this.editSources.combine);
+    this.#copyFeatures(this.dataSources[mode], this.editSources.combine);
+  };
+
+  #copyFeatures(fromSource, toSource) {
+    const features = fromSource.getFeatures();
+    toSource.addFeatures(features);
+  }
 
   startDrawCopyPoint = (mode) => {
     this.drawingToolFunctions.copy.source.mode = mode;
@@ -593,13 +606,25 @@ class IntegrationModel {
     this.map.addInteraction(this.snapInteraction);
   };
 
+  #handleDrawCombineFeatureAddedDelayed = (e) => {
+    this.#clearCombinePoints();
+    setTimeout(() => {
+      this.#handleDrawCombineFeatureAdded(e);
+    }, 100);
+  };
+
+  #clearCombinePoints = () => {
+    const combineFeatures =
+      this.drawingToolFunctions.combine.source.getFeatures();
+    // Filterar bort alla punkter.
+    //combineFeatures.filter
+  };
+
   #handleDrawCombineFeatureAdded = (e) => {
     if (this.selectedFeatureFromMap) {
       let feature = this.selectedFeatureFromMap;
-      feature.geometry = {
-        coordinates: this.selectedFeatureFromMap,
-        type: "Polygon",
-      };
+      feature.selectedFromMap = true;
+
       const featureCollection = {
         searchType: "SelectFromMap",
         featureCollection: { features: [feature] },
@@ -762,11 +787,18 @@ class IntegrationModel {
     comparePropertyId
   ) => {
     const featuresFoundInSource = featuresInSource.filter((feature) => {
-      if (
-        feature.getProperties()[comparePropertyId] ===
-        clickedFeature.getProperties()[comparePropertyId]
-      )
-        return feature;
+      if (comparePropertyId) {
+        if (
+          feature.getProperties()[comparePropertyId] ===
+          clickedFeature.getProperties()[comparePropertyId]
+        )
+          return feature;
+      } else {
+        if (
+          feature.getGeometry().ol_uid === clickedFeature.getGeometry().ol_uid
+        )
+          return feature;
+      }
       return false;
     });
 
@@ -789,7 +821,8 @@ class IntegrationModel {
       };
 
     const features = featureCollection.features.map((feature) => {
-      console.log("feature.geometry", feature.geometry);
+      if (feature.selectedFromMap) return feature;
+
       let geometry = this.#createGeometry(
         feature.geometry.type,
         feature.geometry.coordinates
@@ -858,26 +891,30 @@ class IntegrationModel {
     let combineStatus = this.#storeCombinedIds(data);
     const updateStatus = this.#getNewOrRemovedFeature(
       data,
-      this.editSources.combine
+      this.editSources.new // Bara för test, skall byta ut mot källan nedan
+      //this.drawingToolFunctions.combine.source
     );
 
-    if (!updateStatus.previousFeatures) return;
-
-    //debugger;
-    if (this.combineFeature) {
-      // const ansIntersect = intersect(
-      //   this.#getTurfPolygon(this.combineFeature),
-      //   this.#getTurfPolygon(updateStatus.feature)
-      // );
-      //console.log("intersect", ansIntersect);
-      // const cf = this.#getTurfPolygon(this.combineFeature);
-      // const uf = this.#getTurfPolygon(updateStatus.feature);
-      // console.log("original", cf.geometry.coordinates);
-      // console.log("nytt obj", uf.geometry.coordinates);
+    if (!this.combineFeature) {
+      this.combineFeature = updateStatus.feature;
+      return;
     }
+
+    // if (this.combineFeature) {
+    // const ansIntersect = intersect(
+    //   this.#getTurfPolygon(this.combineFeature),
+    //   this.#getTurfPolygon(updateStatus.feature)
+    // );
+    //console.log("intersect", ansIntersect);
+    // const cf = this.#getTurfPolygon(this.combineFeature);
+    // const uf = this.#getTurfPolygon(updateStatus.feature);
+    // console.log("original", cf.geometry.coordinates);
+    // console.log("nytt obj", uf.geometry.coordinates);
+    // }
 
     this.#combineFeature(combineStatus, updateStatus);
     this.combineFeature = this.editSources.combine.getFeatures()[0];
+    console.log("this.combineFeature", this.combineFeature.getGeometry());
     this.#publishNewFeature(this.combineFeature);
 
     //this.#saveParentFeatureClickId(data);
@@ -905,7 +942,7 @@ class IntegrationModel {
   };
 
   #combineFeature = (combineStatus, updateStatus) => {
-    if (!this.combineFeature) return;
+    // if (!this.combineFeature) return;
 
     let combinedGeometry = null;
     if (combineStatus.unionNewFeature)
@@ -1148,7 +1185,6 @@ class IntegrationModel {
   };
 
   #highlightItem = (item) => {
-    debugger;
     if (item.selectedFromMap) {
       let featureId = item.feature.ol_uid;
       this.listItemRefs[featureId].current.scrollIntoView();
@@ -1256,7 +1292,7 @@ class IntegrationModel {
     connection.on(
       "HandleRealEstateIdentifiers",
       function (realEstateIdentifiers) {
-        //debugger;
+        debugger;
       }
     );
 
@@ -1269,7 +1305,7 @@ class IntegrationModel {
           Uuid: "909a6a84-91ae-90ec-e040-ed8f66444c3f",
         },
       ];
-      //qdebugger;
+      debugger;
       connection.invoke("SendRealEstateIdentifiers", realEstateIdentifiers);
     });
 
