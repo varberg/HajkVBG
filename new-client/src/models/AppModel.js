@@ -9,6 +9,7 @@ import WMSLayer from "./layers/WMSLayer.js";
 import WMTSLayer from "./layers/WMTSLayer.js";
 import WFSVectorLayer from "./layers/VectorLayer.js";
 import { bindMapClickEvent } from "./Click.js";
+import MapClickModel from "./MapClickModel";
 import { defaults as defaultInteractions } from "ol/interaction";
 import { Map, View } from "ol";
 // TODO: Uncomment and ensure they show as expected
@@ -159,6 +160,22 @@ class AppModel {
   }
 
   /**
+   * @summary Return all plugins that might render in Drawer.
+   *
+   * @description There reason this functions exists is that we must
+   * have a way to determine whether the Drawer toggle button should be
+   * rendered. It's not as easy as checking for Drawer plugins only (i.e.
+   * those with target=toolbar) - this simple logic gets complicated by
+   * the fact that Widget plugins (target=left|right) also render Drawer
+   * buttons on small screens.
+   */
+  getPluginsThatMightRenderInDrawer() {
+    return this.getPlugins().filter((plugin) => {
+      return ["toolbar", "left", "right"].includes(plugin.options.target);
+    });
+  }
+
+  /**
    * Dynamically load plugins from the configured plugins folder.
    * Assumed that a folder exists with the same name as the requested plugin.
    * There must also be a file present with the same name as well.
@@ -274,7 +291,10 @@ class AppModel {
         center: config.map.center,
         extent: config.map.extent.length > 0 ? config.map.extent : undefined, // backend will always write extent as an Array, so basic "config.map.extent || undefined" wouldn't work here
         constrainOnlyCenter: config.map.constrainOnlyCenter, // If true, the extent constraint will only apply to the view center and not the whole extent.
-        constrainResolution: config.map.constrainResolution, // If true, the view will always animate to the closest zoom level after an interaction; false means intermediary zoom levels are allowed.
+        constrainResolution:
+          isMobile && config.map.constrainResolutionMobile !== undefined
+            ? config.map.constrainResolutionMobile
+            : config.map.constrainResolution, // If true, the view will always animate to the closest zoom level after an interaction; false means intermediary zoom levels are allowed.
         maxZoom: config.map.maxZoom || 24,
         minZoom: config.map.minZoom || 0,
         projection: config.map.projection,
@@ -310,11 +330,50 @@ class AppModel {
     // So, we create the Set no matter what:
     this.map.clickLock = new Set();
 
+    const useNewInfoclick =
+      config.tools.find((t) => t.type === "infoclick")?.options
+        ?.useNewInfoclick === true;
+    if (useNewInfoclick) {
+      console.log("useNewInfoclick: ", useNewInfoclick);
+      const mapClickModel = new MapClickModel(this.map, this.globalObserver);
+
+      mapClickModel.bindMapClick((featureCollections) => {
+        const featureCollectionsToBeHandledByMapClickViewer =
+          featureCollections.filter((fc) => fc.type !== "SearchResults");
+
+        // Publish the retrived collections, even if they're empty. We want the
+        // handling components to know, so they can act accordingly (e.g. close
+        // window if no features are to be shown).
+        this.globalObserver.publish(
+          "mapClick.featureCollections",
+          featureCollectionsToBeHandledByMapClickViewer
+        );
+
+        // Next, handle search results features.
+        // Check if we've got any features from the search layer,
+        // and if we do, announce it to the search component so it can
+        // show relevant feature in the search results list.
+        const searchResultFeatures = featureCollections.find(
+          (c) => c.type === "SearchResults"
+        )?.features;
+
+        if (searchResultFeatures?.length > 0) {
+          this.globalObserver.publish(
+            "infoClick.searchResultLayerClick",
+            searchResultFeatures // Clicked features sent to the search-component for display
+          );
+        }
+      });
+    }
+
     // FIXME: Potential miss here: don't we want to register click on search results
     // But we register the Infoclick handler only if the plugin exists in map config:
     // even if Infoclick plugin is inactive? Currently search won't register clicks in
     // map without infoclick, which seems as an unnecessary limitation.
-    if (config.tools.some((tool) => tool.type === "infoclick")) {
+    if (
+      config.tools.some((tool) => tool.type === "infoclick") &&
+      useNewInfoclick === false
+    ) {
       bindMapClickEvent(this.map, (mapClickDataResult) => {
         // We have to separate features coming from the searchResult-layer
         // from the rest, since we want to render this information in the
@@ -738,10 +797,15 @@ class AppModel {
                   ? sl.searchPropertyName.split(",")
                   : [],
               infobox: sl.infobox || "",
+              infoclickIcon: sl.infoclickIcon || "",
               aliasDict: "",
               displayFields:
                 typeof sl.searchDisplayName === "string"
                   ? sl.searchDisplayName.split(",")
+                  : [],
+              secondaryLabelFields:
+                typeof sl.secondaryLabelFields === "string"
+                  ? sl.secondaryLabelFields.split(",")
                   : [],
               shortDisplayFields:
                 typeof sl.searchShortDisplayName === "string"

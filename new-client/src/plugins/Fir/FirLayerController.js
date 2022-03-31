@@ -1,29 +1,28 @@
 import { Vector as VectorLayer } from "ol/layer";
 import { Vector as VectorSource } from "ol/source";
 import { IconMarker } from "./FirIcons";
-import { Circle, Style, Icon } from "ol/style";
+import { Style, Icon } from "ol/style";
 import Feature from "ol/Feature.js";
-import LinearRing from "ol/geom/LinearRing.js";
-import {
-  Point,
-  LineString,
-  Polygon,
-  MultiPoint,
-  MultiLineString,
-  MultiPolygon,
-} from "ol/geom.js";
+import HajkTransformer from "utils/HajkTransformer";
+import { Point } from "ol/geom.js";
 import styles from "./FirStyles";
 import { hfetch } from "utils/FetchWrapper";
 import { GeoJSON } from "ol/format";
-import * as jsts from "jsts";
 
 class FirLayerController {
+  #HT;
+
   constructor(model, observer) {
     this.model = model;
     this.observer = observer;
     this.bufferValue = 0;
     this.removeIsActive = false;
     this.ctrlKeyIsDown = false;
+
+    this.#HT = new HajkTransformer({
+      projection: this.model.app.map.getView().getProjection().getCode(),
+    });
+
     this.initLayers();
     this.initListeners();
   }
@@ -76,6 +75,7 @@ class FirLayerController {
 
     this.model.layers.draw.getSource().on("addfeature", (e) => {
       e.feature.set("fir_type", "draw");
+      e.feature.setStyle(null); // use default style for now
       this.bufferFeatures(this.bufferValue);
     });
 
@@ -299,6 +299,11 @@ class FirLayerController {
       .then((data) => {
         try {
           let features = new GeoJSON().readFeatures(data);
+          features = features.filter((feature) => {
+            return feature.get(this.model.config.wmsRealEstateLayer.idField)
+              ? true
+              : false;
+          });
           this.addFeatures(features, { zoomToLayer: false });
           this.observer.publish("fir.search.add", features);
         } catch (err) {
@@ -308,6 +313,9 @@ class FirLayerController {
   }
 
   handleFeatureClicks = (e) => {
+    if (this.model.windowIsVisible !== true) {
+      return;
+    }
     let first = true;
     this.model.map.forEachFeatureAtPixel(e.pixel, (feature, layer) => {
       if (first === true && layer === this.model.layers.feature && feature) {
@@ -388,17 +396,6 @@ class FirLayerController {
   };
 
   bufferFeatures = (options) => {
-    const parser = new jsts.io.OL3Parser();
-    parser.inject(
-      Point,
-      LineString,
-      LinearRing,
-      Polygon,
-      MultiPoint,
-      MultiLineString,
-      MultiPolygon
-    );
-
     if (this.bufferValue === 0) {
       if (options?.keepNeighborBuffer !== true) {
         this.getLayer("buffer").getSource().clear();
@@ -415,17 +412,8 @@ class FirLayerController {
     let _bufferFeatures = [];
 
     drawFeatures.forEach((feature) => {
-      let olGeom = feature.getGeometry();
-      if (olGeom instanceof Circle) {
-        olGeom = Polygon.fromCircle(olGeom, 0b10000000);
-      }
-      const jstsGeom = parser.read(olGeom);
-      const bufferedGeom = jstsGeom.buffer(this.bufferValue);
-      // bufferedGeom.union(jstsGeom);
+      let bufferFeature = this.#HT.getBuffered(feature, this.bufferValue);
 
-      let bufferFeature = new Feature({
-        geometry: parser.write(bufferedGeom),
-      });
       bufferFeature.set("owner_ol_uid", feature.ol_uid);
       bufferFeature.set("fir_type", "buffer");
 
@@ -436,7 +424,7 @@ class FirLayerController {
     targetSource.addFeatures(_bufferFeatures);
   };
 
-  _getZoomOptions = () => {
+  #getZoomOptions = () => {
     return {
       maxZoom: this.model.app.config.mapConfig.map.maxZoom - 2,
       padding: [20, 20, 20, 20],
@@ -446,34 +434,34 @@ class FirLayerController {
   zoomToFeature = (feature) => {
     clearTimeout(this.zoomTimeout);
     this.zoomTimeout = setTimeout(() => {
-      this._zoomToFeature(feature);
+      this.#zoomToFeature(feature);
     }, 500);
   };
 
-  _zoomToFeature = (feature) => {
+  #zoomToFeature = (feature) => {
     if (!feature) {
       return;
     }
 
     const extent = feature.getGeometry().getExtent();
-    this.model.map.getView().fit(extent, this._getZoomOptions());
+    this.model.map.getView().fit(extent, this.#getZoomOptions());
   };
 
   zoomToLayer = (layer) => {
     clearTimeout(this.zoomTimeout);
     this.zoomTimeout = setTimeout(() => {
-      this._zoomToLayer(layer);
+      this.#zoomToLayer(layer);
     }, 500);
   };
 
-  _zoomToLayer = (layer) => {
+  #zoomToLayer = (layer) => {
     const source = layer.getSource();
     if (source.getFeatures().length <= 0) {
       return;
     }
 
     const extent = source.getExtent();
-    this.model.map.getView().fit(extent, this._getZoomOptions());
+    this.model.map.getView().fit(extent, this.#getZoomOptions());
   };
 }
 

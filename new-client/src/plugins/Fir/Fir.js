@@ -2,7 +2,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import BaseWindowPlugin from "../BaseWindowPlugin";
 import Observer from "react-event-observer";
-import PluginIcon from "@material-ui/icons/House";
+import PluginIcon from "@mui/icons-material/House";
 import FirModel from "./FirModel";
 import FirView from "./FirView";
 import FirLayerController from "./FirLayerController";
@@ -58,11 +58,11 @@ class Fir extends React.PureComponent {
   }
 
   onWindowShow = () => {
-    this.localObserver.publish("fir.window", { visible: true });
+    this.model.windowIsVisible = true;
   };
 
   onWindowHide = () => {
-    this.localObserver.publish("fir.window", { visible: false });
+    this.model.windowIsVisible = false;
   };
 
   getService(type) {

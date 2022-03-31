@@ -1,28 +1,73 @@
 import React from "react";
 import { IconExcel } from "./FirIcons";
 import PropTypes from "prop-types";
-import { withStyles } from "@material-ui/core/styles";
+import { styled } from "@mui/material/styles";
 import { withSnackbar } from "notistack";
-import Accordion from "@material-ui/core/Accordion";
-import AccordionSummary from "@material-ui/core/AccordionSummary";
-import AccordionDetails from "@material-ui/core/AccordionDetails";
-import { Typography } from "@material-ui/core";
-import ExpandMoreIcon from "@material-ui/icons/ExpandMore";
-import Button from "@material-ui/core/Button";
-import FormControl from "@material-ui/core/FormControl";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Checkbox from "@material-ui/core/Checkbox";
-import TextField from "@material-ui/core/TextField";
-import InputAdornment from "@material-ui/core/InputAdornment";
-import Collapse from "@material-ui/core/Collapse";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import DownloadIcon from "@material-ui/icons/GetApp";
-import { WFS } from "ol/format";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import { Typography } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import Button from "@mui/material/Button";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import Collapse from "@mui/material/Collapse";
+import CircularProgress from "@mui/material/CircularProgress";
+import DownloadIcon from "@mui/icons-material/GetApp";
+import { WFS, GeoJSON } from "ol/format";
 import {
   or as orFilter,
   intersects as intersectsFilter,
 } from "ol/format/filter";
 import { hfetch } from "utils/FetchWrapper";
+
+const TypographyHeading = styled(Typography)(({ theme }) => ({
+  fontWeight: 500,
+}));
+
+const StyledCheckbox = styled(Checkbox)(({ theme }) => ({
+  paddingTop: "0.25rem",
+  paddingBottom: "0.25rem",
+}));
+
+const CheckboxGroupContainer = styled("div")(({ theme }) => ({
+  paddingBottom: theme.spacing(2),
+}));
+
+const ContainerTopPadded = styled("div")(({ theme }) => ({
+  paddingTop: theme.spacing(2),
+}));
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  width: "50%",
+}));
+
+const DownloadContainer = styled("div")(({ theme }) => ({
+  paddingTop: theme.spacing(2),
+}));
+
+const CircularProgressButton = styled(CircularProgress)(({ theme }) => ({
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  marginTop: -12,
+  marginLeft: -12,
+}));
+
+const StyledFormControlLabel = styled(FormControlLabel)(({ theme }) => ({
+  fontSize: "0.875rem",
+  fontWeight: "400",
+}));
+
+const ButtonWithLoader = styled(Button)(({ theme, loading }) => ({
+  "& img": {
+    opacity: loading === "true" ? 0.3 : 1.0,
+  },
+}));
+
 class FirExportResidentListView extends React.PureComponent {
   state = {
     accordionExpanded: false,
@@ -34,13 +79,14 @@ class FirExportResidentListView extends React.PureComponent {
     age: 18,
     loading: false,
     downloadUrl: null,
+    results: [],
   };
 
   static propTypes = {
     results: PropTypes.array.isRequired,
     model: PropTypes.object.isRequired,
     localObserver: PropTypes.object.isRequired,
-    classes: PropTypes.object.isRequired,
+    type: PropTypes.string,
   };
 
   static defaultProps = {};
@@ -48,8 +94,21 @@ class FirExportResidentListView extends React.PureComponent {
   constructor(props) {
     super(props);
     this.model = this.props.model;
+    this.type = this.props.type ?? "fir"; // kir or fir
     this.localObserver = this.props.localObserver;
-    this.options = this.model.app.plugins.fir.options;
+    this.options = this.model.app.plugins[this.type].options;
+
+    this.localObserver.subscribe(`${this.type}.results.filtered`, (list) => {
+      this.setState({ results: [...list] });
+      this.forceUpdate();
+    });
+  }
+
+  componentDidMount() {
+    if (this.type === "kir") {
+      // Kir only have one item in accordion, expand it automatically.
+      this.setState({ accordionExpanded: true });
+    }
   }
 
   getGeometryFilters(features) {
@@ -102,14 +161,11 @@ class FirExportResidentListView extends React.PureComponent {
     return new XMLSerializer().serializeToString(featureRequest);
   }
 
-  getResidentExportData = (rawFeatures) => {
-    /* rawFeatures is not converted to openlayer features */
-    let features = rawFeatures;
-
+  getResidentExportData = (features) => {
     const mappings = this.options.residentList.mappings;
 
     features = features.filter((feature) => {
-      return feature.properties[mappings.ageFieldName] >= this.state.age || 0;
+      return feature.get(mappings.ageFieldName) >= this.state.age || 0;
     });
 
     let columns = [];
@@ -148,8 +204,8 @@ class FirExportResidentListView extends React.PureComponent {
       columns.push(mappings.genderDisplayName);
     }
 
-    function getValue(rawFeature, key) {
-      return rawFeature.properties[key];
+    function getValue(feature, key) {
+      return feature.get(key);
     }
 
     // create rows
@@ -201,8 +257,8 @@ class FirExportResidentListView extends React.PureComponent {
     return objectToSend;
   };
 
-  sendResidentData = (rawFeatures) => {
-    const data = this.getResidentExportData(rawFeatures);
+  sendResidentData = (features) => {
+    const data = this.getResidentExportData(features);
 
     let searchParams = new URLSearchParams();
     searchParams.append("json", JSON.stringify(data));
@@ -257,8 +313,16 @@ class FirExportResidentListView extends React.PureComponent {
       })
       .then((data) => {
         if (data.features?.length > 0) {
-          // Note that this is raw json. No need to convert as we will not use it in OL.
-          this.sendResidentData(data.features);
+          this.sendResidentData(new GeoJSON().readFeatures(data));
+        } else {
+          this.setState({ loading: false });
+          this.props.closeSnackbar(this.snackBar);
+          this.snackBar = this.props.enqueueSnackbar(
+            "Kunde ej hitta några boende att exportera.",
+            {
+              variant: "warning",
+            }
+          );
         }
       })
       .catch((err) => {
@@ -278,7 +342,12 @@ class FirExportResidentListView extends React.PureComponent {
     this.setState({ downloadUrl: null });
     // detach
     setTimeout(() => {
-      this.getResidentData();
+      if (this.props.type === "kir") {
+        // In KIR we already have the data so we just send it.
+        this.sendResidentData(this.state.results);
+      } else {
+        this.getResidentData();
+      }
     }, 25);
   };
 
@@ -300,7 +369,6 @@ class FirExportResidentListView extends React.PureComponent {
   };
 
   render() {
-    const { classes } = this.props;
     return (
       <>
         <Accordion
@@ -315,20 +383,16 @@ class FirExportResidentListView extends React.PureComponent {
           }}
         >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography className={classes.heading}>
-              Boendeförteckning
-            </Typography>
+            <TypographyHeading>Boendeförteckning</TypographyHeading>
           </AccordionSummary>
           <AccordionDetails style={{ display: "block" }}>
             <div>
               <div>Inkludera:</div>
-              <div className={classes.checkboxGroupContainer}>
+              <CheckboxGroupContainer>
                 <FormControl fullWidth={true}>
-                  <FormControlLabel
-                    classes={{ label: classes.checkboxLabel }}
+                  <StyledFormControlLabel
                     control={
-                      <Checkbox
-                        className={classes.checkbox}
+                      <StyledCheckbox
                         checked={this.state.chAdjustToReal}
                         onChange={(e) => {
                           this.setState({ chAdjustToReal: e.target.checked });
@@ -340,11 +404,9 @@ class FirExportResidentListView extends React.PureComponent {
                   />
                 </FormControl>
                 <FormControl fullWidth={true}>
-                  <FormControlLabel
-                    classes={{ label: classes.checkboxLabel }}
+                  <StyledFormControlLabel
                     control={
-                      <Checkbox
-                        className={classes.checkbox}
+                      <StyledCheckbox
                         checked={this.state.chAge}
                         onChange={(e) => {
                           this.setState({ chAge: e.target.checked });
@@ -356,11 +418,9 @@ class FirExportResidentListView extends React.PureComponent {
                   />
                 </FormControl>
                 <FormControl fullWidth={true}>
-                  <FormControlLabel
-                    classes={{ label: classes.checkboxLabel }}
+                  <StyledFormControlLabel
                     control={
-                      <Checkbox
-                        className={classes.checkbox}
+                      <StyledCheckbox
                         checked={this.state.chBirthdate}
                         onChange={(e) => {
                           this.setState({ chBirthdate: e.target.checked });
@@ -372,11 +432,9 @@ class FirExportResidentListView extends React.PureComponent {
                   />
                 </FormControl>
                 <FormControl fullWidth={true}>
-                  <FormControlLabel
-                    classes={{ label: classes.checkboxLabel }}
+                  <StyledFormControlLabel
                     control={
-                      <Checkbox
-                        className={classes.checkbox}
+                      <StyledCheckbox
                         checked={this.state.chSsn}
                         onChange={(e) => {
                           this.setState({ chSsn: e.target.checked });
@@ -388,11 +446,9 @@ class FirExportResidentListView extends React.PureComponent {
                   />
                 </FormControl>
                 <FormControl fullWidth={true}>
-                  <FormControlLabel
-                    classes={{ label: classes.checkboxLabel }}
+                  <StyledFormControlLabel
                     control={
-                      <Checkbox
-                        className={classes.checkbox}
+                      <StyledCheckbox
                         checked={this.state.chGender}
                         onChange={(e) => {
                           this.setState({ chGender: e.target.checked });
@@ -403,9 +459,8 @@ class FirExportResidentListView extends React.PureComponent {
                     label="Kön"
                   />
                 </FormControl>
-                <div className={classes.containerTopPadded}>
-                  <TextField
-                    className={classes.textField}
+                <ContainerTopPadded>
+                  <StyledTextField
                     label="Ange lägsta ålder"
                     value={this.state.age}
                     onChange={(e) => {
@@ -434,37 +489,29 @@ class FirExportResidentListView extends React.PureComponent {
                     }}
                     variant="outlined"
                   />
-                </div>
-              </div>
+                </ContainerTopPadded>
+              </CheckboxGroupContainer>
               <div>
-                <Button
+                <ButtonWithLoader
                   fullWidth={true}
                   variant="outlined"
                   color="primary"
-                  className={
-                    this.state.loading ? classes.buttonLoading : classes.button
-                  }
+                  loading={"" + this.state.loading}
                   startIcon={<this.ExcelLogo />}
                   onClick={this.handleSendClick}
                   disabled={this.state.loading}
                 >
                   Skapa boendeförteckning
-                  {this.state.loading && (
-                    <CircularProgress
-                      size={24}
-                      className={classes.buttonProgress}
-                    />
-                  )}
-                </Button>
+                  {this.state.loading && <CircularProgressButton size={24} />}
+                </ButtonWithLoader>
               </div>
               <Collapse in={this.state.downloadUrl !== null}>
-                <div className={classes.downloadContainer}>
+                <DownloadContainer>
                   <Button
                     fullWidth={true}
                     variant="outlined"
                     color="primary"
                     title={"Ladda ner: \n" + this.state.downloadUrl}
-                    className={classes.button}
                     startIcon={<DownloadIcon />}
                     onClick={() => {
                       document.location.href = this.state.downloadUrl;
@@ -472,7 +519,7 @@ class FirExportResidentListView extends React.PureComponent {
                   >
                     Ladda ner fil
                   </Button>
-                </div>
+                </DownloadContainer>
               </Collapse>
             </div>
           </AccordionDetails>
@@ -482,58 +529,4 @@ class FirExportResidentListView extends React.PureComponent {
   }
 }
 
-const styles = (theme) => ({
-  info: {
-    padding: theme.spacing(2),
-  },
-  num: {
-    fontWeight: 500,
-    fontSize: "1rem",
-  },
-  heading: {
-    fontWeight: 500,
-  },
-  formControl: {
-    marginBottom: theme.spacing(3),
-  },
-  formControlOneMargin: {
-    marginBottom: theme.spacing(1),
-  },
-  checkboxLabel: {
-    fontSize: "0.875rem",
-    fontWeight: "400",
-  },
-  checkbox: {
-    paddingTop: "0.25rem",
-    paddingBottom: "0.25rem",
-  },
-  checkboxGroupContainer: {
-    paddingBottom: theme.spacing(2),
-  },
-  containerTopPadded: {
-    paddingTop: theme.spacing(2),
-  },
-  containerTopDoublePadded: {
-    paddingTop: theme.spacing(4),
-  },
-  textField: {
-    width: "50%",
-  },
-  downloadContainer: {
-    paddingTop: theme.spacing(2),
-  },
-  buttonLoading: {
-    "& img": {
-      opacity: 0.3,
-    },
-  },
-  buttonProgress: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    marginTop: -12,
-    marginLeft: -12,
-  },
-});
-
-export default withStyles(styles)(withSnackbar(FirExportResidentListView));
+export default withSnackbar(FirExportResidentListView);

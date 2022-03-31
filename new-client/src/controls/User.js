@@ -1,23 +1,21 @@
-import React, { useEffect, useState } from "react";
-
-import { Avatar, Button, Paper, Tooltip } from "@material-ui/core";
-import { makeStyles } from "@material-ui/styles";
-
+import React, { useState, useEffect } from "react";
+import { Avatar, IconButton, Paper, Tooltip } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import LocalStorageHelper from "utils/LocalStorageHelper";
 
-const useStyles = makeStyles((theme) => ({
-  paper: {
-    marginBottom: theme.spacing(1),
-  },
-  button: {
-    minWidth: "unset",
-  },
-  avatar: {
-    width: 25,
-    height: 25,
-    fontSize: "0.8rem",
-    backgroundColor: theme.palette.text.primary,
-  },
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  marginBottom: theme.spacing(1),
+}));
+
+const StyledIconButton = styled(IconButton)(() => ({
+  minWidth: "unset",
+}));
+
+const StyledAvatar = styled(Avatar)(({ theme }) => ({
+  width: 25,
+  height: 25,
+  fontSize: "0.8rem",
+  backgroundColor: theme.palette.text.primary,
 }));
 
 /**
@@ -109,7 +107,6 @@ const parseStoreDetails = (store, userDetails) => {
  * @returns {object} React
  */
 const User = React.memo(({ userDetails }) => {
-  const classes = useStyles();
   const [store, setStore] = useState(LocalStorageHelper.getReallyAll());
 
   useEffect(() => {
@@ -127,16 +124,13 @@ const User = React.memo(({ userDetails }) => {
   return (
     (userDetails && (
       <Tooltip title={parseStoreDetails(store, userDetails)}>
-        <Paper className={classes.paper}>
-          <Button
-            aria-label={userDetails.displayName}
-            className={classes.button}
-          >
-            <Avatar alt={userDetails.displayName} className={classes.avatar}>
+        <StyledPaper>
+          <StyledIconButton aria-label={userDetails.displayName}>
+            <StyledAvatar alt={userDetails.displayName}>
               {getInitialsFromDisplayName(userDetails.displayName)}
-            </Avatar>
-          </Button>
-        </Paper>
+            </StyledAvatar>
+          </StyledIconButton>
+        </StyledPaper>
       </Tooltip>
     )) ||
     null

@@ -2,8 +2,7 @@ import { delay } from "../../utils/Delay";
 import { getPointResolution } from "ol/proj";
 import { getCenter } from "ol/extent";
 import jsPDF from "jspdf";
-import * as PDFjs from "pdfjs-dist";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker.entry";
+import { saveAs } from "file-saver";
 
 import Vector from "ol/layer/Vector.js";
 import View from "ol/View";
@@ -13,7 +12,8 @@ import Feature from "ol/Feature.js";
 import { Translate } from "ol/interaction.js";
 import Collection from "ol/Collection";
 import { Style, Stroke, Fill } from "ol/style.js";
-import { saveAs } from "file-saver";
+import TileLayer from "ol/layer/Tile";
+import TileWMS from "ol/source/TileWMS";
 
 export default class PrintModel {
   constructor(settings) {
@@ -32,6 +32,10 @@ export default class PrintModel {
     // under the print-process. (And we want to be able to change back to the original one).
     this.originalView = this.map.getView();
     this.originalMapSize = null; // Needed to restore view. It is set when print().
+
+    // We're gonna need to keep a map containing the original layer parameters (since we will
+    // change some parameters such as requested dpi and so on).
+    this.originalLayerParams = new Map();
 
     // We must initiate a "print-view" that includes potential "hidden" resolutions.
     // These "hidden" resolutions allows the print-process to zoom more than what the
@@ -473,6 +477,93 @@ export default class PrintModel {
     return currentBackgroundColor !== "" ? currentBackgroundColor : "white";
   };
 
+  // Returns all currently active tile-layers as an array
+  getVisibleTileLayers = () => {
+    return this.map
+      .getLayers()
+      .getArray()
+      .filter((layer) => {
+        return (
+          layer.getVisible() &&
+          layer instanceof TileLayer &&
+          layer.getSource() instanceof TileWMS
+        );
+      });
+  };
+
+  // Since we're allowing the user to print the map with different DPI-options,
+  // the layers that are about to be printed must be prepared. The preparation consists
+  // of settings the DPI-parameters so that we ensure that we are sending proper WMS-requests.
+  // (If we would print with 300 dpi, and just let OL send an ordinary request, the images returned
+  // from the server would not show the correct layout for 300 DPI usage).
+  prepareActiveLayersForPrint = (options) => {
+    // First we have to grab all currently visible tile-layers (Remember that this
+    // function call only returns layers that are based on TileWMS)!
+    const tileLayers = this.getVisibleTileLayers();
+    // We're gonna need to mess with all of those...
+    for (const tileLayer of tileLayers) {
+      // Let's run this in a try-catch just in case
+      try {
+        // We're gonna need to grab the layer-source
+        const source = tileLayer.getSource();
+        // Let's also grab the layer id, so that we can use that as a key in the map
+        // containing all the original layer parameters. The id is stored in the name-
+        // property, wonderful!
+        const layerId = tileLayer.get("name");
+        // Get the original DPI-source-parameters
+        const { DPI, MAP_RESOLUTION, FORMAT_OPTIONS } = source.getParams();
+        // and store them (so that we can reset the source params when the printing is done).
+        this.originalLayerParams.set(layerId, {
+          DPI,
+          MAP_RESOLUTION,
+          FORMAT_OPTIONS,
+        });
+        // Then we'll update the DPI-parameters to match the user-chosen DPI.
+        // Why three different options? Well, each server-type has chosen a different implementation,
+        // and to make sure we send requests that work for all these servers, we just pile all settings
+        // on each request (this is how Qgis does it as well, so it cant be that bad, right?).
+        source.updateParams({
+          DPI: options.resolution,
+          MAP_RESOLUTION: options.resolution,
+          FORMAT_OPTIONS: `dpi:${options.resolution}`,
+        });
+      } catch (error) {
+        console.error(
+          `Failed to update the DPI-options while creating print-image. Error: ${error}`
+        );
+      }
+    }
+  };
+
+  // Since we've been messing with the tile-layers parameters while printing, we have to provide
+  // a method to reset the parameters. This method gets the original parameters, and sets these.
+  resetActiveLayers = () => {
+    // First we'll have to grab all currently visible tile-layers.
+    const tileLayers = this.getVisibleTileLayers();
+    // We're gonna need to reset all of those...
+    for (const tileLayer of tileLayers) {
+      // Let's run this in a try-catch just in case
+      try {
+        // We're gonna need to grab the layer-source
+        const source = tileLayer.getSource();
+        // We're gonna need the id so that we can grab the original parameters from
+        // the map.
+        const layerId = tileLayer.get("name");
+        // Let's grab the original parameters...
+        const originalParams = this.originalLayerParams.get(layerId);
+        // ...and update the source with them!
+        source.updateParams(originalParams);
+      } catch (error) {
+        console.warn(
+          `Failed to reset a tile-layer after printing. Error: {error}`
+        );
+      }
+    }
+    // When all layers has been reset, we'll have to reset the map containing the
+    // original settings!
+    this.originalLayerParams = new Map();
+  };
+
   print = (options) => {
     const format = options.format;
     const orientation = options.orientation;
@@ -487,6 +578,13 @@ export default class PrintModel {
 
     const width = Math.round((dim[0] * resolution) / 25.4);
     const height = Math.round((dim[1] * resolution) / 25.4);
+
+    // Since we're allowing the users to choose which DPI they want to print the map
+    // in, we have to make sure to prepare the layers so that they are fetched with
+    // the correct DPI-settings!
+    // TODO: Make sure to handle Image-WMS (non-tiled WMS-sources) as well! As of now,
+    // we only handle tiled sources!
+    this.prepareActiveLayersForPrint(options);
 
     // Before we're printing we must make sure to change the map-view from the
     // original one, to the print-view.
@@ -695,6 +793,10 @@ export default class PrintModel {
         );
       }
 
+      // Since we've been messing with the layer-settings while printing, we have to
+      // make sure to reset these settings.
+      this.resetActiveLayers();
+
       // Finally, save the PDF (or PNG)
       this.saveToFile(pdf, width, options.saveAsType)
         .then(() => {
@@ -734,47 +836,96 @@ export default class PrintModel {
     this.map.setView(this.originalView);
   };
 
-  saveToFile = (pdf, width, type) => {
-    const fileName = `Hajk - ${new Date().toLocaleString()}`;
-    return new Promise((resolve, reject) => {
-      try {
-        if (type === "PDF") {
-          pdf.save(`${fileName}.pdf`);
-          resolve();
-        } else {
-          const ab = pdf.output("arraybuffer");
-          PDFjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-          PDFjs.getDocument({ data: ab }).promise.then((pdf) => {
-            pdf.getPage(1).then((page) => {
-              let canvas = document.createElement("canvas");
-              let ctx = canvas.getContext("2d");
+  // Imports and returns the dependencies required to create a PNG-print-export.
+  #getPngDependencies = async () => {
+    try {
+      const pdfjs = await import("pdfjs-dist/build/pdf");
+      return { pdfjs };
+    } catch (error) {
+      throw new Error(
+        `Failed to import required dependencies. Error: ${error}`
+      );
+    }
+  };
 
-              //Scale viewport to match current resolution
-              const viewport = page.getViewport({ scale: 1 });
-              const scale = width / viewport.width;
-              const scaledViewport = page.getViewport({ scale: scale });
+  // Saves the supplied PDF with the supplied file-name.
+  #saveToPdf = async (pdf, fileName) => {
+    try {
+      pdf.save(`${fileName}.pdf`);
+    } catch (error) {
+      throw new Error(`Failed to save PDF. Error: ${error}`);
+    }
+  };
 
-              const renderContext = {
-                canvasContext: ctx,
-                viewport: scaledViewport,
-              };
-
-              canvas.height = scaledViewport.height;
-              canvas.width = scaledViewport.width;
-
-              page.render(renderContext).promise.then(() => {
-                canvas.toBlob((blob) => {
-                  saveAs(blob, `${fileName}.png`);
-                  resolve();
-                });
-              });
+  // Saves the supplied PDF *as a PNG* with the supplied file-name.
+  // The width of the document has to be supplied since some calculations
+  // must be done in order to create a PNG with the correct resolution etc.
+  #saveToPng = async (pdf, fileName, width) => {
+    try {
+      // First we'll dynamically import the required dependencies.
+      const { pdfjs } = await this.#getPngDependencies();
+      // Then we'll set up the pdfJS-worker. TODO: Terrible?! PDF-js does not seem to have a better solution for the
+      // source-map-errors that occur from setting the worker the ordinary way.
+      pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
+      // We'll output the PDF as an array-buffer that can be used to create the PNG.
+      const ab = pdf.output("arraybuffer");
+      // We'll use the PDF-JS library to create a new "PDF-JS-PDF". (Wasteful? Yes very, but the JS-PDF-library
+      // does not support export to any other format than PDF, and the PDF-JS-library does.) Notice that
+      // JS-PDF and PDF-JS are two different libraries, both with their pros and cons.
+      // - PDF-JS: Pro => Can export to PNG, Con: Cannot create as nice of an image as JS-PDF.
+      // - JS-PDF: Pro => Creates good-looking PDFs, Con: Cannot export to PNG.
+      // - Conclusion: We use both...
+      pdfjs.getDocument({ data: ab }).promise.then((pdf) => {
+        // So, when the PDF-JS-PDF is created, we get the first page, and then render
+        // it on a canvas so that we can export it as a PNG.
+        pdf.getPage(1).then((page) => {
+          // We're gonna need a canvas and its context.
+          let canvas = document.createElement("canvas");
+          let ctx = canvas.getContext("2d");
+          // Scale the viewport to match current resolution
+          const viewport = page.getViewport({ scale: 1 });
+          const scale = width / viewport.width;
+          const scaledViewport = page.getViewport({ scale: scale });
+          // Create the render-context-object.
+          const renderContext = {
+            canvasContext: ctx,
+            viewport: scaledViewport,
+          };
+          // Set the canvas dimensions to the correct width and height.
+          canvas.height = scaledViewport.height;
+          canvas.width = scaledViewport.width;
+          // Then we'll render and save!
+          page.render(renderContext).promise.then(() => {
+            canvas.toBlob((blob) => {
+              saveAs(blob, `${fileName}.png`);
             });
           });
-        }
-      } catch (error) {
-        reject(`Failed to save file... ${error}`);
+        });
+      });
+    } catch (error) {
+      throw new Error(`Failed to save PNG. Error: ${error}`);
+    }
+  };
+
+  // Saves the print-contents to file, either PDF, or PNG (depending on supplied type).
+  saveToFile = async (pdf, width, type) => {
+    // We're gonna need to create a file-name.
+    const fileName = `Hajk - ${new Date().toLocaleString()}`;
+    // Then we'll try to save the contents in the format the user requested.
+    try {
+      switch (type) {
+        case "PDF":
+          return this.#saveToPdf(pdf, fileName);
+        case "PNG":
+          return this.#saveToPng(pdf, fileName, width);
+        default:
+          throw new Error(
+            `Supplied type could not be handled. The supplied type was ${type} and currently only PDF and PNG is supported.`
+          );
       }
-    });
+    } catch (error) {
+      throw new Error(`Failed to save file... ${error}`);
+    }
   };
 
   cancelPrint = () => {
@@ -783,6 +934,8 @@ export default class PrintModel {
 
     // Reset map to how it was before print
     this.restoreOriginalView();
+    // Reset the layer-settings to how it was before print
+    this.resetActiveLayers();
   };
 
   /**
