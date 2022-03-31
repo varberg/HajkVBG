@@ -967,6 +967,7 @@ class IntegrationModel {
       nativeType: "fastigheter",
       nativeKind: "receive",
     });
+    console.log("Tar emot fastigheter från KubbX", realEstateIdentifiers);
     const FNRs = realEstateIdentifiers.map((realEstate) => {
       return realEstate.fnr;
     });
@@ -979,7 +980,7 @@ class IntegrationModel {
       nativeType: "fastigheter",
       nativeKind: "send",
     });
-    console.log("realEstateIdentifiers", this.kubbData["realEstate"]);
+    console.log("Skickar fastigheter till KubbX", this.kubbData["realEstate"]);
     connection.invoke("SendRealEstateIdentifiers", this.kubbData["realEstate"]);
   };
 
@@ -988,6 +989,7 @@ class IntegrationModel {
       nativeType: "koordinater",
       nativeKind: "receive",
     });
+    console.log("Tar emot koordinater från KubbX", coordinates);
     const coordinateList = coordinates.map((coordinate) => {
       return {
         northing: String(coordinate.northing),
@@ -1006,7 +1008,7 @@ class IntegrationModel {
       nativeType: "koordinater",
       nativeKind: "send",
     });
-    console.log("coordinates", this.kubbData["coordinate"]);
+    console.log("Skickar koordinater till KubbX", this.kubbData["coordinate"]);
     connection.invoke("SendCoordinates", this.kubbData["coordinate"]);
   };
 
