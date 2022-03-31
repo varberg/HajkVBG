@@ -60,6 +60,7 @@ class IntegrationModel {
     this.#addLayers();
     this.#initActiveSource();
     this.#initCombineNeighbours();
+    this.#initKubbData();
   };
 
   #initSnap = (mode) => {
@@ -556,6 +557,23 @@ class IntegrationModel {
 
   #initCombineNeighbours = () => {
     this.combineNeighbours = [];
+  };
+
+  #initKubbData = () => {
+    this.kubbData = {
+      realEstate: [],
+      coordinate: [],
+      area: [],
+      survey: [],
+      contamination: [],
+    };
+    this.kubbDataFunctions = {
+      realEstate: this.#updateKubbWithRealEstate,
+      coordinate: this.#updateKubbWithCoordinates,
+      area: this.#updateKubbWithAreas,
+      survey: this.#updateKubbWithSurveys,
+      contamination: this.#updateKubbWithContaminations,
+    };
   };
 
   #drawGeometry = (drawingTool, drawType, style) => {
@@ -1197,28 +1215,35 @@ class IntegrationModel {
     this.localObserver.publish("mf-window-closed");
   };
 
-  #sendSnackbarMessage = (nativMessageType) => {
-    //TODO - when Kubb is properly connected, we will do some kind of parsing of the message, to find out the type.
-    //as it is not the message, is a basic mock.
-    this.localObserver.publish("mf-kubb-message-received", nativMessageType);
+  #sendSnackbarMessage = (message) => {
+    this.localObserver.publish("mf-kubb-message-received", message);
   };
 
   testRealEstatesFromKUBB = () => {
-    this.#sendSnackbarMessage("fastighter");
+    this.#sendSnackbarMessage({
+      nativeType: "fastighter",
+      nativeKind: "receive",
+    });
     const FNRs = KUBB().realEstates;
     this.searchResponseTool = "search";
     this.searchModel.findRealEstatesWithNumbers(FNRs);
   };
 
   testCoordinatesFromKUBB = () => {
-    this.#sendSnackbarMessage("koordinater");
+    this.#sendSnackbarMessage({
+      nativeType: "koordinater",
+      nativeKind: "receive",
+    });
     const coordinates = KUBB().coordinates;
     this.searchResponseTool = "search";
     this.searchModel.findCoordinatesWithCoordinates(coordinates);
   };
 
   testAreasFromKUBB = () => {
-    this.#sendSnackbarMessage("områden");
+    this.#sendSnackbarMessage({
+      nativeType: "områden",
+      nativeKind: "receive",
+    });
     this.searchResponseTool = "search";
     this.searchModel.findAreasWithNumbers({
       coordinates: KUBB().areas.coordinates,
@@ -1227,74 +1252,158 @@ class IntegrationModel {
   };
 
   testSurveysFromKUBB = () => {
-    this.#sendSnackbarMessage("undersökningar");
+    this.#sendSnackbarMessage({
+      nativeType: "undersökningar",
+      nativeKind: "receive",
+    });
     const surveys = KUBB().surveys;
     this.searchResponseTool = "search";
     this.searchModel.findSurveysWithNumbers(surveys);
   };
 
   testContaminationsFromKUBB = () => {
-    this.#sendSnackbarMessage("föroreningar");
+    this.#sendSnackbarMessage({
+      nativeType: "föroreningar",
+      nativeKind: "receive",
+    });
     const contaminations = KUBB().contaminations;
     this.searchResponseTool = "search";
     this.searchModel.findContaminationsWithNumbers(contaminations);
   };
 
-  testEdpConnection = () => {
-    console.log("Test EDP connection");
-
-    var address = this.getKubbAddress();
-    var path = this.getKubbPath();
-    var query = this.getKubbQuery();
+  initEdpConnection = () => {
+    var address = this.#getKubbAddress();
+    var path = this.#getKubbPath();
+    var query = this.#getKubbQuery();
 
     const url = address + path + query;
-    console.log("url", url);
-
     const connection = new HubConnectionBuilder().withUrl(url).build();
-    console.log("connection", connection);
 
     connection.on(
       "HandleRealEstateIdentifiers",
-      function (realEstateIdentifiers) {
-        //debugger;
-      }
+      this.#receiveRealEstatesFromKubb
     );
 
-    connection.on("HandleAskingForRealEstateIdentifiers", function () {
-      var realEstateIdentifiers = [
-        {
-          Fnr: "030121108",
-          Name: "Tand 2:167",
-          Municipality: "Östersund",
-          Uuid: "909a6a84-91ae-90ec-e040-ed8f66444c3f",
-        },
-      ];
-      //qdebugger;
-      connection.invoke("SendRealEstateIdentifiers", realEstateIdentifiers);
+    connection.on("HandleAskingForRealEstateIdentifiers", () => {
+      this.#sendRealEstatesToKubb(connection);
+    });
+
+    connection.on("HandleCoordinates", this.#receivecoordiantesFromKubb);
+
+    connection.on("HandleAskingForCoordinates", () => {
+      this.#sendcoordiantesToKubb(connection);
     });
 
     connection
       .start()
-      .then(function () {})
-      .catch(function (err) {
-        return console.error(err.toString());
-      });
+      .then(() => this.#kubbConnectionEstablished())
+      .catch((err) => this.#failKubbConnection(err));
   };
 
-  getKubbAddress = () => {
+  #getKubbAddress = () => {
     return this.options.kubbAddress;
   };
 
-  getKubbPath = () => {
+  #getKubbPath = () => {
     if (this.options.kubbPathEndpoint.charAt(0) === "/")
       return this.options.kubbPathEndpoint;
     return "/" + this.options.kubbPathEndpoint;
   };
 
-  getKubbQuery = () => {
+  #getKubbQuery = () => {
     const name = "w3erik.arvroth";
     const organisation = this.options.kubbOrganisationId;
     return `?user=${name}&organisation=${organisation}&clientType=External&client=webmapapp`;
+  };
+
+  #kubbConnectionEstablished = () => {
+    this.localObserver.publish("mf-kubb-connection-established");
+  };
+
+  #failKubbConnection = (err) => {
+    console.error(err.toString());
+    this.localObserver.publish("mf-kubb-connection-rejected");
+  };
+
+  #receiveRealEstatesFromKubb = (realEstateIdentifiers) => {
+    this.#sendSnackbarMessage({
+      nativeType: "fastigheter",
+      nativeKind: "receive",
+    });
+    console.log("Tar emot fastigheter från KubbX", realEstateIdentifiers);
+    const FNRs = realEstateIdentifiers.map((realEstate) => {
+      return realEstate.fnr;
+    });
+    this.searchResponseTool = "search";
+    this.searchModel.findRealEstatesWithNumbers(FNRs);
+  };
+
+  #sendRealEstatesToKubb = (connection) => {
+    this.#sendSnackbarMessage({
+      nativeType: "fastigheter",
+      nativeKind: "send",
+    });
+    console.log("Skickar fastigheter till KubbX", this.kubbData["realEstate"]);
+    connection.invoke("SendRealEstateIdentifiers", this.kubbData["realEstate"]);
+  };
+
+  #receivecoordiantesFromKubb = (coordinates) => {
+    this.#sendSnackbarMessage({
+      nativeType: "koordinater",
+      nativeKind: "receive",
+    });
+    console.log("Tar emot koordinater från KubbX", coordinates);
+    const coordinateList = coordinates.map((coordinate) => {
+      return {
+        northing: String(coordinate.northing),
+        easting: String(coordinate.easting),
+        spatialReferenceSystemIdentifier:
+          coordinate.spatialReferenceSystemIdentifier,
+        label: coordinate.label,
+      };
+    });
+    this.searchResponseTool = "search";
+    this.searchModel.findCoordinatesWithCoordinates(coordinateList);
+  };
+
+  #sendcoordiantesToKubb = (connection) => {
+    this.#sendSnackbarMessage({
+      nativeType: "koordinater",
+      nativeKind: "send",
+    });
+    console.log("Skickar koordinater till KubbX", this.kubbData["coordinate"]);
+    connection.invoke("SendCoordinates", this.kubbData["coordinate"]);
+  };
+
+  updateKubbWithData = (data, type) => {
+    this.kubbData[type] = data.map((feature) => {
+      return this.kubbDataFunctions[type](feature);
+    });
+  };
+
+  #updateKubbWithRealEstate = (feature) => {
+    return {
+      Fnr: feature.fnr,
+      Name: feature.name,
+      Municipality: "Göteborg",
+      Uuid: "909a6a64-5c59-90ec-e040-ed8f66444c3f",
+    };
+  };
+
+  #updateKubbWithCoordinates = (feature) => {
+    return null;
+  };
+
+  #updateKubbWithAreas = (feature) => {
+    return null;
+  };
+
+  #updateKubbWithSurveys = (feature) => {
+    return null;
+  };
+
+  #updateKubbWithContaminations = (feature) => {
+    return null;
   };
 }
 

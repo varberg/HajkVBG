@@ -86,6 +86,7 @@ class IntegrationView extends React.PureComponent {
 
     this.#init();
     this.#bindSubscriptions();
+    this.model.initEdpConnection();
   }
 
   #bindSubscriptions = () => {
@@ -104,8 +105,25 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
+    this.localObserver.subscribe("mf-kubb-connection-established", () => {
+      this.props.enqueueSnackbar("Lyckad uppkoppling mot EDP Vision", {
+        variant: "info",
+        persist: false,
+      });
+    });
+    this.localObserver.subscribe("mf-kubb-connection-rejected", () => {
+      this.props.enqueueSnackbar("Misslyckad uppkoppling mot EDP Vision", {
+        variant: "error",
+        persist: false,
+      });
+    });
     this.localObserver.subscribe("mf-kubb-message-received", (message) => {
-      this.props.enqueueSnackbar(`Inläsning av ${message} från EDP Vision`, {
+      let snackMessage = `Inläsning av ${message.nativeType} från EDP Vision`;
+      if (message.nativeKind === "receive")
+        snackMessage = `Inläsning av ${message.nativeType} från EDP Vision`;
+      else if (message.nativeKind === "send")
+        snackMessage = `Skickat ${message.nativeType} till EDP Vision`;
+      this.props.enqueueSnackbar(snackMessage, {
         variant: "info",
         persist: false,
       });
@@ -116,8 +134,8 @@ class IntegrationView extends React.PureComponent {
       this.props.enqueueSnackbar(
         `Sökning mot ${displayName} kunde inte genomföras`,
         {
-          persist: false,
           variant: "error",
+          persist: false,
         }
       );
     });
@@ -357,6 +375,10 @@ class IntegrationView extends React.PureComponent {
 
   #updateList = (props) => {
     this.updateListFunctions[props.type](props);
+    this.model.updateKubbWithData(
+      this.state.currentListResults[props.type],
+      props.type
+    );
   };
 
   #updateRealEstateList = (props) => {
@@ -782,8 +804,8 @@ class IntegrationView extends React.PureComponent {
             <Button
               startIcon={<CancelOutlinedIcon />}
               onClick={() => {
-                //this.props.model.testRealEstatesFromKUBB();
-                this.props.model.testEdpConnection();
+                this.props.model.testRealEstatesFromKUBB();
+                //this.props.model.initEdpConnection();
               }}
               color="primary"
               variant="contained"
@@ -908,6 +930,7 @@ class IntegrationView extends React.PureComponent {
                   {this.state.currentListResults[mode].map((item) => {
                     let refName = item.feature.ol_uid;
                     this.model.listItemRefs[refName] = React.createRef();
+                    console.log("item", item);
                     return (
                       <ListResult
                         model={this.props.model}

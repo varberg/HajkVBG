@@ -12,16 +12,16 @@ export const KUBB = () => {
     ],
     coordinates: [
       {
-        Northing: "6396150",
-        Easting: "145000",
-        SpatialReferenceSystemIdentifier: "3007",
-        Label: "Min punkt",
+        northing: "6396150",
+        easting: "145000",
+        spatialReferenceSystemIdentifier: "3007",
+        label: "Min punkt",
       },
       {
-        Northing: "6396200",
-        Easting: "145150",
-        SpatialReferenceSystemIdentifier: "3007",
-        Label: "",
+        northing: "6396200",
+        easting: "145150",
+        spatialReferenceSystemIdentifier: "3007",
+        label: "",
       },
     ],
     areas: {
