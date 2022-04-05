@@ -6,7 +6,9 @@ import Feature from "ol/Feature";
 import { Fill, Stroke, Style, Circle } from "ol/style";
 import Point from "ol/geom/Point";
 import Select from "ol/interaction/Select";
+import Modify from "ol/interaction/Modify";
 import Snap from "ol/interaction/Snap";
+import Translate from "ol/interaction/Translate";
 import Transform from "./Transformation/Transform";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
@@ -218,9 +220,77 @@ class IntegrationModel {
     this.map.removeInteraction(this.selectInteraction);
   };
 
+  #endActiveUpdateTool = () => {
+    this.clearInteractions();
+    this.#clearUpdateInteractions();
+  };
+
+  activateUpdateTool = (updateTool, editMode) => {
+    //Firstly, as the active update tool has changed, end any existing update tool.
+    this.#endActiveUpdateTool();
+    switch (updateTool) {
+      case "modify":
+        this.#modifyNewGeometry(editMode);
+        break;
+      case "move":
+        this.#moveNewGeometry(editMode);
+        break;
+      default:
+        return;
+    }
+  };
+
+  #modifyNewGeometry = (source) => {
+    //Remove interactions not needed for the moving tool (draw and select).
+    this.clearInteractions();
+
+    //Add a temporary select interaction, where only features current editing layer may be selected.
+    let selectLayer = this.editLayers[source];
+    this.updateSelect = new Select({
+      layers: [selectLayer],
+    });
+
+    //Add a temporary Modify interaction, that will be removed when when modify is no longer the chosen update tool.
+    this.modifyInteraction = new Modify({
+      features: this.updateSelect.getFeatures(),
+    });
+    this.map.addInteraction(this.updateSelect);
+    this.map.addInteraction(this.modifyInteraction);
+  };
+
+  #moveNewGeometry = (source) => {
+    //Remove interactions not needed for the moving tool (draw and select).
+    this.clearInteractions();
+
+    //Add a temporary select interaction, where only features current editing layer may be selected.
+    let selectLayer = this.editLayers[source];
+    this.updateSelect = new Select({
+      layers: [selectLayer],
+    });
+    //Add a translate interaction,
+    this.moveInteraction = new Translate({
+      features: this.updateSelect.getFeatures(),
+    });
+    this.map.addInteraction(this.updateSelect);
+    this.map.addInteraction(this.moveInteraction);
+  };
+
   clearInteractions = () => {
     this.endDraw();
     this.endSnapInteraction();
+    this.#clearUpdateInteractions();
+  };
+
+  #clearUpdateInteractions = () => {
+    if (this.updateSelect) {
+      this.map.removeInteraction(this.updateSelect);
+    }
+    if (this.moveInteraction) {
+      this.map.removeInteraction(this.moveInteraction);
+    }
+    if (this.modifyInteraction) {
+      this.map.removeInteraction(this.modifyInteraction);
+    }
   };
 
   endDraw = () => {
@@ -299,12 +369,6 @@ class IntegrationModel {
     if (shouldBeVisible) featureStyle = null;
 
     this.#setFeatureStyle(feature, featureStyle);
-  };
-
-  deleteNewGeometry = (featureCollection, source) => {
-    featureCollection.features.forEach((feature) => {
-      this.editSources[source].removeFeature(feature);
-    });
   };
 
   #clearSource = (source) => {
