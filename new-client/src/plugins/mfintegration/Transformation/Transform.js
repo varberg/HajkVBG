@@ -6,7 +6,7 @@ export default class Transform {
   createGeometry = (type, coordinates) => {
     if (type === "Point") return this.createPoint(coordinates);
     if (type === "Polygon") return this.createPolygon(coordinates);
-    if (type === "MultiPolgyon") return this.createMultiPolygon(coordinates);
+    if (type === "MultiPolygon") return this.createMultiPolygon(coordinates);
   };
 
   createPoint = (coordinates) => {

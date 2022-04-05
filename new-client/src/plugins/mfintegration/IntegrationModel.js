@@ -15,7 +15,6 @@ import { HubConnectionBuilder } from "@microsoft/signalr";
 import { polygon } from "@turf/helpers";
 import union from "@turf/union";
 import difference from "@turf/difference";
-import { ModeCommentRounded } from "@material-ui/icons";
 
 class IntegrationModel {
   constructor(settings) {
@@ -262,6 +261,7 @@ class IntegrationModel {
     this.combineFeature = null;
     this.combinedGeometries = null;
     this.map.clickLock.delete("combine");
+    this.#clearSource(this.editSources.combine);
     this.endDraw();
   };
 
@@ -350,7 +350,6 @@ class IntegrationModel {
     });
   };
 
-  // TODO: Ev. ta bort denna funktion om admin ger ett sådant här objekt (finns i mockdata)
   #createLayerStyle = (style) => {
     return new Style({
       stroke: new Stroke({
@@ -607,17 +606,28 @@ class IntegrationModel {
   };
 
   #handleDrawCombineFeatureAddedDelayed = (e) => {
-    this.#clearCombinePoints();
+    this.#clearCombinePointsFromSource(
+      this.drawingToolFunctions.combine.source
+    );
     setTimeout(() => {
       this.#handleDrawCombineFeatureAdded(e);
     }, 100);
   };
 
-  #clearCombinePoints = () => {
-    const combineFeatures =
-      this.drawingToolFunctions.combine.source.getFeatures();
-    // Filterar bort alla punkter.
-    //combineFeatures.filter
+  #clearCombinePointsFromSource = (source) => {
+    const combineFeatures = source.getFeatures();
+    const pointFeatures = combineFeatures.filter((feature) => {
+      if (this.#geometryIsAPoint(feature.getGeometry())) return feature;
+      return false;
+    });
+    pointFeatures.forEach((pointFeature) => {
+      source.removeFeature(pointFeature);
+    });
+  };
+
+  #geometryIsAPoint = (geometry) => {
+    if (geometry.flatCoordinates.length === 2) return true;
+    return false;
   };
 
   #handleDrawCombineFeatureAdded = (e) => {
@@ -662,7 +672,7 @@ class IntegrationModel {
     feature.geometry = feature.getGeometry();
     feature.coordiantes = [];
     feature.coordiantes.push(feature.geometry.getCoordinates());
-    feature.type = "Polygon"; // Måste ändras kan vara en multipolygon också.
+    feature.type = "Polygon"; // TODO: In the furture we should be able to create Milti Polygons as well
   };
 
   #createDataset = (feature) => {
@@ -880,19 +890,11 @@ class IntegrationModel {
   };
 
   #combineWfsSearch = (data) => {
-    this.#combineWfsSearchPoint(data);
-    //this.#combineWfsSearchPolygon(data);
-  };
-
-  #combineWfsSearchPoint = (data) => {
-    //if (data.searchType !== "Point") return;
-
     if (!this.combinedGeometries) this.combinedGeometries = [];
     let combineStatus = this.#storeCombinedIds(data);
     const updateStatus = this.#getNewOrRemovedFeature(
       data,
-      this.editSources.new // Bara för test, skall byta ut mot källan nedan
-      //this.drawingToolFunctions.combine.source
+      this.editSources.new
     );
 
     if (!this.combineFeature) {
@@ -900,26 +902,9 @@ class IntegrationModel {
       return;
     }
 
-    // if (this.combineFeature) {
-    // const ansIntersect = intersect(
-    //   this.#getTurfPolygon(this.combineFeature),
-    //   this.#getTurfPolygon(updateStatus.feature)
-    // );
-    //console.log("intersect", ansIntersect);
-    // const cf = this.#getTurfPolygon(this.combineFeature);
-    // const uf = this.#getTurfPolygon(updateStatus.feature);
-    // console.log("original", cf.geometry.coordinates);
-    // console.log("nytt obj", uf.geometry.coordinates);
-    // }
-
     this.#combineFeature(combineStatus, updateStatus);
     this.combineFeature = this.editSources.combine.getFeatures()[0];
-    console.log("this.combineFeature", this.combineFeature.getGeometry());
     this.#publishNewFeature(this.combineFeature);
-
-    //this.#saveParentFeatureClickId(data);
-    //this.#addNewCombineFeature(updateStatus, data);
-    //this.#removeOldCombineFeatures(updateStatus, data);
   };
 
   #storeCombinedIds = (data) => {
@@ -942,8 +927,6 @@ class IntegrationModel {
   };
 
   #combineFeature = (combineStatus, updateStatus) => {
-    // if (!this.combineFeature) return;
-
     let combinedGeometry = null;
     if (combineStatus.unionNewFeature)
       combinedGeometry = union(
@@ -968,54 +951,6 @@ class IntegrationModel {
   #getTurfPolygon = (feature) => {
     const coordiantes = this.#extractCoordintesFromFeature(feature);
     return polygon(coordiantes);
-  };
-
-  #saveParentFeatureClickId = (data) => {
-    if (data.featureCollection.features.length === 0) {
-      this.combineParent = null;
-      return;
-    }
-
-    this.combineParent =
-      data.featureCollection.features[0].properties[data.geometryField];
-  };
-
-  #addNewCombineFeature = (updateStatus, data) => {
-    if (!updateStatus.addFeature) return;
-    this.searchModelFunctions[data.type](updateStatus.feature);
-  };
-
-  #removeOldCombineFeatures = (updateStatus, data) => {
-    if (!updateStatus.removeFeature) return;
-    console.log(this.editSources.combineNeighbours);
-  };
-
-  #combineWfsSearchPolygon = (data) => {
-    if (data.searchType !== "Polygon") return;
-
-    this.#updateCombineArray(data);
-    this.#addNewPossibleCombineFeature(
-      data,
-      this.editSources.combineNeighbours
-    );
-
-    const neighbourFeatures = this.#createFeaturesFromFeatureCollection(
-      data.featureCollection.searchType,
-      data.featureCollection.featureCollection,
-      data.featureCollection.transformation
-    );
-
-    // Lägg till grannarna här.
-    const compareField = data.geometryField;
-    neighbourFeatures.forEach((feature) => {
-      // Lägg till grannen om INTE den finns med sedan innan.
-      this.combineNeighbours.add({
-        neighbour: feature.getProperties()[compareField],
-        parent: this.selectedFeature.getProperties()[compareField],
-      });
-    });
-    //this.combineNeighbours
-    //data.selectionFeature
   };
 
   #updateCombineArray = (data) => {
@@ -1082,43 +1017,6 @@ class IntegrationModel {
 
   #publishNewFeature = (newFeature) => {
     this.localObserver.publish("mf-new-feature-pending", newFeature);
-  };
-
-  #addNewPossibleCombineFeature = (data, source) => {
-    const combineFeatures = this.editSources.combine.getFeatures();
-    const compareField = data.geometryField;
-    const newNeighbours = data.featureCollection.features.filter(
-      (neighbourFeature) => {
-        let alreadyExisits = false;
-        combineFeatures.forEach((combineFeature) => {
-          if (
-            neighbourFeature.properties[compareField] ===
-            combineFeature.getProperties()[compareField]
-          )
-            alreadyExisits = true;
-        });
-        if (alreadyExisits) return false;
-        return neighbourFeature;
-      }
-    );
-
-    const featureCollectionWithOnlyNeighbours =
-      data.featureCollection.features.filter((feature) => {
-        let isNewNeighbour = false;
-        newNeighbours.forEach((neighbourFeature) => {
-          if (
-            feature.properties[compareField] ===
-            neighbourFeature.properties[compareField]
-          )
-            isNewNeighbour = true;
-        });
-
-        if (!isNewNeighbour) return false;
-        return feature;
-      });
-    data.featureCollection.features = featureCollectionWithOnlyNeighbours;
-
-    this.#addFeaturesToSource(source, data);
   };
 
   #snapWfsSearch = (data) => {
@@ -1197,28 +1095,6 @@ class IntegrationModel {
       this.highlightSource.addFeature(item.feature);
       this.selectedFeatureFromMap = item.feature;
     } else this.selectedFeatureFromMap = null;
-
-    //console.log("this.searchResponseTool", this.searchResponseTool);
-    //debugger;
-
-    // FIXME
-    // if (this.searchResponseTool === "combine") {
-    //   if (this.selectedFeatureFromMap) {
-    //     let feature = this.selectedFeatureFromMap;
-    //     feature.geometry = {
-    //       coordinates: this.selectedFeatureFromMap,
-    //       type: "Polygon",
-    //     };
-    //     const featureCollection = {
-    //       searchType: "SelectFromMap",
-    //       featureCollection: { features: [feature] },
-    //       transformation: null,
-    //       type: "area",
-    //     };
-    //     this.#combineWfsSearch(featureCollection);
-    //     return;
-    //   }
-    // }
   };
 
   #isFeatureHighlighted = (feature) => {
@@ -1234,8 +1110,6 @@ class IntegrationModel {
   };
 
   #sendSnackbarMessage = (nativMessageType) => {
-    //TODO - when Kubb is properly connected, we will do some kind of parsing of the message, to find out the type.
-    //as it is not the message, is a basic mock.
     this.localObserver.publish("mf-kubb-message-received", nativMessageType);
   };
 
