@@ -37,6 +37,7 @@ const styles = (theme) => {
 
 const defaultState = {
   mode: "realEstate",
+  selectionExists: false,
   currentListResults: {
     realEstate: [],
     coordinate: [],
@@ -45,7 +46,8 @@ const defaultState = {
     contamination: [],
   },
   listToolsMode: "none",
-  editOpen: false,
+  isEditMenuOpen: false,
+  newFeature: null,
 };
 
 const showDevelopmentOnlyButtons = true;
@@ -156,7 +158,8 @@ class IntegrationView extends React.PureComponent {
     });
 
     this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
-      this.newFeature = { features: [feature], isNew: true };
+      let newFeature = { features: [feature], isNew: true };
+      this.setState({ newFeature: newFeature });
     });
   };
 
@@ -167,7 +170,7 @@ class IntegrationView extends React.PureComponent {
     this.#initDrawFunctions();
     this.#initNewGeometryFunctions();
     this.#initEditFunctions();
-    this.#initUpdateEditToolsFunctions();
+    //this.#initUpdateEditToolsFunctions();
     this.#initDrawTypes();
     this.#initPublishDefaultMode();
     if (this.app.plugins.mfintegration?.options?.visibleAtStart)
@@ -252,14 +255,6 @@ class IntegrationView extends React.PureComponent {
         start: this.model.addSnapInteraction,
         end: this.model.endSnapInteraction,
       },
-    };
-  };
-
-  #initUpdateEditToolsFunctions = () => {
-    this.updateEditTools = {
-      edit: this.#reshapeNewGeometry,
-      move: this.#moveNewGeometry,
-      delete: this.#deleteNewGeometry,
     };
   };
 
@@ -575,16 +570,17 @@ class IntegrationView extends React.PureComponent {
 
   #newGeometryFinished = (status) => {
     if (status.saveGeometry) {
-      this.#addNewItemToList(this.newFeature);
-      this.#addNewItemToSource(this.newFeature);
-      this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
+      this.#addNewItemToList(this.state.newFeature);
+      this.#addNewItemToSource(this.state.newFeature);
+      this.#removeOldEditItemFromSource(this.state.newFeature, status.editMode);
     }
     if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
 
-    this.newFeature = null;
+    this.setState({ newFeature: null });
     const drawType =
       this.drawTypes[status.editMode][this.state.mode] + status.editMode;
     this.drawFunctions[drawType].end();
+    this.model.clearInteractions();
   };
 
   #toggleMode = (mode) => {
@@ -616,9 +612,16 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clickRow = (clickedItem, mode) => {
+    /*
+    Update the state of the clicked item with it's new selection status (selected or not selected).    
+    Update selectionExists - A boolean flag of whether there is any selection at all. This is used 
+    to help us know whether the edit menu should be available or not, without having to check the selection
+    status of the list items.
+    */
     this.localObserver.publish("mf-item-list-clicked", clickedItem);
 
     let updateList = { ...this.state.currentListResults };
+    //search the results list for the existing selection status of the clicked item.
     let isSelected = !updateList[mode].find(
       (listItem) => listItem.id === clickedItem.id
     ).selected;
@@ -628,9 +631,16 @@ class IntegrationView extends React.PureComponent {
         return { ...listItem, selected: isSelected };
       return { ...listItem, selected: false };
     });
-
     updateList[mode] = updatedResults;
-    this.setState({ currentListResults: updateList });
+
+    //Because we only allow one selected item at a time, and because switching modes clears the selection,
+    //we can set the overall selectionExists flag based on the clicked item's selection status.
+    let selectionExists = isSelected;
+
+    this.setState({
+      currentListResults: updateList,
+      selectionExists: selectionExists,
+    });
   };
 
   #zoomFeatureInOrOut = (clickedItem) => {
@@ -748,16 +758,23 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions[listToolsMode]?.start(this.state.mode);
   };
 
-  #handleUpdateEditTools = (editTool, editMenu) => {
-    this.updateEditTools[editTool](editMenu);
+  #handleActivateUpdateTool = (updateTool, editMode) => {
+    this.props.model.activateUpdateTool(updateTool, editMode);
   };
 
-  #reshapeNewGeometry = (source) => {};
+  #handleDeleteNewEdit = (editMode) => {
+    //clear existing interactions, we will add the draw interaction back at the end.
+    this.props.model.clearInteractions();
 
-  #moveNewGeometry = (source) => {};
+    //Remove any features from NewFeature source.
+    this.state.newFeature.features.forEach((feature) => {
+      this.props.model.editSources[editMode].removeFeature(feature);
+    });
+    this.setState({ newFeature: null });
 
-  #deleteNewGeometry = (source) => {
-    this.model.deleteNewGeometry(this.newFeature, source);
+    //Abort any existing drawing and go back into drawing mode (as we can only delete).
+    this.model.abortDrawFeature(editMode);
+    this.newGeometryFunctions[this.state.mode]();
   };
 
   renderEditMenu = () => {
@@ -765,16 +782,19 @@ class IntegrationView extends React.PureComponent {
       <EditMenu
         model={this.props.model}
         localObserver={this.localObserver}
+        selectionExists={this.state.selectionExists}
         layerMode={this.state.mode}
         combineEditMode={this.drawTypes.combine[this.state.mode]}
         copyEditMode={this.drawTypes.copy[this.state.mode]}
         newEditMode={this.drawTypes.new[this.state.mode]}
-        handleUpdateEditToolsMode={this.#handleUpdateEditTools}
-        handleUpdateEditOpen={(open) => {
-          this.setState({ editOpen: open });
+        handleChangeUpdateTool={this.#handleActivateUpdateTool}
+        handleDeleteNewEdit={this.#handleDeleteNewEdit}
+        handleUpdateIsEditMenuOpen={(open) => {
+          this.setState({ isEditMenuOpen: open });
           //deactivate any active listtools when opening search.
           if (open) this.setState({ listToolsMode: "none" });
         }}
+        newFeature={this.state.newFeature}
       />
     );
   };
@@ -782,7 +802,7 @@ class IntegrationView extends React.PureComponent {
   renderListTools = () => {
     return (
       <ListToolbar
-        disabled={this.state.editOpen}
+        disabled={this.state.isEditMenuOpen}
         listToolsMode={this.state.listToolsMode}
         handleClearResults={() => {
           this.#clearResults();
