@@ -115,7 +115,7 @@ class EditMenu extends React.PureComponent {
     let editModedisplayNames = {
       new: "(Rita)",
       copy: "(Kopiera)",
-      combime: "(Kombinera)",
+      combine: "(Kombinera)",
     };
 
     let displayName = editModedisplayNames[editMode] || "";
@@ -227,12 +227,13 @@ class EditMenu extends React.PureComponent {
   };
 
   #handleChangeUpdateTool = (chosenTool, editMode) => {
-    //If we are de-activating the currently chosen tool.
+    //If we are switching tools, or activating a new tool.
     if (chosenTool !== this.state.chosenUpdateTool) {
       this.setState({ chosenUpdateTool: chosenTool }, () => {
         this.props.handleChangeUpdateTool(chosenTool, editMode);
       });
-      //If we are switching tools, or activating a new tool.
+
+      //If we are de-activating the currently chosen tool.
     } else {
       this.setState({ chosenUpdateTool: null });
       this.props.handleChangeUpdateTool(null, editMode);
@@ -240,12 +241,15 @@ class EditMenu extends React.PureComponent {
   };
 
   #renderCustomEditModeControl = (editMode) => {
+    const { newFeature } = this.props;
+    const newFeatureExists = newFeature?.features?.length > 0;
     if (editMode === "copy") {
       return (
         <Grid item xs={12}>
           <CopyingControl
             availableCopyLayers={this.#getAvailableWfsLayers()}
             localObserver={this.props.localObserver}
+            newFeatureExists={newFeatureExists}
           />
         </Grid>
       );
@@ -337,7 +341,7 @@ class EditMenu extends React.PureComponent {
 
   renderStepUpdateFeatures = (editMode) => {
     const { classes, localObserver, newFeature } = this.props;
-    const newFeatureExists = newFeature?.features?.length;
+    const newFeatureExists = newFeature?.features?.length > 0;
 
     const cancelButton =
       this.state.editTab === "update" ? (
@@ -409,7 +413,7 @@ class EditMenu extends React.PureComponent {
     const inUpdateTab = this.state.editTab === "update";
 
     const { classes, newFeature } = this.props;
-    const newFeatureExists = newFeature?.features?.length;
+    const newFeatureExists = newFeature?.features?.length > 0;
     return (
       <Box display="flex">
         <Box>
@@ -629,7 +633,6 @@ class EditMenu extends React.PureComponent {
 
   render() {
     const { classes, layerMode, newFeature } = this.props;
-    //const newFeatureExists = newFeature?.features?.length; //Check if we have any new features.
     const layerModeEditable =
       this.props.model.options.mapObjects[layerMode].editable;
 

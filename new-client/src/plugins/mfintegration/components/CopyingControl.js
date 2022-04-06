@@ -45,7 +45,7 @@ class CopyingControl extends React.PureComponent {
   };
 
   render() {
-    const { availableCopyLayers } = this.props;
+    const { availableCopyLayers, newFeatureExists } = this.props;
     return (
       <>
         <Grid item xs={12}>
@@ -60,6 +60,7 @@ class CopyingControl extends React.PureComponent {
             <Select
               style={{ minWidth: 200 }}
               value={this.state.copyTargetName}
+              disabled={newFeatureExists}
               onChange={(e) => this.#handleChangeCopyLayer(e.target.value)}
             >
               {this.#createMenuOptions(availableCopyLayers)}

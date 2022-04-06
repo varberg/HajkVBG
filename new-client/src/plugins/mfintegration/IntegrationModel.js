@@ -142,12 +142,12 @@ class IntegrationModel {
   };
 
   startDrawCombinePoint = (mode) => {
-    this.#makeCopyyOfNewAndDataSources(mode);
+    this.#makeCopyOfNewAndDataSources(mode);
     this.drawingToolFunctions.combine.source.mode = mode;
     this.#drawGeometry("combine", "Point", this.mapStyles.editFeatureStyle);
   };
 
-  #makeCopyyOfNewAndDataSources = (mode) => {
+  #makeCopyOfNewAndDataSources = (mode) => {
     this.#clearSource(this.editSources.combine);
     this.#copyFeatures(this.newSources[mode], this.editSources.combine);
     this.#copyFeatures(this.dataSources[mode], this.editSources.combine);
@@ -248,14 +248,14 @@ class IntegrationModel {
     });
   };
 
-  #endActiveUpdateTool = () => {
+  endActiveUpdateTool = () => {
     this.clearInteractions();
     this.#clearUpdateInteractions();
   };
 
   activateUpdateTool = (updateTool, editMode) => {
     //Firstly, as the active update tool has changed, end any existing update tool.
-    this.#endActiveUpdateTool();
+    this.endActiveUpdateTool();
     switch (updateTool) {
       case "modify":
         this.#modifyNewGeometry(editMode);

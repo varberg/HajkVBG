@@ -48,6 +48,8 @@ const defaultState = {
   listToolsMode: "none",
   isEditMenuOpen: false,
   newFeature: null,
+  activeSupportLayerName: null,
+  activeSupportLayerSource: null,
 };
 
 const showDevelopmentOnlyButtons = true;
@@ -149,12 +151,20 @@ class IntegrationView extends React.PureComponent {
     });
 
     this.localObserver.subscribe("mf-edit-supportLayer", (editTarget) => {
+      this.setState({
+        activeSupportLayerName: editTarget.name,
+        activeSupportLayerSource: editTarget.sourceName,
+      });
       this.#showDrawingSupport(editTarget.layerId);
       this.editFunctions[editTarget.type].start(editTarget.sourceName);
     });
     this.localObserver.subscribe("mf-edit-noSupportLayer", (editTarget) => {
       this.#hideDrawingSupport(editTarget.layerId);
       this.editFunctions[editTarget.type].end(editTarget.sourceName);
+      this.setState({
+        activeSupportLayerName: null,
+        activeSupportLayerSource: null,
+      });
     });
 
     this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
@@ -758,8 +768,21 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions[listToolsMode]?.start(this.state.mode);
   };
 
+  #reactivateUpdateDrawingMode = (editMode) => {
+    if (editMode === "new") {
+      this.newGeometryFunctions[this.state.mode]();
+    } else {
+      this.editFunctions[editMode].start(this.state.activeSupportLayerSource);
+    }
+  };
+
   #handleActivateUpdateTool = (updateTool, editMode) => {
-    this.props.model.activateUpdateTool(updateTool, editMode);
+    if (updateTool !== null) {
+      this.props.model.activateUpdateTool(updateTool, editMode);
+    } else {
+      this.props.model.endActiveUpdateTool();
+      this.#reactivateUpdateDrawingMode(editMode);
+    }
   };
 
   #handleDeleteNewEdit = (editMode) => {
@@ -771,10 +794,7 @@ class IntegrationView extends React.PureComponent {
       this.props.model.editSources[editMode].removeFeature(feature);
     });
     this.setState({ newFeature: null });
-
-    //Abort any existing drawing and go back into drawing mode (as we can only delete).
-    this.model.abortDrawFeature(editMode);
-    this.newGeometryFunctions[this.state.mode]();
+    this.#reactivateUpdateDrawingMode(editMode);
   };
 
   renderEditMenu = () => {
@@ -950,7 +970,6 @@ class IntegrationView extends React.PureComponent {
                   {this.state.currentListResults[mode].map((item) => {
                     let refName = item.feature.ol_uid;
                     this.model.listItemRefs[refName] = React.createRef();
-                    console.log("item", item);
                     return (
                       <ListResult
                         model={this.props.model}
