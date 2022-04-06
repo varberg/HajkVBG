@@ -141,7 +141,8 @@ class IntegrationModel {
     };
   };
 
-  startDrawCombinePoint = (mode) => {
+  startDrawCombinePoint = (mode, editTarget) => {
+    const combineMethod = editTarget.combineMethod || "union";
     this.#makeCopyOfNewAndDataSources(mode);
     this.drawingToolFunctions.combine.source.mode = mode;
     this.#drawGeometry("combine", "Point", this.mapStyles.editFeatureStyle);
@@ -985,7 +986,7 @@ class IntegrationModel {
     }
 
     this.#combineFeature(combineStatus, updateStatus);
-    this.combineFeature = this.editSources.combine.getFeatures()[0];
+    this.combineFeature = this.editSources.new.getFeatures()[0];
     this.#publishNewFeature(this.combineFeature);
   };
 
@@ -1026,8 +1027,8 @@ class IntegrationModel {
       featureCollection: { features: [combinedGeometry] },
       transformation: null,
     };
-    this.#clearSource(this.editSources.combine);
-    this.#addFeaturesToSource(this.editSources.combine, featureCollection);
+    this.#clearSource(this.editSources.new);
+    this.#addFeaturesToSource(this.editSources.new, featureCollection);
   };
 
   #getTurfPolygon = (feature) => {

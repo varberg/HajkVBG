@@ -156,7 +156,10 @@ class IntegrationView extends React.PureComponent {
         activeSupportLayerSource: editTarget.sourceName,
       });
       this.#showDrawingSupport(editTarget.layerId);
-      this.editFunctions[editTarget.type].start(editTarget.sourceName);
+      this.editFunctions[editTarget.type].start(
+        editTarget.sourceName,
+        editTarget
+      );
     });
     this.localObserver.subscribe("mf-edit-noSupportLayer", (editTarget) => {
       this.#hideDrawingSupport(editTarget.layerId);

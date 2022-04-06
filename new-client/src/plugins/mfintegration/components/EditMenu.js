@@ -342,6 +342,8 @@ class EditMenu extends React.PureComponent {
   renderStepUpdateFeatures = (editMode) => {
     const { classes, localObserver, newFeature } = this.props;
     const newFeatureExists = newFeature?.features?.length > 0;
+    const shouldShowSnappingControls = editMode === "new";
+    const shouldShowUpdateControls = editMode !== "combine";
 
     const cancelButton =
       this.state.editTab === "update" ? (
@@ -372,19 +374,23 @@ class EditMenu extends React.PureComponent {
         {/* Custom mode instructions and custom mode control, this differs depending on whether we are in 'create', 'copy' or 'combine'.*/}
         {this.#renderCustomEditModeControl(editMode)}
 
-        {/* Snapping control, used by all modes */}
-        <Grid item xs={12}>
-          <SnappingControl
-            enabled={true}
-            availableSnapLayers={this.#getAvailableWfsLayers()}
-            localObserver={localObserver}
-          />
-        </Grid>
+        {/* Snapping control, used only in draw new mode, not in copy or combine */}
+        {shouldShowSnappingControls && (
+          <Grid item xs={12}>
+            <SnappingControl
+              enabled={true}
+              availableSnapLayers={this.#getAvailableWfsLayers()}
+              localObserver={localObserver}
+            />
+          </Grid>
+        )}
 
-        {/*Controls to edit created object, used by all modes.*/}
-        <Grid item xs={12}>
-          {this.renderUpdateFeatureControls(editMode)}
-        </Grid>
+        {/*Controls to edit created object (move, modify, delete)*/}
+        {shouldShowUpdateControls && (
+          <Grid item xs={12}>
+            {this.renderUpdateFeatureControls(editMode)}
+          </Grid>
+        )}
 
         {/*Submit and go back controls.*/}
         <Grid item xs={12}>
