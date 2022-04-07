@@ -46,9 +46,11 @@ const defaultState = {
   },
   listToolsMode: "none",
   isEditMenuOpen: false,
+  editTab: "create",
   newFeature: null,
   activeSupportLayerName: null,
   activeSupportLayerSource: null,
+  featureUpdateInProgress: false,
 };
 
 const showDevelopmentOnlyButtons = true;
@@ -171,10 +173,14 @@ class IntegrationView extends React.PureComponent {
         activeSupportLayerSource: null,
       });
     });
-
     this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
       let newFeature = { features: [feature], isNew: true };
       this.setState({ newFeature: newFeature });
+    });
+    this.localObserver.subscribe("mf-feature-edit-started", () => {
+      if (this.state.editTab === "update") {
+        this.setState({ featureUpdateInProgress: true });
+      }
     });
   };
 
@@ -185,7 +191,6 @@ class IntegrationView extends React.PureComponent {
     this.#initDrawFunctions();
     this.#initNewGeometryFunctions();
     this.#initEditFunctions();
-    //this.#initUpdateEditToolsFunctions();
     this.#initDrawTypes();
     this.#initPublishDefaultMode();
     if (this.app.plugins.mfintegration?.options?.visibleAtStart)
@@ -350,6 +355,10 @@ class IntegrationView extends React.PureComponent {
       if (layer.getProperties().name === layerId) return layer;
       return false;
     });
+  };
+
+  #setEditTab = (value) => {
+    this.setState({ editTab: value });
   };
 
   #addNewItemToList = (data) => {
@@ -779,11 +788,25 @@ class IntegrationView extends React.PureComponent {
   };
 
   #handleActivateUpdateTool = (updateTool, editMode) => {
-    if (updateTool !== null) {
-      this.props.model.activateUpdateTool(updateTool, editMode);
-    } else {
-      this.props.model.endActiveUpdateTool();
-      this.#reactivateUpdateDrawingMode(editMode);
+    //If we are creating a new feature (in the create tab).
+    if (this.state.editTab === "create") {
+      //If we are activiting an edit tool, active the tool, if we are deactivating, deactive the tool and reset to the
+      //relavant drawing mode of the updateTool (e.g. modify, combine, draw).
+      if (updateTool !== null) {
+        this.props.model.activateUpdateTool(updateTool, editMode, false);
+      } else {
+        this.props.model.endActiveUpdateTool();
+        this.#reactivateUpdateDrawingMode(editMode);
+      }
+    }
+
+    //If we are updating an existing feature (in the update tab).
+    if (this.state.editTab === "update") {
+      if (updateTool !== null) {
+        this.props.model.activateUpdateTool(updateTool, editMode, true);
+      } else {
+        this.props.model.endActiveUpdateTool();
+      }
     }
   };
 
@@ -797,6 +820,21 @@ class IntegrationView extends React.PureComponent {
     });
     this.setState({ newFeature: null });
     this.#reactivateUpdateDrawingMode(editMode);
+  };
+
+  #handleDeleteUpdateEdit = () => {
+    console.log("handleDeleteUpdateEdit");
+    console.log("Funktionalitet väntar på KUBB");
+  };
+
+  #handleDeleteEdit = (editMode) => {
+    if (this.state.editTab === "update") {
+      this.#handleDeleteUpdateEdit();
+    }
+
+    if (this.state.editTab === "create") {
+      this.#handleDeleteNewEdit(editMode);
+    }
   };
 
   renderEditMenu = () => {
@@ -815,13 +853,16 @@ class IntegrationView extends React.PureComponent {
         copyEditMode={this.drawTypes.copy[this.state.mode]}
         newEditMode={this.drawTypes.new[this.state.mode]}
         handleChangeUpdateTool={this.#handleActivateUpdateTool}
-        handleDeleteNewEdit={this.#handleDeleteNewEdit}
+        handleDeleteEdit={this.#handleDeleteEdit}
         handleUpdateIsEditMenuOpen={(open) => {
           this.setState({ isEditMenuOpen: open });
           //deactivate any active listtools when opening search.
           if (open) this.setState({ listToolsMode: "none" });
         }}
         newFeature={this.state.newFeature}
+        handleChangeEditTab={this.#setEditTab}
+        editTab={this.state.editTab}
+        featureUpdateInProgress={this.state.featureUpdateInProgress}
       />
     );
   };

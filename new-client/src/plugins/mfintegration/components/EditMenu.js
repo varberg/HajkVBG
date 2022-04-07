@@ -78,13 +78,13 @@ const defaultState = {
   activeStepCreate: 0,
   activeStepUpdate: null,
   isEditMenuOpen: false,
-  editTab: "create", //create, update
   editMode: "none", //new, copy, combine
   chosenUpdateTool: null, //modify, move, delete
   drawActive: false,
   activeCombineLayer: "",
   createSessionInProgress: false,
   updateSessionInProgress: false,
+  updateFeatureActive: false,
 };
 
 class EditMenu extends React.PureComponent {
@@ -95,6 +95,8 @@ class EditMenu extends React.PureComponent {
     currentSelection: PropTypes.array.isRequired,
     selectionExists: PropTypes.bool.isRequired,
     layerMode: PropTypes.string.isRequired,
+    editTab: PropTypes.string.isRequired,
+    featureUpdateInProgress: PropTypes.bool.isRequired,
   };
 
   constructor(props) {
@@ -158,32 +160,25 @@ class EditMenu extends React.PureComponent {
   };
 
   #handleCancelStepUpdateFeatures = (editMode) => {
-    if (this.state.editTab === "create") {
-      this.setState({
-        activeStepCreate: 0,
-        editMode: "none",
-        chosenUpdateTool: null,
-      });
-      this.props.localObserver.publish("mf-end-draw-new-geometry", {
-        editMode: editMode,
-        saveGeometry: false,
-      });
-      this.props.localObserver.publish(
-        "mf-edit-noSupportLayer",
-        this.supportLayer
-      );
-    }
-
-    if (this.state.editTab === "update") {
-      this.setState({
-        activeStepUpdate: 0,
-      });
-    }
+    this.setState({
+      activeStepCreate: 0,
+      editMode: "none",
+      chosenUpdateTool: null,
+    });
+    this.props.localObserver.publish("mf-end-draw-new-geometry", {
+      editMode: editMode,
+      saveGeometry: false,
+    });
+    this.props.localObserver.publish(
+      "mf-edit-noSupportLayer",
+      this.supportLayer
+    );
   };
 
   #handleConfirmStepUpdateFeatures = (editMode) => {
+    const { model, editTab } = this.props;
     //If we are in the create tab
-    if (this.state.editTab === "create") {
+    if (editTab === "create") {
       this.setState({
         activeStepCreate: 2,
         chosenUpdateTool: null,
@@ -199,8 +194,11 @@ class EditMenu extends React.PureComponent {
     }
 
     //If we are in the update tab
-    if (this.state.editTab === "update") {
-      this.setState({ activeStepUpdate: 1 });
+    if (editTab === "update") {
+      //Clear any remaining update interactions from the previous step.
+      model.clearUpdateInteractions();
+
+      this.setState({ activeStepUpdate: 1, chosenUpdateTool: null });
       this.props.localObserver.publish("mf-end-draw-new-geometry", {
         editMode: editMode,
         saveGeometry: true,
@@ -213,48 +211,50 @@ class EditMenu extends React.PureComponent {
   };
 
   #handleMakeMoreChanges = () => {
-    if (this.state.editTab === "create") {
+    if (this.props.editTab === "create") {
       this.setState({ activeStepCreate: 0 });
     }
 
-    if (this.state.editTab === "update") {
+    if (this.props.editTab === "update") {
       this.setState({ activeStepUpdate: 0 });
     }
   };
 
-  #handleBeginUpdate = () => {
-    console.log("#handleBeginUpdate");
-    const { model, layerMode, currentSelection } = this.props;
-
-    //1. Find the selected item (what happens if the user deselects the selected item once in the update tab?)
-    // this.state.currentSelection. We need to clone the feature so we don't have the same OpenLayers id.
-    const selectedFeature = currentSelection[0].feature;
-    let clonedFeature = selectedFeature.clone();
-
-    //2. copy the selected item into the correct editSource.
-    model.editSources.new.clear(); //may not be needed.
-    this.props.model.editSources.new.addFeature(clonedFeature);
-
-    //3. Hide the existing selected item, so it doesn't obscure the item being edited.
-    //use  #hideItem function in the model.
-
-    //Make the the buttons respond (in create they response to newFeatureExists).
-
-    //4. Use the same logic as in create (checking if there is a newFeature) in order to know where the 'flytta, radera' should be tända.
-    //For this we will have to tweak the disabled settings of the buttons (possibly separate render for update).
-
-    //4. What happens when we delete?
-    //5. What happens when we save?
-
-    // If the user deselects the selected item, while they are editing, the edits should be cancelled and remain in the same step.
-    // If the user changes the selection,
-    // If there is no selected item, the buttons should not be available.
+  #handleResetUpdate = () => {
+    //Set some state, make sure that we cancel any chosenUpdateTool is cancelled.
+    this.setState({ chosenUpdateTool: null });
+    this.#handleBeginUpdate(true);
   };
 
-  #handleDeleteNewEdit = (editMode) => {
+  #handleBeginUpdate = (isReset = false) => {
+    const { model, currentSelection } = this.props;
+
+    //clear any existing update interactions (if we are resetting, this is needed).
+    model.clearUpdateInteractions();
+
+    //Find the selected item and clone - we need to clone the feature so we don't have the same OpenLayers id.
+    const selectedFeature = currentSelection[0].feature;
+    const clonedFeature = selectedFeature.clone();
+    //If the feature was hidden when cloned, it gets an invisible style, so correct this.
+    model.setFeatureStyle(clonedFeature, null);
+    //clonedFeature.setStyle(null);
+
+    //Copy the selected item into the correct editSource.
+    model.editSources.new.clear();
+    model.editSources.new.addFeature(clonedFeature);
+
+    //If we are starting the update, hide the existing selected item, so it doesn't obscure the item being edited.
+    if (!isReset) {
+      model.hideItem(selectedFeature);
+    }
+
+    this.setState({ updateFeatureActive: true });
+  };
+
+  #handleDeleteEdit = (editMode) => {
     //Delete is handled differently to the the other update tools (move, modify).
     this.setState({ chosenUpdateTool: "edit" }, () => {
-      this.props.handleDeleteNewEdit(editMode);
+      this.props.handleDeleteEdit(editMode);
     });
   };
 
@@ -372,17 +372,28 @@ class EditMenu extends React.PureComponent {
   };
 
   renderStepUpdateFeatures = (editMode) => {
-    const { classes, localObserver, newFeature } = this.props;
+    const {
+      classes,
+      localObserver,
+      newFeature,
+      editTab,
+      featureUpdateInProgress,
+    } = this.props;
+
+    const okDisabled =
+      editTab === "update" ? !featureUpdateInProgress : !newFeatureExists;
+
     const newFeatureExists = newFeature?.features?.length > 0;
     const shouldShowSnappingControls = editMode === "new";
     const shouldShowUpdateControls = editMode !== "combine";
 
     const cancelButton =
-      this.state.editTab === "update" ? (
+      editTab === "update" ? (
         <Tooltip title="Ångra alla ändringar">
           <Button
             className={classes.stepButtonGroup}
-            onClick={() => this.#handleCancelStepUpdateFeatures(editMode)}
+            disabled={!featureUpdateInProgress}
+            onClick={() => this.#handleResetUpdate(editMode)}
             aria-label="Ångra"
           >
             Ångra
@@ -431,7 +442,7 @@ class EditMenu extends React.PureComponent {
               {cancelButton}
               <Button
                 className={classes.stepButtonGroup}
-                disabled={!newFeatureExists}
+                disabled={okDisabled}
                 onClick={() => this.#handleConfirmStepUpdateFeatures(editMode)}
                 aria-label="OK"
               >
@@ -446,12 +457,15 @@ class EditMenu extends React.PureComponent {
 
   renderUpdateFeatureControls = () => {
     //The behaviour of the tools will vary based on whether we are in 'Create' or 'Update' tab in the edit menu*/
+    const { classes, model, newFeature, editTab } = this.props;
 
     //Are we in update or create mode?
-    const inUpdateTab = this.state.editTab === "update";
-
-    const { classes, newFeature } = this.props;
+    const inUpdateTab = editTab === "update";
     const newFeatureExists = newFeature?.features?.length > 0;
+    const updateButtonDisabled = inUpdateTab
+      ? !this.state.updateFeatureActive
+      : !newFeatureExists;
+
     return (
       <Box display="flex">
         <Box>
@@ -462,7 +476,7 @@ class EditMenu extends React.PureComponent {
             >
               <ToggleButton
                 className={classes.toggleButton}
-                disabled={!newFeatureExists}
+                disabled={updateButtonDisabled}
                 value="modify"
                 selected={this.state.chosenUpdateTool === "modify"}
                 onChange={(e, newValue) => {
@@ -486,7 +500,7 @@ class EditMenu extends React.PureComponent {
             >
               <ToggleButton
                 className={classes.toggleButton}
-                disabled={!newFeatureExists}
+                disabled={updateButtonDisabled}
                 value="move"
                 selected={this.state.chosenUpdateTool === "move"}
                 onChange={(e, newValue) => {
@@ -510,12 +524,12 @@ class EditMenu extends React.PureComponent {
             >
               <ToggleButton
                 className={classes.toggleButton}
-                disabled={!newFeatureExists}
+                disabled={updateButtonDisabled}
                 value="delete"
                 selected={this.state.chosenUpdateTool === "delete"}
                 onChange={(e, newValue) => {
                   e.preventDefault();
-                  this.#handleDeleteNewEdit(this.state.editMode);
+                  this.#handleDeleteEdit(this.state.editMode);
                 }}
               >
                 <DeleteIcon size="small" />
@@ -531,10 +545,10 @@ class EditMenu extends React.PureComponent {
   };
 
   renderStepConfirm = (editMode) => {
-    const informationText = this.#getEditInfoText(
-      this.state.editTab === "create"
-    );
-    const { classes } = this.props;
+    const { classes, editTab } = this.props;
+
+    const informationText = this.#getEditInfoText(editTab === "create");
+
     return (
       <Grid container item xs={12}>
         <Grid item xs={12}>
@@ -638,11 +652,11 @@ class EditMenu extends React.PureComponent {
     if (prevState.isEditMenuOpen !== this.state.isEditMenuOpen) {
       //When we open the edit menu, we decide which tab we should be in by default. If we have a selected item, we should default to the 'Ändra' tab.
       if (this.props.selectionExists) {
-        this.setState({ editTab: "update" });
+        this.props.handleChangeEditTab("update");
       }
 
       //If we are in the 'Ändra' tab when we open the menu, we want to jump into the first step.
-      if (this.state.isEditMenuOpen && this.state.editTab === "update") {
+      if (this.state.isEditMenuOpen && this.props.editTab === "update") {
         this.setState({ activeStepUpdate: 0 });
       }
 
@@ -654,9 +668,9 @@ class EditMenu extends React.PureComponent {
     }
 
     /*Handle changes related to which edit menu Tab is selected*/
-    if (prevState.editTab !== this.state.editTab) {
+    if (prevProps.editTab !== this.props.editTab) {
       //If we enter the editTab, while the edit menu is open, we should go into the first (0th) step.
-      if (this.state.editTab === "update" && this.state.isEditMenuOpen) {
+      if (this.props.editTab === "update" && this.state.isEditMenuOpen) {
         this.setState({ activeStepUpdate: 0 });
       }
     }
@@ -713,12 +727,12 @@ class EditMenu extends React.PureComponent {
                 <Paper square elevation={2}>
                   <Tabs
                     className={classes.tabs}
-                    value={this.state.editTab}
+                    value={this.props.editTab}
                     variant="fullWidth"
                     indicatorColor="secondary"
                     textColor="primary"
                     onChange={(e, newValue) => {
-                      this.setState({ editTab: newValue });
+                      this.props.handleChangeEditTab(newValue);
                     }}
                   >
                     <Tab
@@ -738,7 +752,7 @@ class EditMenu extends React.PureComponent {
                 </Paper>
               </Grid>
               <Grid item xs={12} style={{ marginTop: "8px" }}>
-                {this.renderStepper(this.state.editTab)}
+                {this.renderStepper(this.props.editTab)}
               </Grid>
             </Grid>
           </AccordionDetails>
