@@ -248,25 +248,26 @@ class IntegrationModel {
 
   endActiveUpdateTool = () => {
     this.clearInteractions();
-    this.#clearUpdateInteractions();
+    this.clearUpdateInteractions();
   };
 
-  activateUpdateTool = (updateTool, editMode) => {
+  activateUpdateTool = (updateTool, editMode, inUpdateTab) => {
+    const source = inUpdateTab ? "new" : editMode;
     //Firstly, as the active update tool has changed, end any existing update tool.
     this.endActiveUpdateTool();
     switch (updateTool) {
       case "modify":
-        this.#modifyNewGeometry(editMode);
+        this.#modifyGeometry(source);
         break;
       case "move":
-        this.#moveNewGeometry(editMode);
+        this.#moveGeometry(source);
         break;
       default:
         return;
     }
   };
 
-  #modifyNewGeometry = (source) => {
+  #modifyGeometry = (source) => {
     //Remove interactions not needed for the moving tool (draw and select).
     this.clearInteractions();
 
@@ -275,7 +276,7 @@ class IntegrationModel {
     this.updateSelect = new Select({
       layers: [selectLayer],
     });
-
+    this.updateSelect.on("select", this.#updateStarted);
     //Add a temporary Modify interaction, that will be removed when when modify is no longer the chosen update tool.
     this.modifyInteraction = new Modify({
       features: this.updateSelect.getFeatures(),
@@ -284,7 +285,7 @@ class IntegrationModel {
     this.map.addInteraction(this.modifyInteraction);
   };
 
-  #moveNewGeometry = (source) => {
+  #moveGeometry = (source) => {
     //Remove interactions not needed for the moving tool (draw and select).
     this.clearInteractions();
 
@@ -293,6 +294,7 @@ class IntegrationModel {
     this.updateSelect = new Select({
       layers: [selectLayer],
     });
+    this.updateSelect.on("select", this.#updateStarted);
     //Add a translate interaction,
     this.moveInteraction = new Translate({
       features: this.updateSelect.getFeatures(),
@@ -301,13 +303,17 @@ class IntegrationModel {
     this.map.addInteraction(this.moveInteraction);
   };
 
+  #updateStarted = () => {
+    this.localObserver.publish("mf-feature-edit-started");
+  };
+
   clearInteractions = () => {
     this.endDraw();
     this.endSnapInteraction();
-    this.#clearUpdateInteractions();
+    this.clearUpdateInteractions();
   };
 
-  #clearUpdateInteractions = () => {
+  clearUpdateInteractions = () => {
     if (this.updateSelect) {
       this.map.removeInteraction(this.updateSelect);
     }
@@ -342,6 +348,11 @@ class IntegrationModel {
   endDrawNew = () => {
     this.map.clickLock.delete("new");
     this.endDraw();
+  };
+
+  endUpdate = () => {
+    this.#publishNewFeature(this.updatedFeature);
+    this.localObserver.publish("mf-geometry-selected-from-map", null);
   };
 
   endSnapInteraction = () => {
@@ -395,7 +406,7 @@ class IntegrationModel {
     let featureStyle = new Style();
     if (shouldBeVisible) featureStyle = null;
 
-    this.#setFeatureStyle(feature, featureStyle);
+    this.setFeatureStyle(feature, featureStyle);
   };
 
   #clearSource = (source) => {
@@ -705,7 +716,7 @@ class IntegrationModel {
     if (this.selectedFeatureFromMap) {
       let feature = this.selectedFeatureFromMap.clone();
       feature.selectedFromMap = true;
-      this.#hideItem(this.selectedFeatureFromMap);
+      this.hideItem(this.selectedFeatureFromMap);
 
       const featureCollection = {
         searchType: "SelectFromMap",
@@ -788,7 +799,7 @@ class IntegrationModel {
     this.#clearSource(this.drawingToolFunctions.search.source);
   };
 
-  #setFeatureStyle = (feature, style) => {
+  setFeatureStyle = (feature, style) => {
     feature.setStyle(style);
   };
 
@@ -1113,7 +1124,7 @@ class IntegrationModel {
   #modeChanged = (mode) => {
     this.#clearSource(this.highlightSource);
     this.#hideAllLayers();
-    this.#showAcitveLayer(mode);
+    this.#showActiveLayer(mode);
     this.#setActiveSource(mode);
     this.#setActiveNewSource(mode);
     this.#zoomToSource(this.dataSources[mode]);
@@ -1134,7 +1145,7 @@ class IntegrationModel {
     for (const layer of mapLayersArray) layer.setVisible(false);
   };
 
-  #showAcitveLayer = (mode) => {
+  #showActiveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
     this.newLayers[mode]?.setVisible(true);
   };
@@ -1166,7 +1177,7 @@ class IntegrationModel {
     return this.highlightSource.getFeatures()[0] === feature;
   };
 
-  #hideItem = (item) => {
+  hideItem = (item) => {
     this.localObserver.publish("mf-geometry-hide-from-map", item);
   };
 
