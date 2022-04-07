@@ -106,6 +106,9 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-geometry-selected-from-map", (feature) => {
       this.#clickRowFromMapInteraction(feature);
     });
+    this.localObserver.subscribe("mf-geometry-hide-from-map", (feature) => {
+      this.#hideClickedCombineFeatre(feature);
+    });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
@@ -371,7 +374,7 @@ class IntegrationView extends React.PureComponent {
 
     const clickedFeature = featuresInList.array
       .filter((listFeature) => {
-        if (selectedFeature.ol_uid === listFeature.feature.ol_uid)
+        if (selectedFeature?.ol_uid === listFeature.feature.ol_uid)
           return listFeature;
         return false;
       })
@@ -379,6 +382,13 @@ class IntegrationView extends React.PureComponent {
 
     this.#clickedRowFromMap(clickedFeature);
     this.#clickRow(clickedFeature, this.state.mode);
+  };
+
+  #hideClickedCombineFeatre = (feature) => {
+    const item = this.state.currentListResults[this.state.mode].find(
+      (listItem) => listItem.feature.ol_uid === feature.ol_uid
+    );
+    this.toggleResultItemVisibility(item, this.state.mode);
   };
 
   #updateList = (props) => {

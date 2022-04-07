@@ -61,7 +61,6 @@ class IntegrationModel {
     this.#initAbortDrawingFunctions();
     this.#addLayers();
     this.#initActiveSource();
-    this.#initCombineNeighbours();
     this.#initKubbData();
   };
 
@@ -105,7 +104,7 @@ class IntegrationModel {
 
   #initSearchResponseFunctions = () => {
     this.searchResponseFunctions = {
-      combine: this.#combineWfsSearch,
+      combine: this.#combine,
       copy: this.#copyWfsSearch,
       search: this.#addWfsSearch,
       snap: this.#snapWfsSearch,
@@ -142,22 +141,10 @@ class IntegrationModel {
   };
 
   startDrawCombinePoint = (mode, editTarget) => {
-    const combineMethod = editTarget.combineMethod || "union";
-    this.#makeCopyOfNewAndDataSources(mode);
+    this.combineMethod = editTarget.combineMethod || "union";
     this.drawingToolFunctions.combine.source.mode = mode;
     this.#drawGeometry("combine", "Point", this.mapStyles.editFeatureStyle);
   };
-
-  #makeCopyOfNewAndDataSources = (mode) => {
-    this.#clearSource(this.editSources.combine);
-    this.#copyFeatures(this.newSources[mode], this.editSources.combine);
-    this.#copyFeatures(this.dataSources[mode], this.editSources.combine);
-  };
-
-  #copyFeatures(fromSource, toSource) {
-    const features = fromSource.getFeatures();
-    toSource.addFeatures(features);
-  }
 
   startDrawCopyPoint = (mode) => {
     this.drawingToolFunctions.copy.source.mode = mode;
@@ -492,7 +479,6 @@ class IntegrationModel {
       new: this.#createNewVectorSource(),
       copy: this.#createNewVectorSource(),
       combine: this.#createNewVectorSource(),
-      combineNeighbours: this.#createNewVectorSource(),
     };
 
     this.snapSources = {
@@ -524,10 +510,6 @@ class IntegrationModel {
       combine: this.#createNewVectorLayer(
         this.editSources.combine,
         this.#createLayerStyle(this.mapStyles.editFeatureStyle)
-      ),
-      combineNeighbours: this.#createNewVectorLayer(
-        this.editSources.combineNeighbours,
-        this.#createLayerStyle(this.mapStyles.combineNeighbourStyle)
       ),
     };
     this.#addArrayToObject(this.editLayers);
@@ -632,10 +614,6 @@ class IntegrationModel {
     this.activeSource = this.dataSources.array[0];
   };
 
-  #initCombineNeighbours = () => {
-    this.combineNeighbours = [];
-  };
-
   #initKubbData = () => {
     this.kubbData = {
       realEstate: [],
@@ -715,8 +693,9 @@ class IntegrationModel {
 
   #handleDrawCombineFeatureAdded = (e) => {
     if (this.selectedFeatureFromMap) {
-      let feature = this.selectedFeatureFromMap;
+      let feature = this.selectedFeatureFromMap.clone();
       feature.selectedFromMap = true;
+      this.#hideItem(this.selectedFeatureFromMap);
 
       const featureCollection = {
         searchType: "SelectFromMap",
@@ -724,7 +703,7 @@ class IntegrationModel {
         transformation: null,
         type: "area",
       };
-      this.#combineWfsSearch(featureCollection);
+      this.#combine(featureCollection);
       return;
     }
     this.searchResponseTool = "combine";
@@ -972,12 +951,12 @@ class IntegrationModel {
     });
   };
 
-  #combineWfsSearch = (data) => {
+  #combine = (data) => {
     if (!this.combinedGeometries) this.combinedGeometries = [];
     let combineStatus = this.#storeCombinedIds(data);
     const updateStatus = this.#getNewOrRemovedFeature(
       data,
-      this.editSources.new
+      this.editSources.combine
     );
 
     if (!this.combineFeature) {
@@ -986,8 +965,10 @@ class IntegrationModel {
     }
 
     this.#combineFeature(combineStatus, updateStatus);
-    this.combineFeature = this.editSources.new.getFeatures()[0];
+    this.combineFeature = this.editSources.combine.getFeatures()[0];
     this.#publishNewFeature(this.combineFeature);
+    this.clearHighlight(); // TODO: Fix, remove purple from list
+    this.localObserver.publish("mf-geometry-selected-from-map", null);
   };
 
   #storeCombinedIds = (data) => {
@@ -1027,8 +1008,8 @@ class IntegrationModel {
       featureCollection: { features: [combinedGeometry] },
       transformation: null,
     };
-    this.#clearSource(this.editSources.new);
-    this.#addFeaturesToSource(this.editSources.new, featureCollection);
+    this.#clearSource(this.editSources.combine);
+    this.#addFeaturesToSource(this.editSources.combine, featureCollection);
   };
 
   #getTurfPolygon = (feature) => {
@@ -1117,7 +1098,6 @@ class IntegrationModel {
 
   #abortCombineTool = () => {
     this.#clearSource(this.editSources.combine);
-    this.#clearSource(this.editSources.combineNeighbours);
   };
 
   #abortCopyTool = () => {
@@ -1184,6 +1164,10 @@ class IntegrationModel {
     return this.highlightSource.getFeatures()[0] === feature;
   };
 
+  #hideItem = (item) => {
+    this.localObserver.publish("mf-geometry-hide-from-map", item);
+  };
+
   handleWindowOpen = () => {
     this.localObserver.publish("window-opened");
   };
@@ -1192,8 +1176,8 @@ class IntegrationModel {
     this.localObserver.publish("mf-window-closed");
   };
 
-  #sendSnackbarMessage = (nativMessageType) => {
-    this.localObserver.publish("mf-kubb-message-received", nativMessageType);
+  #sendSnackbarMessage = (nativeMessageType) => {
+    this.localObserver.publish("mf-kubb-message-received", nativeMessageType);
   };
 
   testRealEstatesFromKUBB = () => {
