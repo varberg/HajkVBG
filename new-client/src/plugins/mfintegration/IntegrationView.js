@@ -37,7 +37,6 @@ const styles = (theme) => {
 
 const defaultState = {
   mode: "realEstate",
-  selectionExists: false,
   currentListResults: {
     realEstate: [],
     coordinate: [],
@@ -635,12 +634,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clickRow = (clickedItem, mode) => {
-    /*
-    Update the state of the clicked item with it's new selection status (selected or not selected).    
-    Update selectionExists - A boolean flag of whether there is any selection at all. This is used 
-    to help us know whether the edit menu should be available or not, without having to check the selection
-    status of the list items.
-    */
+    /* Update the state of the clicked item with it's new selection status (selected or not selected)*/
     this.localObserver.publish("mf-item-list-clicked", clickedItem);
 
     let updateList = { ...this.state.currentListResults };
@@ -656,13 +650,8 @@ class IntegrationView extends React.PureComponent {
     });
     updateList[mode] = updatedResults;
 
-    //Because we only allow one selected item at a time, and because switching modes clears the selection,
-    //we can set the overall selectionExists flag based on the clicked item's selection status.
-    let selectionExists = isSelected;
-
     this.setState({
       currentListResults: updateList,
-      selectionExists: selectionExists,
     });
   };
 
@@ -811,11 +800,16 @@ class IntegrationView extends React.PureComponent {
   };
 
   renderEditMenu = () => {
+    const currentSelection = this.state.currentListResults[
+      this.state.mode
+    ].filter((feature) => feature.selected);
+
     return (
       <EditMenu
         model={this.props.model}
         localObserver={this.localObserver}
-        selectionExists={this.state.selectionExists}
+        currentSelection={currentSelection}
+        selectionExists={currentSelection.length > 0}
         layerMode={this.state.mode}
         combineEditMode={this.drawTypes.combine[this.state.mode]}
         copyEditMode={this.drawTypes.copy[this.state.mode]}

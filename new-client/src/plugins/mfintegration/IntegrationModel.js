@@ -1080,6 +1080,7 @@ class IntegrationModel {
   };
 
   #publishNewFeature = (newFeature) => {
+    console.log("#publishNewFeature");
     this.localObserver.publish("mf-new-feature-pending", newFeature);
   };
 
@@ -1111,7 +1112,7 @@ class IntegrationModel {
   #modeChanged = (mode) => {
     this.#clearSource(this.highlightSource);
     this.#hideAllLayers();
-    this.#showAcitveLayer(mode);
+    this.#showActiveLayer(mode);
     this.#setActiveSource(mode);
     this.#setActiveNewSource(mode);
     this.#zoomToSource(this.dataSources[mode]);
@@ -1132,7 +1133,7 @@ class IntegrationModel {
     for (const layer of mapLayersArray) layer.setVisible(false);
   };
 
-  #showAcitveLayer = (mode) => {
+  #showActiveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
     this.newLayers[mode]?.setVisible(true);
   };

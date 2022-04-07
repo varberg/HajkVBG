@@ -1,4 +1,5 @@
 import React from "react";
+import PropTypes from "prop-types";
 import { withStyles } from "@material-ui/core/styles";
 import {
   Typography,
@@ -88,6 +89,14 @@ const defaultState = {
 
 class EditMenu extends React.PureComponent {
   state = defaultState;
+
+  static propTypes = {
+    model: PropTypes.object.isRequired,
+    currentSelection: PropTypes.array.isRequired,
+    selectionExists: PropTypes.bool.isRequired,
+    layerMode: PropTypes.string.isRequired,
+  };
+
   constructor(props) {
     super(props);
     this.localObserver = props.localObserver;
@@ -214,8 +223,31 @@ class EditMenu extends React.PureComponent {
   };
 
   #handleBeginUpdate = () => {
-    //1. Find the selected item (what happens if the user deselects the selected item?)
+    console.log("#handleBeginUpdate");
+    const { model, layerMode, currentSelection } = this.props;
+
+    //1. Find the selected item (what happens if the user deselects the selected item once in the update tab?)
+    // this.state.currentSelection. We need to clone the feature so we don't have the same OpenLayers id.
+    const selectedFeature = currentSelection[0].feature;
+    let clonedFeature = selectedFeature.clone();
+
+    //2. copy the selected item into the correct editSource.
+    model.editSources.new.clear(); //may not be needed.
+    this.props.model.editSources.new.addFeature(clonedFeature);
+
+    //3. Hide the existing selected item, so it doesn't obscure the item being edited.
+    //use  #hideItem function in the model.
+
+    //Make the the buttons respond (in create they response to newFeatureExists).
+
+    //4. Use the same logic as in create (checking if there is a newFeature) in order to know where the 'flytta, radera' should be tända.
+    //For this we will have to tweak the disabled settings of the buttons (possibly separate render for update).
+
+    //4. What happens when we delete?
+    //5. What happens when we save?
+
     // If the user deselects the selected item, while they are editing, the edits should be cancelled and remain in the same step.
+    // If the user changes the selection,
     // If there is no selected item, the buttons should not be available.
   };
 
