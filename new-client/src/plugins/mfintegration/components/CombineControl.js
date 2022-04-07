@@ -29,8 +29,9 @@ class CombineControl extends React.PureComponent {
     this.localObserver = props.localObserver;
   }
 
-  #handleCombineMethodChange = (event, newValue) => {
-    this.setState({ combineMethod: newValue });
+  #handleChangeCombineMethod = (event, newValue) => {
+    if (newValue !== this.state.combineMethod)
+      this.setState({ combineMethod: newValue });
   };
 
   #handleChangeCombineLayer = (combineLayerName) => {
@@ -69,7 +70,7 @@ class CombineControl extends React.PureComponent {
             <ToggleButtonGroup
               exclusive
               value={this.state.combineMethod}
-              onChange={this.#handleCombineMethodChange}
+              onChange={this.#handleChangeCombineMethod}
             >
               <ToggleButton value="union">
                 <AddIcon size="small" />
@@ -83,7 +84,7 @@ class CombineControl extends React.PureComponent {
                   &nbsp; Skärning{" "}
                 </Typography>
               </ToggleButton>
-              <ToggleButton value="clip">
+              <ToggleButton value="intersect">
                 <RemoveIcon size="small" />
                 <Typography noWrap variant="button">
                   &nbsp; Urklipp{" "}

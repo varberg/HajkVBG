@@ -369,6 +369,15 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clickRowFromMapInteraction = (selectedFeature) => {
+    let currentList = { ...this.state.currentListResults };
+    if (!selectedFeature) {
+      let selectedItem = currentList[this.state.mode].find(
+        (listItem) => listItem.selected
+      );
+      this.#clickRow(selectedItem, this.state.mode);
+      return;
+    }
+
     let featuresInList = { ...this.state.currentListResults[this.state.mode] };
     this.#addArrayToObject(featuresInList);
 

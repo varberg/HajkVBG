@@ -15,8 +15,9 @@ import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import { polygon } from "@turf/helpers";
-import union from "@turf/union";
 import difference from "@turf/difference";
+import intersect from "@turf/intersect";
+import union from "@turf/union";
 
 class IntegrationModel {
   constructor(settings) {
@@ -59,6 +60,7 @@ class IntegrationModel {
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
     this.#initAbortDrawingFunctions();
+    this.#initCombineFunctions();
     this.#addLayers();
     this.#initActiveSource();
     this.#initKubbData();
@@ -137,6 +139,14 @@ class IntegrationModel {
       combine: this.#abortCombineTool,
       copy: this.#abortCopyTool,
       new: this.#abortNewTool,
+    };
+  };
+
+  #initCombineFunctions = () => {
+    this.combineFunctions = {
+      union: this.#combineUnion,
+      difference: this.#combineDifference,
+      intersect: this.#combineIntersect,
     };
   };
 
@@ -953,7 +963,6 @@ class IntegrationModel {
 
   #combine = (data) => {
     if (!this.combinedGeometries) this.combinedGeometries = [];
-    let combineStatus = this.#storeCombinedIds(data);
     const updateStatus = this.#getNewOrRemovedFeature(
       data,
       this.editSources.combine
@@ -964,45 +973,17 @@ class IntegrationModel {
       return;
     }
 
-    this.#combineFeature(combineStatus, updateStatus);
+    this.#combineFeature(updateStatus);
     this.combineFeature = this.editSources.combine.getFeatures()[0];
     this.#publishNewFeature(this.combineFeature);
-    this.clearHighlight(); // TODO: Fix, remove purple from list
     this.localObserver.publish("mf-geometry-selected-from-map", null);
   };
 
-  #storeCombinedIds = (data) => {
-    let unionNewFeature = false;
-    const featureId = data.featureCollection.features[0].properties
-      ? data.featureCollection.features[0].properties[data?.geometryField]
-      : data.featureCollection.features[0].ol_uid;
-    const arrayId = this.combinedGeometries.indexOf(featureId);
-    if (arrayId === -1) {
-      this.combinedGeometries.push(featureId);
-      unionNewFeature = true;
-    } else {
-      this.combinedGeometries.splice(arrayId, 1);
-    }
-
-    return {
-      unionNewFeature: unionNewFeature,
-      differenceNewFeature: !unionNewFeature,
-    };
-  };
-
-  #combineFeature = (combineStatus, updateStatus) => {
-    let combinedGeometry = null;
-    if (combineStatus.unionNewFeature)
-      combinedGeometry = union(
-        this.#getTurfPolygon(this.combineFeature),
-        this.#getTurfPolygon(updateStatus.feature)
-      );
-    if (combineStatus.differenceNewFeature)
-      combinedGeometry = difference(
-        this.#getTurfPolygon(this.combineFeature),
-        this.#getTurfPolygon(updateStatus.feature)
-      );
-
+  #combineFeature = (updateStatus) => {
+    const combinedGeometry = this.combineFunctions[this.combineMethod](
+      this.combineFeature,
+      updateStatus.feature
+    );
     const featureCollection = {
       searchType: "CombinePolygons",
       featureCollection: { features: [combinedGeometry] },
@@ -1015,6 +996,27 @@ class IntegrationModel {
   #getTurfPolygon = (feature) => {
     const coordiantes = this.#extractCoordintesFromFeature(feature);
     return polygon(coordiantes);
+  };
+
+  #combineUnion = (feature1, feature2) => {
+    return union(
+      this.#getTurfPolygon(feature1),
+      this.#getTurfPolygon(feature2)
+    );
+  };
+
+  #combineDifference = (feature1, feature2) => {
+    return difference(
+      this.#getTurfPolygon(feature1),
+      this.#getTurfPolygon(feature2)
+    );
+  };
+
+  #combineIntersect = (feature1, feature2) => {
+    return intersect(
+      this.#getTurfPolygon(feature1),
+      this.#getTurfPolygon(feature2)
+    );
   };
 
   #updateCombineArray = (data) => {
