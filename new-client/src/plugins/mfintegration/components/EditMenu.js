@@ -198,10 +198,14 @@ class EditMenu extends React.PureComponent {
       //Clear any remaining update interactions from the previous step.
       model.clearUpdateInteractions();
 
+      let updateFeature = model.editSources.new.getFeatures()[0];
+      updateFeature.isNew = true;
+
       this.setState({ activeStepUpdate: 1, chosenUpdateTool: null });
-      this.props.localObserver.publish("mf-end-draw-new-geometry", {
+      this.props.localObserver.publish("mf-end-update-geometry", {
         editMode: editMode,
         saveGeometry: true,
+        features: [updateFeature],
       });
       this.props.localObserver.publish(
         "mf-edit-noSupportLayer",
@@ -242,6 +246,7 @@ class EditMenu extends React.PureComponent {
     //Copy the selected item into the correct editSource.
     model.editSources.new.clear();
     model.editSources.new.addFeature(clonedFeature);
+    model.updatedFeature = clonedFeature;
 
     //If we are starting the update, hide the existing selected item, so it doesn't obscure the item being edited.
     if (!isReset) {
@@ -380,10 +385,10 @@ class EditMenu extends React.PureComponent {
       featureUpdateInProgress,
     } = this.props;
 
+    const newFeatureExists = newFeature?.features?.length > 0;
     const okDisabled =
       editTab === "update" ? !featureUpdateInProgress : !newFeatureExists;
 
-    const newFeatureExists = newFeature?.features?.length > 0;
     const shouldShowSnappingControls = editMode === "new";
     const shouldShowUpdateControls = editMode !== "combine";
 

@@ -350,6 +350,11 @@ class IntegrationModel {
     this.endDraw();
   };
 
+  endUpdate = () => {
+    this.#publishNewFeature(this.updatedFeature);
+    this.localObserver.publish("mf-geometry-selected-from-map", null);
+  };
+
   endSnapInteraction = () => {
     this.searchResponseTool = "snap";
     this.activeSnapSource = null;

@@ -153,6 +153,9 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
       this.#newGeometryFinished(status);
     });
+    this.localObserver.subscribe("mf-end-update-geometry", (status) => {
+      this.#updateGeometryFinished(status);
+    });
 
     this.localObserver.subscribe("mf-edit-supportLayer", (editTarget) => {
       this.setState({
@@ -621,6 +624,14 @@ class IntegrationView extends React.PureComponent {
       this.drawTypes[status.editMode][this.state.mode] + status.editMode;
     this.drawFunctions[drawType].end();
     this.model.clearInteractions();
+  };
+
+  #updateGeometryFinished = (status) => {
+    if (status.saveGeometry) {
+      this.#addNewItemToList(status);
+      this.#addNewItemToSource(status);
+      this.model.endUpdate();
+    }
   };
 
   #toggleMode = (mode) => {
