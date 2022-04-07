@@ -684,7 +684,7 @@ class EditMenu extends React.PureComponent {
   }
 
   render() {
-    const { classes, layerMode, newFeature } = this.props;
+    const { classes, layerMode } = this.props;
     const layerModeEditable =
       this.props.model.options.mapObjects[layerMode].editable;
 
