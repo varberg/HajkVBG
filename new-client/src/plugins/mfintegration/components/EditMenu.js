@@ -77,13 +77,10 @@ const StyledAccordionSummary = withStyles({
 const defaultState = {
   activeStepCreate: 0,
   activeStepUpdate: null,
-  isEditMenuOpen: false,
   editMode: "none", //new, copy, combine
   chosenUpdateTool: null, //modify, move, delete
   drawActive: false,
   activeCombineLayer: "",
-  createSessionInProgress: false,
-  updateSessionInProgress: false,
   updateFeatureActive: false,
 };
 
@@ -97,6 +94,11 @@ class EditMenu extends React.PureComponent {
     layerMode: PropTypes.string.isRequired,
     editTab: PropTypes.string.isRequired,
     featureUpdateInProgress: PropTypes.bool.isRequired,
+    handleUpdateIsEditMenuOpen: PropTypes.func.isRequired,
+    isEditMenuOpen: PropTypes.bool.isRequired,
+    createSessionInProgress: PropTypes.bool.isRequired,
+    updateSessionInProgress: PropTypes.bool.isRequired,
+    toggleSessionInProgress: PropTypes.func.isRequired,
   };
 
   constructor(props) {
@@ -134,13 +136,16 @@ class EditMenu extends React.PureComponent {
   };
 
   #resetEditMenu = (shouldClose) => {
+    //TODO - do this more nicely, probably in the main view.
+    //clear any items that are being created/updated from the new source.
+    this.props.model.editSources.new.clear();
     this.props.model.abortDrawFeature(this.state.editMode);
     this.props.model.clearInteractions();
-    this.setState({ ...defaultState, isEditMenuOpen: !shouldClose });
-  };
-
-  #toggleisEditMenuOpen = () => {
-    this.setState({ isEditMenuOpen: !this.state.isEditMenuOpen });
+    this.props.handleUpdateIsEditMenuOpen(!shouldClose);
+    this.props.toggleSessionInProgress("create", false);
+    this.props.toggleSessionInProgress("update", false);
+    this.props.handleChangeEditTab("create");
+    this.setState({ ...defaultState });
   };
 
   #getAvailableWfsLayers = () => {
@@ -160,6 +165,7 @@ class EditMenu extends React.PureComponent {
   };
 
   #handleCancelStepUpdateFeatures = (editMode) => {
+    this.props.toggleSessionInProgress("create", false);
     this.setState({
       activeStepCreate: 0,
       editMode: "none",
@@ -216,6 +222,7 @@ class EditMenu extends React.PureComponent {
 
   #handleMakeMoreChanges = () => {
     if (this.props.editTab === "create") {
+      this.props.toggleSessionInProgress("create", false);
       this.setState({ activeStepCreate: 0 });
     }
 
@@ -231,6 +238,7 @@ class EditMenu extends React.PureComponent {
   };
 
   #handleBeginUpdate = (isReset = false) => {
+    this.props.toggleSessionInProgress("update", true);
     const { model, currentSelection } = this.props;
 
     //clear any existing update interactions (if we are resetting, this is needed).
@@ -311,6 +319,11 @@ class EditMenu extends React.PureComponent {
     return null;
   };
 
+  #moveToCreateStep = (editMode) => {
+    this.props.toggleSessionInProgress("create", true);
+    this.setState({ activeStepCreate: 1, editMode: editMode });
+  };
+
   //The first step when in 'create' mode. Choose which method will be used in the next step.
   //This step is only used in 'create', not in 'update'.
   renderStepChooseCreateMode = () => {
@@ -326,11 +339,7 @@ class EditMenu extends React.PureComponent {
               className={classes.stepButtonGroup}
               aria-label="Rita nytt objekt"
               onClick={() => {
-                this.setState({
-                  activeStepCreate: 1,
-                  editMode: "new",
-                  createSessionInProgress: true,
-                });
+                this.#moveToCreateStep("new");
                 this.setState({ drawActive: true }, () => {
                   localObserver.publish("mf-start-draw-new-geometry");
                 });
@@ -345,11 +354,7 @@ class EditMenu extends React.PureComponent {
               className={classes.stepButtonGroup}
               aria-label="Kopiera befintlig objekt"
               onClick={() => {
-                this.setState({
-                  activeStepCreate: 1,
-                  editMode: "copy",
-                  createSessionInProgress: true,
-                });
+                this.#moveToCreateStep("copy");
               }}
             >
               Kopiera
@@ -361,11 +366,7 @@ class EditMenu extends React.PureComponent {
               className={classes.stepButtonGroup}
               aria-label="Kombinera befintliga objekt"
               onClick={() => {
-                this.setState({
-                  activeStepCreate: 1,
-                  editMode: "combine",
-                  createSessionInProgress: true,
-                });
+                this.#moveToCreateStep("combine");
               }}
             >
               Kombinera
@@ -549,7 +550,7 @@ class EditMenu extends React.PureComponent {
     );
   };
 
-  renderStepConfirm = (editMode) => {
+  renderStepConfirmCreate = (editMode) => {
     const { classes, editTab } = this.props;
 
     const informationText = this.#getEditInfoText(editTab === "create");
@@ -570,6 +571,32 @@ class EditMenu extends React.PureComponent {
               </Button>
               <Button
                 className={classes.stepButtonGroup}
+                onClick={() => {
+                  this.#resetEditMenu(true);
+                }}
+              >
+                Avsluta
+              </Button>
+            </ButtonGroup>
+          </Box>
+        </Grid>
+      </Grid>
+    );
+  };
+
+  renderStepConfirmUpdate = (editMode) => {
+    const { editTab } = this.props;
+    const informationText = this.#getEditInfoText(editTab === "update");
+
+    return (
+      <Grid container item xs={12}>
+        <Grid item xs={12}>
+          <Typography paragraph>{informationText}</Typography>
+        </Grid>
+        <Grid item xs={12} style={{ marginTop: "16px" }}>
+          <Box display="flex">
+            <ButtonGroup>
+              <Button
                 onClick={() => {
                   this.#resetEditMenu(true);
                 }}
@@ -607,7 +634,7 @@ class EditMenu extends React.PureComponent {
         <Step key="confirm">
           <StepLabel>Klart</StepLabel>
           <StepContent>
-            {this.renderStepConfirm(this.state.editMode)}
+            {this.renderStepConfirmCreate(this.state.editMode)}
           </StepContent>
         </Step>
       </Stepper>
@@ -634,7 +661,7 @@ class EditMenu extends React.PureComponent {
         <Step key="confirm">
           <StepLabel>Klart</StepLabel>
           <StepContent>
-            {this.renderStepConfirm(this.state.editMode)}
+            {this.renderStepConfirmUpdate(this.state.editMode)}
           </StepContent>
         </Step>
       </Stepper>
@@ -647,35 +674,28 @@ class EditMenu extends React.PureComponent {
   };
 
   componentDidUpdate(prevProps, prevState) {
-    //When the layerMode (the selected layer type, e.g. 'fastighet', 'område') is changed, we need to reset the edit, otherwise the user may end up editing an incorrect layer.
-    if (prevProps.layerMode !== this.props.layerMode) {
-      let editShouldClose = true;
-      this.#resetEditMenu(editShouldClose);
-    }
-
     /*Handle changes related to the open/closed state of the Editing menu.*/
-    if (prevState.isEditMenuOpen !== this.state.isEditMenuOpen) {
+    if (prevProps.isEditMenuOpen !== this.props.isEditMenuOpen) {
       //When we open the edit menu, we decide which tab we should be in by default. If we have a selected item, we should default to the 'Ändra' tab.
       if (this.props.selectionExists) {
         this.props.handleChangeEditTab("update");
       }
 
       //If we are in the 'Ändra' tab when we open the menu, we want to jump into the first step.
-      if (this.state.isEditMenuOpen && this.props.editTab === "update") {
+      if (this.props.isEditMenuOpen && this.props.editTab === "update") {
         this.setState({ activeStepUpdate: 0 });
       }
 
       //When the edit panel gets closed, reset the edit menu.
-      if (!this.state.isEditMenuOpen) this.#resetEditMenu(true);
-
-      //Let IntegrationView know that edit has toggled, so we can disable parts of the main menu that should not be used while editing.
-      this.props.handleUpdateIsEditMenuOpen(this.state.isEditMenuOpen);
+      if (!this.props.isEditMenuOpen) {
+        this.#resetEditMenu(true);
+      }
     }
 
     /*Handle changes related to which edit menu Tab is selected*/
     if (prevProps.editTab !== this.props.editTab) {
       //If we enter the editTab, while the edit menu is open, we should go into the first (0th) step.
-      if (this.props.editTab === "update" && this.state.isEditMenuOpen) {
+      if (this.props.editTab === "update" && this.props.isEditMenuOpen) {
         this.setState({ activeStepUpdate: 0 });
       }
     }
@@ -694,7 +714,7 @@ class EditMenu extends React.PureComponent {
       this.props.model.options.mapObjects[layerMode].editable;
 
     let editdisabled =
-      this.state.isEditMenuOpen === false && !layerModeEditable;
+      this.props.isEditMenuOpen === false && !layerModeEditable;
 
     return (
       <Grid item container xs={12}>
@@ -702,10 +722,10 @@ class EditMenu extends React.PureComponent {
           disabled={editdisabled}
           component={editdisabled ? "div" : undefined}
           elevation={0}
-          expanded={this.state.isEditMenuOpen}
+          expanded={this.props.isEditMenuOpen}
           className={classes.accordion}
-          onChange={() => {
-            this.#toggleisEditMenuOpen();
+          onChange={(e, newValue) => {
+            this.props.handleUpdateIsEditMenuOpen(newValue);
           }}
         >
           <Tooltip
@@ -719,7 +739,7 @@ class EditMenu extends React.PureComponent {
             <div>
               <StyledAccordionSummary
                 expandIcon={
-                  this.state.isEditMenuOpen ? <CloseIcon /> : <ExpandMore />
+                  this.props.isEditMenuOpen ? <CloseIcon /> : <ExpandMore />
                 }
               >
                 <Typography>Redigera</Typography>
@@ -743,14 +763,14 @@ class EditMenu extends React.PureComponent {
                     <Tab
                       value="create"
                       label="Skapa nytt"
-                      disabled={this.state.updateSessionInProgress}
+                      disabled={this.props.updateSessionInProgress}
                     ></Tab>
                     <Tab
                       value="update"
                       label="Ändra"
                       disabled={
                         !this.props.selectionExists ||
-                        this.state.createSessionInProgress
+                        this.props.createSessionInProgress
                       }
                     ></Tab>
                   </Tabs>

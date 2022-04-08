@@ -104,7 +104,7 @@ class ListResult extends React.PureComponent {
         >
           <Grid container alignItems="center">
             <Grid item xs={9} onClick={(e) => handleClickItem(item, listMode)}>
-              <Box alignItems="center">
+              <Box display="flex" alignItems="center">
                 {item.isNew && <StarBorderIcon />}
                 <Typography noWrap>{item.name}</Typography>
               </Box>

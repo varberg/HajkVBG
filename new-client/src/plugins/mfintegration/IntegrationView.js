@@ -50,6 +50,8 @@ const defaultState = {
   newFeature: null,
   activeSupportLayerName: null,
   activeSupportLayerSource: null,
+  createSessionInProgress: false,
+  updateSessionInProgress: false,
   featureUpdateInProgress: false,
 };
 
@@ -663,6 +665,11 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clickRow = (clickedItem, mode) => {
+    //If we are currently updating a feature, selecting a new feature is not allowed, so we just return.
+    if (this.state.updateSessionInProgress) {
+      return;
+    }
+
     /* Update the state of the clicked item with it's new selection status (selected or not selected)*/
     this.localObserver.publish("mf-item-list-clicked", clickedItem);
 
@@ -843,8 +850,7 @@ class IntegrationView extends React.PureComponent {
   };
 
   #handleDeleteUpdateEdit = () => {
-    console.log("handleDeleteUpdateEdit");
-    console.log("Funktionalitet väntar på KUBB");
+    console.log("handleDeleteUpdateEdit, Funktionalitet väntar på KUBB.");
   };
 
   #handleDeleteEdit = (editMode) => {
@@ -855,6 +861,19 @@ class IntegrationView extends React.PureComponent {
     if (this.state.editTab === "create") {
       this.#handleDeleteNewEdit(editMode);
     }
+  };
+
+  #toggleEditMenuOpen = (open) => {
+    this.setState({ isEditMenuOpen: open });
+    if (open) this.setState({ listToolsMode: "none" });
+  };
+
+  #toggleSessionInProgress = (sessionName, inProgress) => {
+    const stateName =
+      sessionName === "create"
+        ? "createSessionInProgress"
+        : "updateSessionInProgress";
+    this.setState({ [stateName]: inProgress });
   };
 
   renderEditMenu = () => {
@@ -874,14 +893,14 @@ class IntegrationView extends React.PureComponent {
         newEditMode={this.drawTypes.new[this.state.mode]}
         handleChangeUpdateTool={this.#handleActivateUpdateTool}
         handleDeleteEdit={this.#handleDeleteEdit}
-        handleUpdateIsEditMenuOpen={(open) => {
-          this.setState({ isEditMenuOpen: open });
-          //deactivate any active listtools when opening search.
-          if (open) this.setState({ listToolsMode: "none" });
-        }}
+        handleUpdateIsEditMenuOpen={this.#toggleEditMenuOpen}
         newFeature={this.state.newFeature}
         handleChangeEditTab={this.#setEditTab}
         editTab={this.state.editTab}
+        isEditMenuOpen={this.state.isEditMenuOpen}
+        createSessionInProgress={this.state.createSessionInProgress}
+        updateSessionInProgress={this.state.updateSessionInProgress}
+        toggleSessionInProgress={this.#toggleSessionInProgress}
         featureUpdateInProgress={this.state.featureUpdateInProgress}
       />
     );
@@ -993,7 +1012,8 @@ class IntegrationView extends React.PureComponent {
 
   render() {
     const { classes, options } = this.props;
-    const { mode } = this.state;
+    const { mode, createSessionInProgress, updateSessionInProgress } =
+      this.state;
     return (
       <Container disableGutters>
         <Grid container spacing={(1, 1)}>
@@ -1008,6 +1028,7 @@ class IntegrationView extends React.PureComponent {
                 id="modeSelection"
                 displayEmpty
                 value={mode}
+                disabled={createSessionInProgress || updateSessionInProgress}
                 onChange={(e) => {
                   this.#toggleMode(e.target.value);
                 }}
