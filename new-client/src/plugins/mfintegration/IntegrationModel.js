@@ -6,15 +6,18 @@ import Feature from "ol/Feature";
 import { Fill, Stroke, Style, Circle } from "ol/style";
 import Point from "ol/geom/Point";
 import Select from "ol/interaction/Select";
+import Modify from "ol/interaction/Modify";
 import Snap from "ol/interaction/Snap";
+import Translate from "ol/interaction/Translate";
 import Transform from "./Transformation/Transform";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { KUBB } from "./mockdata/mockdataKUBB";
 import { HubConnectionBuilder } from "@microsoft/signalr";
 import { polygon } from "@turf/helpers";
-import union from "@turf/union";
 import difference from "@turf/difference";
+import intersect from "@turf/intersect";
+import union from "@turf/union";
 
 class IntegrationModel {
   constructor(settings) {
@@ -24,7 +27,6 @@ class IntegrationModel {
     this.localObserver = settings.localObserver;
     this.searchModel = settings.searchModel;
     this.listItemRefs = {};
-
     this.#init();
     this.#bindSubscriptions();
   }
@@ -57,9 +59,9 @@ class IntegrationModel {
     this.#initSearchResponseFunctions();
     this.#initDrawingFunctions();
     this.#initAbortDrawingFunctions();
+    this.#initCombineFunctions();
     this.#addLayers();
     this.#initActiveSource();
-    this.#initCombineNeighbours();
     this.#initKubbData();
   };
 
@@ -103,7 +105,7 @@ class IntegrationModel {
 
   #initSearchResponseFunctions = () => {
     this.searchResponseFunctions = {
-      combine: this.#combineWfsSearch,
+      combine: this.#combine,
       copy: this.#copyWfsSearch,
       search: this.#addWfsSearch,
       snap: this.#snapWfsSearch,
@@ -113,7 +115,7 @@ class IntegrationModel {
   #initDrawingFunctions = () => {
     this.drawingToolFunctions = {
       combine: {
-        callback: this.#handleDrawCombineFeatureAdded,
+        callback: this.#handleDrawCombineFeatureAddedDelayed,
         source: this.#createNewVectorSource(),
       },
       copy: {
@@ -139,7 +141,16 @@ class IntegrationModel {
     };
   };
 
-  startDrawCombinePoint = (mode) => {
+  #initCombineFunctions = () => {
+    this.combineFunctions = {
+      union: this.#combineUnion,
+      difference: this.#combineDifference,
+      intersect: this.#combineIntersect,
+    };
+  };
+
+  startDrawCombinePoint = (mode, editTarget) => {
+    this.combineMethod = editTarget.combineMethod || "union";
     this.drawingToolFunctions.combine.source.mode = mode;
     this.#drawGeometry("combine", "Point", this.mapStyles.editFeatureStyle);
   };
@@ -234,9 +245,83 @@ class IntegrationModel {
     });
   };
 
+  endActiveUpdateTool = () => {
+    this.clearInteractions();
+    this.clearUpdateInteractions();
+  };
+
+  activateUpdateTool = (updateTool, editMode, inUpdateTab) => {
+    const source = inUpdateTab ? "new" : editMode;
+    //Firstly, as the active update tool has changed, end any existing update tool.
+    this.endActiveUpdateTool();
+    switch (updateTool) {
+      case "modify":
+        this.#modifyGeometry(source);
+        break;
+      case "move":
+        this.#moveGeometry(source);
+        break;
+      default:
+        return;
+    }
+  };
+
+  #modifyGeometry = (source) => {
+    //Remove interactions not needed for the moving tool (draw and select).
+    this.clearInteractions();
+
+    //Add a temporary select interaction, where only features current editing layer may be selected.
+    let selectLayer = this.editLayers[source];
+    this.updateSelect = new Select({
+      layers: [selectLayer],
+    });
+    this.updateSelect.on("select", this.#updateStarted);
+    //Add a temporary Modify interaction, that will be removed when when modify is no longer the chosen update tool.
+    this.modifyInteraction = new Modify({
+      features: this.updateSelect.getFeatures(),
+    });
+    this.map.addInteraction(this.updateSelect);
+    this.map.addInteraction(this.modifyInteraction);
+  };
+
+  #moveGeometry = (source) => {
+    //Remove interactions not needed for the moving tool (draw and select).
+    this.clearInteractions();
+
+    //Add a temporary select interaction, where only features current editing layer may be selected.
+    let selectLayer = this.editLayers[source];
+    this.updateSelect = new Select({
+      layers: [selectLayer],
+    });
+    this.updateSelect.on("select", this.#updateStarted);
+    //Add a translate interaction,
+    this.moveInteraction = new Translate({
+      features: this.updateSelect.getFeatures(),
+    });
+    this.map.addInteraction(this.updateSelect);
+    this.map.addInteraction(this.moveInteraction);
+  };
+
+  #updateStarted = () => {
+    this.localObserver.publish("mf-feature-edit-started");
+  };
+
   clearInteractions = () => {
     this.endDraw();
     this.endSnapInteraction();
+    this.clearUpdateInteractions();
+  };
+
+  clearUpdateInteractions = () => {
+    if (this.updateSelect) {
+      this.map.removeInteraction(this.updateSelect);
+    }
+    if (this.moveInteraction) {
+      this.map.removeInteraction(this.moveInteraction);
+    }
+    if (this.modifyInteraction) {
+      this.map.removeInteraction(this.modifyInteraction);
+    }
   };
 
   endDraw = () => {
@@ -250,6 +335,7 @@ class IntegrationModel {
     this.combineFeature = null;
     this.combinedGeometries = null;
     this.map.clickLock.delete("combine");
+    this.#clearSource(this.editSources.combine);
     this.endDraw();
   };
 
@@ -261,6 +347,11 @@ class IntegrationModel {
   endDrawNew = () => {
     this.map.clickLock.delete("new");
     this.endDraw();
+  };
+
+  endUpdate = () => {
+    this.#publishNewFeature(this.updatedFeature);
+    this.localObserver.publish("mf-geometry-selected-from-map", null);
   };
 
   endSnapInteraction = () => {
@@ -314,13 +405,7 @@ class IntegrationModel {
     let featureStyle = new Style();
     if (shouldBeVisible) featureStyle = null;
 
-    this.#setFeatureStyle(feature, featureStyle);
-  };
-
-  deleteNewGeometry = (featureCollection, source) => {
-    featureCollection.features.forEach((feature) => {
-      this.editSources[source].removeFeature(feature);
-    });
+    this.setFeatureStyle(feature, featureStyle);
   };
 
   #clearSource = (source) => {
@@ -338,7 +423,6 @@ class IntegrationModel {
     });
   };
 
-  // TODO: Ev. ta bort denna funktion om admin ger ett sådant här objekt (finns i mockdata)
   #createLayerStyle = (style) => {
     return new Style({
       stroke: new Stroke({
@@ -415,7 +499,6 @@ class IntegrationModel {
       new: this.#createNewVectorSource(),
       copy: this.#createNewVectorSource(),
       combine: this.#createNewVectorSource(),
-      combineNeighbours: this.#createNewVectorSource(),
     };
 
     this.snapSources = {
@@ -447,10 +530,6 @@ class IntegrationModel {
       combine: this.#createNewVectorLayer(
         this.editSources.combine,
         this.#createLayerStyle(this.mapStyles.editFeatureStyle)
-      ),
-      combineNeighbours: this.#createNewVectorLayer(
-        this.editSources.combineNeighbours,
-        this.#createLayerStyle(this.mapStyles.combineNeighbourStyle)
       ),
     };
     this.#addArrayToObject(this.editLayers);
@@ -555,10 +634,6 @@ class IntegrationModel {
     this.activeSource = this.dataSources.array[0];
   };
 
-  #initCombineNeighbours = () => {
-    this.combineNeighbours = [];
-  };
-
   #initKubbData = () => {
     this.kubbData = {
       realEstate: [],
@@ -611,20 +686,44 @@ class IntegrationModel {
     this.map.addInteraction(this.snapInteraction);
   };
 
+  #handleDrawCombineFeatureAddedDelayed = (e) => {
+    this.#clearCombinePointsFromSource(
+      this.drawingToolFunctions.combine.source
+    );
+    setTimeout(() => {
+      this.#handleDrawCombineFeatureAdded(e);
+    }, 100);
+  };
+
+  #clearCombinePointsFromSource = (source) => {
+    const combineFeatures = source.getFeatures();
+    const pointFeatures = combineFeatures.filter((feature) => {
+      if (this.#geometryIsAPoint(feature.getGeometry())) return feature;
+      return false;
+    });
+    pointFeatures.forEach((pointFeature) => {
+      source.removeFeature(pointFeature);
+    });
+  };
+
+  #geometryIsAPoint = (geometry) => {
+    if (geometry.flatCoordinates.length === 2) return true;
+    return false;
+  };
+
   #handleDrawCombineFeatureAdded = (e) => {
     if (this.selectedFeatureFromMap) {
-      let feature = this.selectedFeatureFromMap;
-      feature.geometry = {
-        coordinates: this.selectedFeatureFromMap,
-        type: "Polygon",
-      };
+      let feature = this.selectedFeatureFromMap.clone();
+      feature.selectedFromMap = true;
+      this.hideItem(this.selectedFeatureFromMap);
+
       const featureCollection = {
         searchType: "SelectFromMap",
         featureCollection: { features: [feature] },
         transformation: null,
         type: "area",
       };
-      this.#combineWfsSearch(featureCollection);
+      this.#combine(featureCollection);
       return;
     }
     this.searchResponseTool = "combine";
@@ -655,7 +754,7 @@ class IntegrationModel {
     feature.geometry = feature.getGeometry();
     feature.coordiantes = [];
     feature.coordiantes.push(feature.geometry.getCoordinates());
-    feature.type = "Polygon"; // Måste ändras kan vara en multipolygon också.
+    feature.type = "Polygon"; // TODO: In the furture we should be able to create Milti Polygons as well
   };
 
   #createDataset = (feature) => {
@@ -699,7 +798,7 @@ class IntegrationModel {
     this.#clearSource(this.drawingToolFunctions.search.source);
   };
 
-  #setFeatureStyle = (feature, style) => {
+  setFeatureStyle = (feature, style) => {
     feature.setStyle(style);
   };
 
@@ -780,11 +879,18 @@ class IntegrationModel {
     comparePropertyId
   ) => {
     const featuresFoundInSource = featuresInSource.filter((feature) => {
-      if (
-        feature.getProperties()[comparePropertyId] ===
-        clickedFeature.getProperties()[comparePropertyId]
-      )
-        return feature;
+      if (comparePropertyId) {
+        if (
+          feature.getProperties()[comparePropertyId] ===
+          clickedFeature.getProperties()[comparePropertyId]
+        )
+          return feature;
+      } else {
+        if (
+          feature.getGeometry().ol_uid === clickedFeature.getGeometry().ol_uid
+        )
+          return feature;
+      }
       return false;
     });
 
@@ -807,7 +913,8 @@ class IntegrationModel {
       };
 
     const features = featureCollection.features.map((feature) => {
-      console.log("feature.geometry", feature.geometry);
+      if (feature.selectedFromMap) return feature;
+
       let geometry = this.#createGeometry(
         feature.geometry.type,
         feature.geometry.coordinates
@@ -864,79 +971,29 @@ class IntegrationModel {
     });
   };
 
-  #combineWfsSearch = (data) => {
-    this.#combineWfsSearchPoint(data);
-    //this.#combineWfsSearchPolygon(data);
-  };
-
-  #combineWfsSearchPoint = (data) => {
-    //if (data.searchType !== "Point") return;
-
+  #combine = (data) => {
     if (!this.combinedGeometries) this.combinedGeometries = [];
-    let combineStatus = this.#storeCombinedIds(data);
     const updateStatus = this.#getNewOrRemovedFeature(
       data,
       this.editSources.combine
     );
 
-    if (!updateStatus.previousFeatures) return;
-
-    //debugger;
-    if (this.combineFeature) {
-      // const ansIntersect = intersect(
-      //   this.#getTurfPolygon(this.combineFeature),
-      //   this.#getTurfPolygon(updateStatus.feature)
-      // );
-      //console.log("intersect", ansIntersect);
-      // const cf = this.#getTurfPolygon(this.combineFeature);
-      // const uf = this.#getTurfPolygon(updateStatus.feature);
-      // console.log("original", cf.geometry.coordinates);
-      // console.log("nytt obj", uf.geometry.coordinates);
+    if (!this.combineFeature) {
+      this.combineFeature = updateStatus.feature;
+      return;
     }
 
-    this.#combineFeature(combineStatus, updateStatus);
+    this.#combineFeature(updateStatus);
     this.combineFeature = this.editSources.combine.getFeatures()[0];
     this.#publishNewFeature(this.combineFeature);
-
-    //this.#saveParentFeatureClickId(data);
-    //this.#addNewCombineFeature(updateStatus, data);
-    //this.#removeOldCombineFeatures(updateStatus, data);
+    this.localObserver.publish("mf-geometry-selected-from-map", null);
   };
 
-  #storeCombinedIds = (data) => {
-    let unionNewFeature = false;
-    const featureId = data.featureCollection.features[0].properties
-      ? data.featureCollection.features[0].properties[data?.geometryField]
-      : data.featureCollection.features[0].ol_uid;
-    const arrayId = this.combinedGeometries.indexOf(featureId);
-    if (arrayId === -1) {
-      this.combinedGeometries.push(featureId);
-      unionNewFeature = true;
-    } else {
-      this.combinedGeometries.splice(arrayId, 1);
-    }
-
-    return {
-      unionNewFeature: unionNewFeature,
-      differenceNewFeature: !unionNewFeature,
-    };
-  };
-
-  #combineFeature = (combineStatus, updateStatus) => {
-    if (!this.combineFeature) return;
-
-    let combinedGeometry = null;
-    if (combineStatus.unionNewFeature)
-      combinedGeometry = union(
-        this.#getTurfPolygon(this.combineFeature),
-        this.#getTurfPolygon(updateStatus.feature)
-      );
-    if (combineStatus.differenceNewFeature)
-      combinedGeometry = difference(
-        this.#getTurfPolygon(this.combineFeature),
-        this.#getTurfPolygon(updateStatus.feature)
-      );
-
+  #combineFeature = (updateStatus) => {
+    const combinedGeometry = this.combineFunctions[this.combineMethod](
+      this.combineFeature,
+      updateStatus.feature
+    );
     const featureCollection = {
       searchType: "CombinePolygons",
       featureCollection: { features: [combinedGeometry] },
@@ -951,52 +1008,25 @@ class IntegrationModel {
     return polygon(coordiantes);
   };
 
-  #saveParentFeatureClickId = (data) => {
-    if (data.featureCollection.features.length === 0) {
-      this.combineParent = null;
-      return;
-    }
-
-    this.combineParent =
-      data.featureCollection.features[0].properties[data.geometryField];
-  };
-
-  #addNewCombineFeature = (updateStatus, data) => {
-    if (!updateStatus.addFeature) return;
-    this.searchModelFunctions[data.type](updateStatus.feature);
-  };
-
-  #removeOldCombineFeatures = (updateStatus, data) => {
-    if (!updateStatus.removeFeature) return;
-    console.log(this.editSources.combineNeighbours);
-  };
-
-  #combineWfsSearchPolygon = (data) => {
-    if (data.searchType !== "Polygon") return;
-
-    this.#updateCombineArray(data);
-    this.#addNewPossibleCombineFeature(
-      data,
-      this.editSources.combineNeighbours
+  #combineUnion = (feature1, feature2) => {
+    return union(
+      this.#getTurfPolygon(feature1),
+      this.#getTurfPolygon(feature2)
     );
+  };
 
-    const neighbourFeatures = this.#createFeaturesFromFeatureCollection(
-      data.featureCollection.searchType,
-      data.featureCollection.featureCollection,
-      data.featureCollection.transformation
+  #combineDifference = (feature1, feature2) => {
+    return difference(
+      this.#getTurfPolygon(feature1),
+      this.#getTurfPolygon(feature2)
     );
+  };
 
-    // Lägg till grannarna här.
-    const compareField = data.geometryField;
-    neighbourFeatures.forEach((feature) => {
-      // Lägg till grannen om INTE den finns med sedan innan.
-      this.combineNeighbours.add({
-        neighbour: feature.getProperties()[compareField],
-        parent: this.selectedFeature.getProperties()[compareField],
-      });
-    });
-    //this.combineNeighbours
-    //data.selectionFeature
+  #combineIntersect = (feature1, feature2) => {
+    return intersect(
+      this.#getTurfPolygon(feature1),
+      this.#getTurfPolygon(feature2)
+    );
   };
 
   #updateCombineArray = (data) => {
@@ -1065,43 +1095,6 @@ class IntegrationModel {
     this.localObserver.publish("mf-new-feature-pending", newFeature);
   };
 
-  #addNewPossibleCombineFeature = (data, source) => {
-    const combineFeatures = this.editSources.combine.getFeatures();
-    const compareField = data.geometryField;
-    const newNeighbours = data.featureCollection.features.filter(
-      (neighbourFeature) => {
-        let alreadyExisits = false;
-        combineFeatures.forEach((combineFeature) => {
-          if (
-            neighbourFeature.properties[compareField] ===
-            combineFeature.getProperties()[compareField]
-          )
-            alreadyExisits = true;
-        });
-        if (alreadyExisits) return false;
-        return neighbourFeature;
-      }
-    );
-
-    const featureCollectionWithOnlyNeighbours =
-      data.featureCollection.features.filter((feature) => {
-        let isNewNeighbour = false;
-        newNeighbours.forEach((neighbourFeature) => {
-          if (
-            feature.properties[compareField] ===
-            neighbourFeature.properties[compareField]
-          )
-            isNewNeighbour = true;
-        });
-
-        if (!isNewNeighbour) return false;
-        return feature;
-      });
-    data.featureCollection.features = featureCollectionWithOnlyNeighbours;
-
-    this.#addFeaturesToSource(source, data);
-  };
-
   #snapWfsSearch = (data) => {
     const features = this.#createFeaturesFromFeatureCollection(
       data.searchType,
@@ -1117,7 +1110,6 @@ class IntegrationModel {
 
   #abortCombineTool = () => {
     this.#clearSource(this.editSources.combine);
-    this.#clearSource(this.editSources.combineNeighbours);
   };
 
   #abortCopyTool = () => {
@@ -1131,7 +1123,7 @@ class IntegrationModel {
   #modeChanged = (mode) => {
     this.#clearSource(this.highlightSource);
     this.#hideAllLayers();
-    this.#showAcitveLayer(mode);
+    this.#showActiveLayer(mode);
     this.#setActiveSource(mode);
     this.#setActiveNewSource(mode);
     this.#zoomToSource(this.dataSources[mode]);
@@ -1152,7 +1144,7 @@ class IntegrationModel {
     for (const layer of mapLayersArray) layer.setVisible(false);
   };
 
-  #showAcitveLayer = (mode) => {
+  #showActiveLayer = (mode) => {
     this.dataLayers[mode].setVisible(true);
     this.newLayers[mode]?.setVisible(true);
   };
@@ -1166,7 +1158,6 @@ class IntegrationModel {
   };
 
   #highlightItem = (item) => {
-    debugger;
     if (item.selectedFromMap) {
       let featureId = item.feature.ol_uid;
       this.listItemRefs[featureId].current.scrollIntoView();
@@ -1179,32 +1170,14 @@ class IntegrationModel {
       this.highlightSource.addFeature(item.feature);
       this.selectedFeatureFromMap = item.feature;
     } else this.selectedFeatureFromMap = null;
-
-    //console.log("this.searchResponseTool", this.searchResponseTool);
-    //debugger;
-
-    // FIXME
-    // if (this.searchResponseTool === "combine") {
-    //   if (this.selectedFeatureFromMap) {
-    //     let feature = this.selectedFeatureFromMap;
-    //     feature.geometry = {
-    //       coordinates: this.selectedFeatureFromMap,
-    //       type: "Polygon",
-    //     };
-    //     const featureCollection = {
-    //       searchType: "SelectFromMap",
-    //       featureCollection: { features: [feature] },
-    //       transformation: null,
-    //       type: "area",
-    //     };
-    //     this.#combineWfsSearch(featureCollection);
-    //     return;
-    //   }
-    // }
   };
 
   #isFeatureHighlighted = (feature) => {
     return this.highlightSource.getFeatures()[0] === feature;
+  };
+
+  hideItem = (item) => {
+    this.localObserver.publish("mf-geometry-hide-from-map", item);
   };
 
   handleWindowOpen = () => {
@@ -1215,8 +1188,8 @@ class IntegrationModel {
     this.localObserver.publish("mf-window-closed");
   };
 
-  #sendSnackbarMessage = (message) => {
-    this.localObserver.publish("mf-kubb-message-received", message);
+  #sendSnackbarMessage = (nativeMessageType) => {
+    this.localObserver.publish("mf-kubb-message-received", nativeMessageType);
   };
 
   testRealEstatesFromKUBB = () => {
@@ -1311,9 +1284,26 @@ class IntegrationModel {
   };
 
   #getKubbQuery = () => {
-    const name = "w3erik.arvroth";
+    let userName = "";
+
+    //if there are no userDetails, check if there is a test userName.
+    if (this.options.test_kubbUserName) {
+      userName = this.options.test_kubbUserName;
+    }
+
+    //Use the userDetails provided back to the client from the AD lookup.
+    if (this.app.config.userDetails) {
+      userName = this.app.config.userDetails;
+    }
+
+    //If we have no user, warn that we are creating a Kubb connectio with no user.
+    if (!userName) {
+      console.warn("Empty userName provided to Kubb Connection");
+    }
+
+    console.log("userName to Kubb:", userName);
     const organisation = this.options.kubbOrganisationId;
-    return `?user=${name}&organisation=${organisation}&clientType=External&client=webmapapp`;
+    return `?user=${userName}&organisation=${organisation}&clientType=External&client=webmapapp`;
   };
 
   #kubbConnectionEstablished = () => {

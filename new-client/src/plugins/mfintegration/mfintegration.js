@@ -27,6 +27,7 @@ const defaultOptions = {
   kubbAddress: "https://address:64235",
   kubbOrganisationId: "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
   kubbPathEndpoint: "GisAndRealEstate",
+  test_kubbUserName: "",
   mapObjects: defaultModeConfig,
 };
 

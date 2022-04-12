@@ -2,12 +2,17 @@ import React from "react";
 import { withStyles } from "@material-ui/core/styles";
 import {
   Grid,
+  Box,
   Typography,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
 } from "@material-ui/core";
+import { ToggleButton, ToggleButtonGroup } from "@material-ui/lab";
+import AddIcon from "@material-ui/icons/Add";
+import PictureInPictureIcon from "@material-ui/icons/PictureInPicture";
+import RemoveIcon from "@material-ui/icons/Remove";
 
 const styles = (theme) => {
   return {};
@@ -16,6 +21,7 @@ const styles = (theme) => {
 class CombineControl extends React.PureComponent {
   state = {
     combineTargetName: "",
+    combineMethod: "union",
   };
 
   constructor(props) {
@@ -23,11 +29,17 @@ class CombineControl extends React.PureComponent {
     this.localObserver = props.localObserver;
   }
 
+  #handleChangeCombineMethod = (event, newValue) => {
+    if (newValue !== this.state.combineMethod)
+      this.setState({ combineMethod: newValue });
+  };
+
   #handleChangeCombineLayer = (combineLayerName) => {
     let combineLayer = this.availableCombineLayers.find(
       (item) => item.name === combineLayerName
     );
     combineLayer.type = "combine";
+    combineLayer.combineMethod = this.state.combineMethod;
     this.setState({ combineTargetName: combineLayerName }, () => {
       this.localObserver.publish("mf-edit-supportLayer", combineLayer);
     });
@@ -52,6 +64,34 @@ class CombineControl extends React.PureComponent {
           <Typography>
             Välj två angränsande objekt i kartan att kombinera till nytt objekt
           </Typography>
+        </Grid>
+        <Grid item xs={12}>
+          <Box display="flex" style={{ marginTop: "8px", marginBottom: "8px" }}>
+            <ToggleButtonGroup
+              exclusive
+              value={this.state.combineMethod}
+              onChange={this.#handleChangeCombineMethod}
+            >
+              <ToggleButton value="union">
+                <AddIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Sammanfoga{" "}
+                </Typography>
+              </ToggleButton>
+              <ToggleButton value="difference">
+                <PictureInPictureIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Skärning{" "}
+                </Typography>
+              </ToggleButton>
+              <ToggleButton value="intersect">
+                <RemoveIcon size="small" />
+                <Typography noWrap variant="button">
+                  &nbsp; Urklipp{" "}
+                </Typography>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
         </Grid>
         <Grid item xs={12}>
           <FormControl margin="none">

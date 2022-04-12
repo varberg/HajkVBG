@@ -45,7 +45,14 @@ const defaultState = {
     contamination: [],
   },
   listToolsMode: "none",
-  editOpen: false,
+  isEditMenuOpen: false,
+  editTab: "create",
+  newFeature: null,
+  activeSupportLayerName: null,
+  activeSupportLayerSource: null,
+  createSessionInProgress: false,
+  updateSessionInProgress: false,
+  featureUpdateInProgress: false,
 };
 
 const showDevelopmentOnlyButtons = true;
@@ -102,6 +109,9 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-geometry-selected-from-map", (feature) => {
       this.#clickRowFromMapInteraction(feature);
     });
+    this.localObserver.subscribe("mf-geometry-hide-from-map", (feature) => {
+      this.#hideClickedCombineFeatre(feature);
+    });
     this.localObserver.subscribe("mf-wfs-map-updated-features", (props) => {
       this.#updateList(props);
     });
@@ -145,18 +155,37 @@ class IntegrationView extends React.PureComponent {
     this.localObserver.subscribe("mf-end-draw-new-geometry", (status) => {
       this.#newGeometryFinished(status);
     });
+    this.localObserver.subscribe("mf-end-update-geometry", (status) => {
+      this.#updateGeometryFinished(status);
+    });
 
     this.localObserver.subscribe("mf-edit-supportLayer", (editTarget) => {
+      this.setState({
+        activeSupportLayerName: editTarget.name,
+        activeSupportLayerSource: editTarget.sourceName,
+      });
       this.#showDrawingSupport(editTarget.layerId);
-      this.editFunctions[editTarget.type].start(editTarget.sourceName);
+      this.editFunctions[editTarget.type].start(
+        editTarget.sourceName,
+        editTarget
+      );
     });
     this.localObserver.subscribe("mf-edit-noSupportLayer", (editTarget) => {
       this.#hideDrawingSupport(editTarget.layerId);
       this.editFunctions[editTarget.type].end(editTarget.sourceName);
+      this.setState({
+        activeSupportLayerName: null,
+        activeSupportLayerSource: null,
+      });
     });
-
     this.localObserver.subscribe("mf-new-feature-pending", (feature) => {
-      this.newFeature = { features: [feature], isNew: true };
+      let newFeature = { features: [feature], isNew: true };
+      this.setState({ newFeature: newFeature });
+    });
+    this.localObserver.subscribe("mf-feature-edit-started", () => {
+      if (this.state.editTab === "update") {
+        this.setState({ featureUpdateInProgress: true });
+      }
     });
   };
 
@@ -167,7 +196,6 @@ class IntegrationView extends React.PureComponent {
     this.#initDrawFunctions();
     this.#initNewGeometryFunctions();
     this.#initEditFunctions();
-    this.#initUpdateEditToolsFunctions();
     this.#initDrawTypes();
     this.#initPublishDefaultMode();
     if (this.app.plugins.mfintegration?.options?.visibleAtStart)
@@ -255,14 +283,6 @@ class IntegrationView extends React.PureComponent {
     };
   };
 
-  #initUpdateEditToolsFunctions = () => {
-    this.updateEditTools = {
-      edit: this.#reshapeNewGeometry,
-      move: this.#moveNewGeometry,
-      delete: this.#deleteNewGeometry,
-    };
-  };
-
   //TODO - this should come from the where the modes (realEstate etc are configured).
   #initDrawTypes = () => {
     this.drawTypes = {
@@ -342,6 +362,10 @@ class IntegrationView extends React.PureComponent {
     });
   };
 
+  #setEditTab = (value) => {
+    this.setState({ editTab: value });
+  };
+
   #addNewItemToList = (data) => {
     data.type = this.state.mode;
     this.#updateList(data);
@@ -358,12 +382,21 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clickRowFromMapInteraction = (selectedFeature) => {
+    let currentList = { ...this.state.currentListResults };
+    if (!selectedFeature) {
+      let selectedItem = currentList[this.state.mode].find(
+        (listItem) => listItem.selected
+      );
+      this.#clickRow(selectedItem, this.state.mode);
+      return;
+    }
+
     let featuresInList = { ...this.state.currentListResults[this.state.mode] };
     this.#addArrayToObject(featuresInList);
 
     const clickedFeature = featuresInList.array
       .filter((listFeature) => {
-        if (selectedFeature.ol_uid === listFeature.feature.ol_uid)
+        if (selectedFeature?.ol_uid === listFeature.feature.ol_uid)
           return listFeature;
         return false;
       })
@@ -371,6 +404,13 @@ class IntegrationView extends React.PureComponent {
 
     this.#clickedRowFromMap(clickedFeature);
     this.#clickRow(clickedFeature, this.state.mode);
+  };
+
+  #hideClickedCombineFeatre = (feature) => {
+    const item = this.state.currentListResults[this.state.mode].find(
+      (listItem) => listItem.feature.ol_uid === feature.ol_uid
+    );
+    this.toggleResultItemVisibility(item, this.state.mode);
   };
 
   #updateList = (props) => {
@@ -575,16 +615,25 @@ class IntegrationView extends React.PureComponent {
 
   #newGeometryFinished = (status) => {
     if (status.saveGeometry) {
-      this.#addNewItemToList(this.newFeature);
-      this.#addNewItemToSource(this.newFeature);
-      this.#removeOldEditItemFromSource(this.newFeature, status.editMode);
+      this.#addNewItemToList(this.state.newFeature);
+      this.#addNewItemToSource(this.state.newFeature);
+      this.#removeOldEditItemFromSource(this.state.newFeature, status.editMode);
     }
     if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
 
-    this.newFeature = null;
+    this.setState({ newFeature: null });
     const drawType =
       this.drawTypes[status.editMode][this.state.mode] + status.editMode;
     this.drawFunctions[drawType].end();
+    this.model.clearInteractions();
+  };
+
+  #updateGeometryFinished = (status) => {
+    if (status.saveGeometry) {
+      this.#addNewItemToList(status);
+      this.#addNewItemToSource(status);
+      this.model.endUpdate();
+    }
   };
 
   #toggleMode = (mode) => {
@@ -616,9 +665,16 @@ class IntegrationView extends React.PureComponent {
   };
 
   #clickRow = (clickedItem, mode) => {
+    //If we are currently updating a feature, selecting a new feature is not allowed, so we just return.
+    if (this.state.updateSessionInProgress) {
+      return;
+    }
+
+    /* Update the state of the clicked item with it's new selection status (selected or not selected)*/
     this.localObserver.publish("mf-item-list-clicked", clickedItem);
 
     let updateList = { ...this.state.currentListResults };
+    //search the results list for the existing selection status of the clicked item.
     let isSelected = !updateList[mode].find(
       (listItem) => listItem.id === clickedItem.id
     ).selected;
@@ -628,9 +684,11 @@ class IntegrationView extends React.PureComponent {
         return { ...listItem, selected: isSelected };
       return { ...listItem, selected: false };
     });
-
     updateList[mode] = updatedResults;
-    this.setState({ currentListResults: updateList });
+
+    this.setState({
+      currentListResults: updateList,
+    });
   };
 
   #zoomFeatureInOrOut = (clickedItem) => {
@@ -748,33 +806,102 @@ class IntegrationView extends React.PureComponent {
     this.drawFunctions[listToolsMode]?.start(this.state.mode);
   };
 
-  #handleUpdateEditTools = (editTool, editMenu) => {
-    this.updateEditTools[editTool](editMenu);
+  #reactivateUpdateDrawingMode = (editMode) => {
+    if (editMode === "new") {
+      this.newGeometryFunctions[this.state.mode]();
+    } else {
+      this.editFunctions[editMode].start(this.state.activeSupportLayerSource);
+    }
   };
 
-  #reshapeNewGeometry = (source) => {};
+  #handleActivateUpdateTool = (updateTool, editMode) => {
+    //If we are creating a new feature (in the create tab).
+    if (this.state.editTab === "create") {
+      //If we are activiting an edit tool, active the tool, if we are deactivating, deactive the tool and reset to the
+      //relavant drawing mode of the updateTool (e.g. modify, combine, draw).
+      if (updateTool !== null) {
+        this.props.model.activateUpdateTool(updateTool, editMode, false);
+      } else {
+        this.props.model.endActiveUpdateTool();
+        this.#reactivateUpdateDrawingMode(editMode);
+      }
+    }
 
-  #moveNewGeometry = (source) => {};
+    //If we are updating an existing feature (in the update tab).
+    if (this.state.editTab === "update") {
+      if (updateTool !== null) {
+        this.props.model.activateUpdateTool(updateTool, editMode, true);
+      } else {
+        this.props.model.endActiveUpdateTool();
+      }
+    }
+  };
 
-  #deleteNewGeometry = (source) => {
-    this.model.deleteNewGeometry(this.newFeature, source);
+  #handleDeleteNewEdit = (editMode) => {
+    //clear existing interactions, we will add the draw interaction back at the end.
+    this.props.model.clearInteractions();
+
+    //Remove any features from NewFeature source.
+    this.state.newFeature.features.forEach((feature) => {
+      this.props.model.editSources[editMode].removeFeature(feature);
+    });
+    this.setState({ newFeature: null });
+    this.#reactivateUpdateDrawingMode(editMode);
+  };
+
+  #handleDeleteUpdateEdit = () => {
+    console.log("handleDeleteUpdateEdit, Funktionalitet väntar på KUBB.");
+  };
+
+  #handleDeleteEdit = (editMode) => {
+    if (this.state.editTab === "update") {
+      this.#handleDeleteUpdateEdit();
+    }
+
+    if (this.state.editTab === "create") {
+      this.#handleDeleteNewEdit(editMode);
+    }
+  };
+
+  #toggleEditMenuOpen = (open) => {
+    this.setState({ isEditMenuOpen: open });
+    if (open) this.setState({ listToolsMode: "none" });
+  };
+
+  #toggleSessionInProgress = (sessionName, inProgress) => {
+    const stateName =
+      sessionName === "create"
+        ? "createSessionInProgress"
+        : "updateSessionInProgress";
+    this.setState({ [stateName]: inProgress });
   };
 
   renderEditMenu = () => {
+    const currentSelection = this.state.currentListResults[
+      this.state.mode
+    ].filter((feature) => feature.selected);
+
     return (
       <EditMenu
         model={this.props.model}
         localObserver={this.localObserver}
+        currentSelection={currentSelection}
+        selectionExists={currentSelection.length > 0}
         layerMode={this.state.mode}
         combineEditMode={this.drawTypes.combine[this.state.mode]}
         copyEditMode={this.drawTypes.copy[this.state.mode]}
         newEditMode={this.drawTypes.new[this.state.mode]}
-        handleUpdateEditToolsMode={this.#handleUpdateEditTools}
-        handleUpdateEditOpen={(open) => {
-          this.setState({ editOpen: open });
-          //deactivate any active listtools when opening search.
-          if (open) this.setState({ listToolsMode: "none" });
-        }}
+        handleChangeUpdateTool={this.#handleActivateUpdateTool}
+        handleDeleteEdit={this.#handleDeleteEdit}
+        handleUpdateIsEditMenuOpen={this.#toggleEditMenuOpen}
+        newFeature={this.state.newFeature}
+        handleChangeEditTab={this.#setEditTab}
+        editTab={this.state.editTab}
+        isEditMenuOpen={this.state.isEditMenuOpen}
+        createSessionInProgress={this.state.createSessionInProgress}
+        updateSessionInProgress={this.state.updateSessionInProgress}
+        toggleSessionInProgress={this.#toggleSessionInProgress}
+        featureUpdateInProgress={this.state.featureUpdateInProgress}
       />
     );
   };
@@ -782,7 +909,7 @@ class IntegrationView extends React.PureComponent {
   renderListTools = () => {
     return (
       <ListToolbar
-        disabled={this.state.editOpen}
+        disabled={this.state.isEditMenuOpen}
         listToolsMode={this.state.listToolsMode}
         handleClearResults={() => {
           this.#clearResults();
@@ -885,7 +1012,8 @@ class IntegrationView extends React.PureComponent {
 
   render() {
     const { classes, options } = this.props;
-    const { mode } = this.state;
+    const { mode, createSessionInProgress, updateSessionInProgress } =
+      this.state;
     return (
       <Container disableGutters>
         <Grid container spacing={(1, 1)}>
@@ -900,6 +1028,7 @@ class IntegrationView extends React.PureComponent {
                 id="modeSelection"
                 displayEmpty
                 value={mode}
+                disabled={createSessionInProgress || updateSessionInProgress}
                 onChange={(e) => {
                   this.#toggleMode(e.target.value);
                 }}
@@ -930,7 +1059,6 @@ class IntegrationView extends React.PureComponent {
                   {this.state.currentListResults[mode].map((item) => {
                     let refName = item.feature.ol_uid;
                     this.model.listItemRefs[refName] = React.createRef();
-                    console.log("item", item);
                     return (
                       <ListResult
                         model={this.props.model}
