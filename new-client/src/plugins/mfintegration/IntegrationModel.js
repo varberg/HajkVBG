@@ -1301,6 +1301,7 @@ class IntegrationModel {
       console.warn("Empty userName provided to Kubb Connection");
     }
 
+    console.log("userName to Kubb:", userName);
     const organisation = this.options.kubbOrganisationId;
     return `?user=${userName}&organisation=${organisation}&clientType=External&client=webmapapp`;
   };
