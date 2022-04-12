@@ -27,7 +27,6 @@ class IntegrationModel {
     this.localObserver = settings.localObserver;
     this.searchModel = settings.searchModel;
     this.listItemRefs = {};
-
     this.#init();
     this.#bindSubscriptions();
   }
@@ -1285,9 +1284,25 @@ class IntegrationModel {
   };
 
   #getKubbQuery = () => {
-    const name = "w3erik.arvroth";
+    let userName = "";
+
+    //if there are no userDetails, check if there is a test userName.
+    if (this.options.test_kubbUserName) {
+      userName = this.options.test_kubbUserName;
+    }
+
+    //Use the userDetails provided back to the client from the AD lookup.
+    if (this.app.config.userDetails) {
+      userName = this.app.config.userDetails;
+    }
+
+    //If we have no user, warn that we are creating a Kubb connectio with no user.
+    if (!userName) {
+      console.warn("Empty userName provided to Kubb Connection");
+    }
+
     const organisation = this.options.kubbOrganisationId;
-    return `?user=${name}&organisation=${organisation}&clientType=External&client=webmapapp`;
+    return `?user=${userName}&organisation=${organisation}&clientType=External&client=webmapapp`;
   };
 
   #kubbConnectionEstablished = () => {
