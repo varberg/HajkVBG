@@ -21,6 +21,7 @@ export default function ResponsiveDialog(props) {
   const fullScreen = useMediaQuery(theme.breakpoints.down("xs"));
 
   const {
+    children,
     onAbort,
     onClose,
     open,
@@ -29,6 +30,7 @@ export default function ResponsiveDialog(props) {
       allowDangerousHtml, // ReactMarkdown disables HTML by default but we let the Admin decide
       buttonText,
       headerText,
+      primaryButtonVariant,
       prompt,
       text,
       useLegacyNonMarkdownRenderer, // Admin can choose to pass-by the ReactMarkdown and just use dangerouslySetInnerHtml
@@ -60,6 +62,7 @@ export default function ResponsiveDialog(props) {
         <DialogTitle id="responsive-dialog-title">{headerText}</DialogTitle>
       )}
       <DialogContent>
+        {children}
         {useLegacyNonMarkdownRenderer === true ? (
           <LegacyNonMarkdownRenderer text={text} />
         ) : (
@@ -95,7 +98,9 @@ export default function ResponsiveDialog(props) {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{buttonText}</Button>
+        <Button onClick={handleClose} variant={primaryButtonVariant || "text"}>
+          {buttonText}
+        </Button>
         {abortText && <Button onClick={handleAbort}>{abortText}</Button>}
       </DialogActions>
     </Dialog>

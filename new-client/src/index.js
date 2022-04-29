@@ -29,7 +29,7 @@ import "ol/ol.css";
 import "./custom-ol.css";
 
 import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import buildConfig from "./buildConfig.json";
 import ErrorIcon from "@mui/icons-material/Error";
 import HajkThemeProvider from "./components/HajkThemeProvider";
@@ -43,16 +43,17 @@ let networkErrorMessage =
 let parseErrorMessage =
   "Fel när applikationen skulle läsas in. Detta beror troligtvis på ett konfigurationsfel. Försök igen senare.";
 
+const domRoot = createRoot(document.getElementById("root"));
+
 const renderError = (message, err) => {
   console.error(err);
-  ReactDOM.render(
+  domRoot.render(
     <div className="start-error">
       <div>
         <ErrorIcon />
       </div>
       <div>{message}</div>
-    </div>,
-    document.getElementById("root")
+    </div>
   );
 };
 
@@ -144,13 +145,12 @@ hfetch("appConfig.json", { cacheBuster: true })
                 LocalStorageHelper.setKeyName(config.activeMap);
 
                 // Invoke React's renderer. Render Theme. Theme will render App.
-                ReactDOM.render(
+                domRoot.render(
                   <HajkThemeProvider
                     activeTools={buildConfig.activeTools}
                     config={config}
                     customTheme={customTheme}
-                  />,
-                  document.getElementById("root")
+                  />
                 );
               })
               .catch((err) => renderError(parseErrorMessage, err));
@@ -214,13 +214,12 @@ hfetch("appConfig.json", { cacheBuster: true })
                   }
 
                   // Invoke React's renderer. Render Theme. Theme will render App.
-                  ReactDOM.render(
+                  domRoot.render(
                     <HajkThemeProvider
                       activeTools={buildConfig.activeTools}
                       config={config}
                       customTheme={customTheme}
-                    />,
-                    document.getElementById("root")
+                    />
                   );
                 })
                 .catch((err) => {

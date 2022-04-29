@@ -5,6 +5,8 @@ import Buffer from "./tools/buffer.jsx";
 import Bookmarks from "./tools/bookmarks.jsx";
 import Coordinates from "./tools/coordinates.jsx";
 import Draw from "./tools/draw.jsx";
+import LayerComparer from "./tools/layercomparer.jsx";
+import Sketch from "./tools/sketch.jsx";
 import Edit from "./tools/edit.jsx";
 import Export from "./tools/export.jsx";
 import FmeServer from "./tools/fmeServer.jsx";
@@ -75,6 +77,10 @@ class ToolOptions extends Component {
         return <Coordinates parent={this} model={this.props.model} />;
       case "draw":
         return <Draw parent={this} model={this.props.model} />;
+      case "layercomparer":
+        return <LayerComparer parent={this} model={this.props.model} />;
+      case "sketch":
+        return <Sketch parent={this} model={this.props.model} />;
       case "edit":
         return <Edit parent={this} model={this.props.model} />;
       case "export":
@@ -158,6 +164,8 @@ class ToolOptions extends Component {
       bookmarks: "Bokmärken",
       coordinates: "Fånga koordinat",
       draw: "Rita och mäta",
+      layercomparer: "Jämför lager sida vid sida",
+      sketch: "Rita och mäta (Version 2)",
       edit: "Editering",
       export: "Utskrift",
       fmeServer: "FME-server",
@@ -175,7 +183,7 @@ class ToolOptions extends Component {
       dummy: "Dummy plugin",
       timeslider: "Tidslinje",
       documenthandler: "Dokumenthanterare 2.0",
-      geosuiteexport: "GeoSuite export"
+      geosuiteexport: "GeoSuite export",
     };
 
     return (

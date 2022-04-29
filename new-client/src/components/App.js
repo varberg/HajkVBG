@@ -6,6 +6,7 @@ import { SnackbarProvider } from "notistack";
 import Observer from "react-event-observer";
 import { isMobile } from "../utils/IsMobile";
 import SrShortcuts from "../components/SrShortcuts/SrShortcuts";
+import Analytics from "../models/Analytics";
 import AppModel from "../models/AppModel.js";
 import {
   setConfig as setCookieConfig,
@@ -18,6 +19,8 @@ import Introduction from "./Introduction";
 import Announcement from "./Announcement/Announcement";
 import Alert from "./Alert";
 import PluginWindows from "./PluginWindows";
+import SimpleDialog from "./SimpleDialog";
+import MapClickViewer from "./MapClickViewer/MapClickViewer";
 
 import Search from "./Search/Search.js";
 
@@ -328,6 +331,13 @@ class App extends React.PureComponent {
 
     this.globalObserver = new Observer();
 
+    // Initiate the Analytics model
+    props.config.mapConfig.analytics && this.initiateAnalyticsModel();
+
+    this.infoclickOptions = this.props.config.mapConfig.tools.find(
+      (t) => t.type === "infoclick"
+    )?.options;
+
     // We have to initialize the cookie-manager so we know how cookies should be managed.
     // The manager should ideally only be initialized once, since the initialization determines
     // wether the cookie-notice has to be shown or not. Running setConfig() again will not lead
@@ -356,12 +366,64 @@ class App extends React.PureComponent {
     });
   };
 
+  checkConfigForUnsupportedTools = () => {
+    // The plugin names can be fancy, but are always lower case in mapConfig:
+    const lowerCaseActiveTools = this.props.activeTools.map((t) =>
+      t.toLowerCase()
+    );
+
+    // Check which plugins defined in mapConfig don't exist in buildConfig
+    const unsupportedToolsFoundInMapConfig = this.props.config.mapConfig.tools
+      .map((t) => t.type.toLowerCase())
+      .filter((e) => {
+        // Special case: "infoclick" will never exist in activeTools (as it's core)
+        // so we can assume it's supported even if it isn't found in activeTools.
+        if (e === "infoclick") return false;
+
+        // Check if activeTools contain the plugin supplied in this configuration.
+        // If not, leave it in this array.
+        return !lowerCaseActiveTools.includes(e);
+      });
+
+    // Display a silent info message in console
+    console.log(
+      `The map configuration contains unavailable plugins: ${unsupportedToolsFoundInMapConfig.join(
+        ", "
+      )}. Please check your map config and buildConfig.json.  `
+    );
+  };
+  /**
+   * @summary Initiates the wanted analytics model (if any).
+   * @description If Hajk is configured to track map usage, this method will
+   * initialize the model and subscribe to two events ("analytics.trackPageView"
+   * and "analytics.trackEvent").
+   *
+   * @memberof App
+   */
+  initiateAnalyticsModel() {
+    this.analytics = new Analytics(
+      this.props.config.mapConfig.analytics,
+      this.globalObserver
+    );
+
+    // Subscribe to events on global observer
+    this.globalObserver.publish("analytics.trackPageView");
+
+    this.globalObserver.publish("analytics.trackEvent", {
+      eventName: "MapLoad",
+      mapName: this.props.config.activeMap,
+    });
+  }
+
   componentDidMount() {
-    var promises = this.appModel
+    this.checkConfigForUnsupportedTools();
+
+    const promises = this.appModel
       .createMap()
       .addSearchModel()
       .addLayers()
       .loadPlugins(this.props.activeTools);
+
     Promise.all(promises).then(() => {
       this.setState(
         {
@@ -370,17 +432,26 @@ class App extends React.PureComponent {
         () => {
           // If there's at least one plugin that renders in the Drawer Map Tools List,
           // tell the Drawer to add a toggle button for the map tools
-          this.appModel.getDrawerPlugins().length > 0 &&
+          this.appModel.getPluginsThatMightRenderInDrawer().length > 0 &&
             this.globalObserver.publish("core.addDrawerToggleButton", {
               value: "plugins",
               ButtonIcon: MapIcon,
               caption: "Kartverktyg",
               drawerTitle: "Kartverktyg",
               order: 0,
+              // If no plugins render **directly** in Drawer, but some **might**
+              // render there occasionally, let's ensure to hide the Tools button on
+              // medium screens and above.
+              hideOnMdScreensAndAbove:
+                this.appModel.getDrawerPlugins().length === 0 &&
+                this.appModel.getPluginsThatMightRenderInDrawer().length > 0,
               renderDrawerContent: function () {
                 return null; // Nothing specific should be rendered - this is a special case!
               },
             });
+
+          // Ensure to update the map canvas size. Otherwise we can run into #1058.
+          this.appModel.getMap().updateSize();
 
           // Tell everyone that we're done loading (in case someone listens)
           this.globalObserver.publish("core.appLoaded");
@@ -510,9 +581,7 @@ class App extends React.PureComponent {
 
   renderInfoclickWindow() {
     // Check if admin wants Infoclick to be active
-    const infoclickOptions = this.props.config.mapConfig.tools.find(
-      (t) => t.type === "infoclick"
-    )?.options;
+    const { infoclickOptions } = this;
 
     // The 'open' prop, below, will control whether the Window is
     // currently visible or not. The 'open' property itself
@@ -773,6 +842,8 @@ class App extends React.PureComponent {
     const showMapSwitcher =
       clean === false && config.activeMap !== "simpleMapConfig";
 
+    const useNewInfoclick = this.infoclickOptions?.useNewInfoclick === true;
+
     return (
       <SnackbarProvider
         maxSnack={3}
@@ -926,10 +997,18 @@ class App extends React.PureComponent {
               },
             }}
           >
-            {this.renderInfoclickWindow()}
+            {useNewInfoclick === false && this.renderInfoclickWindow()}
+            {useNewInfoclick && (
+              <MapClickViewer
+                appModel={this.appModel}
+                globalObserver={this.globalObserver}
+                infoclickOptions={this.infoclickOptions}
+              />
+            )}
             <PluginWindows
               plugins={this.appModel.getBothDrawerAndWidgetPlugins()}
             />
+            <SimpleDialog globalObserver={this.globalObserver} />
           </WindowsContainer>
           {clean !== true && ( // NB: Special case here, important with !== true, because there is an edge-case where clean===undefined, and we don't want to match on that!
             <Drawer
@@ -962,11 +1041,14 @@ class App extends React.PureComponent {
           )}
           {clean === false && (
             <Introduction
-              experimentalIntroductionEnabled={
-                this.appModel.config.appConfig.experimentalIntroductionEnabled
+              introductionEnabled={
+                this.appModel.config.mapConfig.map.introductionEnabled
               }
-              experimentalIntroductionSteps={
-                this.appModel.config.appConfig.experimentalIntroductionSteps
+              introductionShowControlButton={
+                this.appModel.config.mapConfig.map.introductionShowControlButton
+              }
+              introductionSteps={
+                this.appModel.config.mapConfig.map.introductionSteps
               }
               globalObserver={this.globalObserver}
             />
