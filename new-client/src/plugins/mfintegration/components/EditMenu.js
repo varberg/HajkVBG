@@ -49,14 +49,6 @@ const styles = (theme) => {
   };
 };
 
-//The existing Mui ToggleButtonGroup and Toggle buttons do not handle being wrapped in a Tooltip.
-//this TooltipToggleButton components allows using a tooltip on togglebuttons.
-const TooltipToggleButton = ({ children, title, ...props }) => (
-  <Tooltip title={title}>
-    <ToggleButton {...props}>{children}</ToggleButton>
-  </Tooltip>
-);
-
 const StyledAccordionSummary = withStyles({
   root: {
     borderTop: "1px solid rgba(0, 0, 0, .125)",
@@ -462,7 +454,7 @@ class EditMenu extends React.PureComponent {
 
   renderUpdateFeatureControls = () => {
     //The behaviour of the tools will vary based on whether we are in 'Create' or 'Update' tab in the edit menu*/
-    const { classes, model, newFeature, editTab } = this.props;
+    const { classes, newFeature, editTab } = this.props;
 
     //Are we in update or create mode?
     const inUpdateTab = editTab === "update";
