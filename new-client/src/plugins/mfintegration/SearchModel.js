@@ -34,73 +34,15 @@ export default class SearchModel {
   };
 
   findCoordinatesWithCoordinates = (coordinateList) => {
-    let wfsConfig = this.options.mapObjects.coordinate.wfsLayer;
-    /*** Lägg till en wfs-sökning här ***/
-    // const filter
-    // const wfsRequest
-    // hfetch ...
-    let id = 0;
-    const features = coordinateList.map((coordinate) => {
-      return {
-        geometry: {
-          type: "Point",
-          coordinates: [coordinate.easting, coordinate.northing],
-        },
-        id: "koordinat." + ++id,
-        geometry_name: "geom",
-        properties: { label: coordinate.label },
-        type: "Feature",
-      };
-    });
-    const simulatedFeatureCollection = { features: features };
-
-    let answer = this.#createResponse(
-      simulatedFeatureCollection,
-      wfsConfig.geometryField,
-      this.#getTransformationWfsToMap(wfsConfig),
-      "List"
-    );
-    answer.selectedCoordinates = coordinateList;
-    answer.type = "coordinate";
-    this.localObserver.publish("mf-wfs-search", answer);
+    this.#findWithIds(coordinateList, this.wfsConfigCoordinates);
   };
 
   findAreasWithGeometry = (selectionFeature) => {
     this.#findWithGeometry(selectionFeature, this.wfsConfigAreas);
   };
 
-  // Skall vara ett nummer, men är en koordinat i vår testkod
   findAreasWithNumbers = (areaList) => {
-    let wfsConfig = this.options.mapObjects.area.wfsLayer;
-    /*** Lägg till en wfs-sökning här ***/
-    // const filter
-    // const wfsRequest
-    // hfetch ...
-    let id = 0;
-    const features = [
-      {
-        geometry: {
-          type: "Polygon",
-          coordinates: areaList.coordinates,
-        },
-        id: "område." + ++id,
-        geometry_name: wfsConfig.geometryName,
-        properties: { saknas: "-", omrade: areaList.name },
-        type: "Feature",
-      },
-    ];
-
-    const simulatedFeatureCollection = { features: features };
-
-    let answer = this.#createResponse(
-      simulatedFeatureCollection,
-      wfsConfig.geometryField,
-      this.#getTransformationWfsToMap(wfsConfig),
-      "List"
-    );
-    answer.selectedCoordinates = areaList;
-    answer.type = "area";
-    this.localObserver.publish("mf-wfs-search", answer);
+    this.#findWithIds(areaList, this.wfsConfigAreas);
   };
 
   findSurveysWithGeometry = (selectionFeature) => {
@@ -108,36 +50,7 @@ export default class SearchModel {
   };
 
   findSurveysWithNumbers = (surveyList) => {
-    let wfsConfig = this.options.mapObjects.survey.wfsLayer;
-    /*** Lägg till en wfs-sökning här ***/
-    // const filter
-    // const wfsRequest
-    // hfetch ...
-    let id = 0;
-    const features = [
-      {
-        geometry: {
-          type: "Polygon",
-          coordinates: surveyList.coordinates,
-        },
-        id: "område." + ++id,
-        geometry_name: wfsConfig.geometryName,
-        properties: { saknas: "-", omrade: surveyList.name },
-        type: "Feature",
-      },
-    ];
-
-    const simulatedFeatureCollection = { features: features };
-
-    let answer = this.#createResponse(
-      simulatedFeatureCollection,
-      wfsConfig.geometryField,
-      this.#getTransformationWfsToMap(wfsConfig),
-      "List"
-    );
-    answer.selectedCoordinates = surveyList;
-    answer.type = "survey";
-    this.localObserver.publish("mf-wfs-search", answer);
+    this.#findWithIds(surveyList, this.wfsConfigSurvey);
   };
 
   findContaminationsWithGeometry = (selectionFeature) => {
@@ -145,36 +58,7 @@ export default class SearchModel {
   };
 
   findContaminationsWithNumbers = (contaminationList) => {
-    let wfsConfig = this.options.mapObjects.contamination.wfsLayer;
-    /*** Lägg till en wfs-sökning här ***/
-    // const filter
-    // const wfsRequest
-    // hfetch ...
-    let id = 0;
-    const features = [
-      {
-        geometry: {
-          type: "Polygon",
-          coordinates: contaminationList.coordinates,
-        },
-        id: "område." + ++id,
-        geometry_name: wfsConfig.geometryName,
-        properties: { saknas: "-", omrade: contaminationList.name },
-        type: "Feature",
-      },
-    ];
-
-    const simulatedFeatureCollection = { features: features };
-
-    let answer = this.#createResponse(
-      simulatedFeatureCollection,
-      wfsConfig.geometryField,
-      this.#getTransformationWfsToMap(wfsConfig),
-      "List"
-    );
-    answer.selectedCoordinates = contaminationList;
-    answer.type = "contamination";
-    this.localObserver.publish("mf-wfs-search", answer);
+    this.#findWithIds(contaminationList, this.wfsConfigContamination);
   };
 
   #findWithGeometry = (selectionFeature, config) => {

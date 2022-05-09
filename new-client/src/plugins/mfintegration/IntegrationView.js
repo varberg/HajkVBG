@@ -5,7 +5,6 @@ import { withStyles } from "@material-ui/core/styles";
 import {
   Container,
   Typography,
-  Button,
   FormControl,
   Select,
   MenuItem,
@@ -13,7 +12,6 @@ import {
   Grid,
   FormLabel,
 } from "@material-ui/core";
-import CancelOutlinedIcon from "@material-ui/icons/CancelOutlined";
 import ListResult from "./components/ListResult";
 import ListToolbar from "./components/ListToolbar";
 import EditMenu from "./components/EditMenu";
@@ -137,6 +135,33 @@ class IntegrationView extends React.PureComponent {
         variant: "info",
         persist: false,
       });
+    });
+    this.localObserver.subscribe("mf-kubb-geometry-message-error", () => {
+      this.props.enqueueSnackbar(
+        "Saknas geometri i kartan för uppdatering av EDP Vision",
+        {
+          variant: "error",
+          persist: false,
+        }
+      );
+    });
+    this.localObserver.subscribe(
+      "mf-kubb-geometry-update-success",
+      (message) => {
+        this.props.enqueueSnackbar(message, {
+          variant: "info",
+          persist: false,
+        });
+      }
+    );
+    this.localObserver.subscribe("mf-kubb-geometry-update-error", () => {
+      this.props.enqueueSnackbar(
+        "Misslyckad sparning av geometri i EDP Vision",
+        {
+          variant: "error",
+          persist: false,
+        }
+      );
     });
     this.localObserver.subscribe("mf-wfs-failed-search", (error) => {
       let displayName =
@@ -618,6 +643,7 @@ class IntegrationView extends React.PureComponent {
       this.#addNewItemToList(this.state.newFeature);
       this.#addNewItemToSource(this.state.newFeature);
       this.#removeOldEditItemFromSource(this.state.newFeature, status.editMode);
+      this.model.updateKubbWithGeometry(this.state.newFeature);
     }
     if (!status.saveGeometry) this.model.abortDrawFeature(status.editMode);
 
@@ -927,75 +953,19 @@ class IntegrationView extends React.PureComponent {
     return (
       <div>
         {this.state.mode === "realEstate" ? (
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.testRealEstatesFromKUBB();
-                //this.props.model.initEdpConnection();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-KUBB: Testa fastigheter
-            </Button>
-          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}></ListItem>
         ) : null}
         {this.state.mode === "coordinate" ? (
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.testCoordinatesFromKUBB();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-KUBB: Testa koordinater
-            </Button>
-          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}></ListItem>
         ) : null}
         {this.state.mode === "area" ? (
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.testAreasFromKUBB();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-KUBB: Testa områden
-            </Button>
-          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}></ListItem>
         ) : null}
         {this.state.mode === "survey" ? (
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.testSurveysFromKUBB();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-KUBB: Testa undersökningar
-            </Button>
-          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}></ListItem>
         ) : null}
         {this.state.mode === "contamination" ? (
-          <ListItem style={{ paddingLeft: "0px" }}>
-            <Button
-              startIcon={<CancelOutlinedIcon />}
-              onClick={() => {
-                this.props.model.testContaminationsFromKUBB();
-              }}
-              color="primary"
-              variant="contained"
-            >
-              Fejk-KUBB: Testa föroreningar
-            </Button>
-          </ListItem>
+          <ListItem style={{ paddingLeft: "0px" }}></ListItem>
         ) : null}
       </div>
     );
