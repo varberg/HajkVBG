@@ -832,8 +832,10 @@ class IntegrationModel {
   };
 
   #zoomToFeaturenWhenKubbSearch = (data) => {
-    if (data.searchType === "List")
-      this.#zoomToSource(this.dataSources[data.type]);
+    if (data.searchType !== "List") return;
+
+    this.#zoomToSource(this.dataSources[data.type]);
+    this.localObserver.publish("mf-new-mode", data.type);
   };
 
   #addFeaturesToSource = (source, featureCollection) => {
@@ -1238,8 +1240,11 @@ class IntegrationModel {
         this.kubbHandleFeatureFunctions[featureInfo.type]([featureInfo.id]);
       });
     });
-    connection.on("SendFeatures", () => {
-      console.log("Skickar SendFeatures från KubbX", this.kubbSendType);
+    connection.on("HandleAskingForFeatures", () => {
+      console.log(
+        "Tar emot HandleAskingForFeatures från KubbX, kartobjekt: ",
+        this.kubbSendType
+      );
       if (this.kubbSendFeatureFunctions[this.kubbSendType])
         this.kubbSendFeatureFunctions[this.kubbSendType](connection);
     });
@@ -1354,13 +1359,13 @@ class IntegrationModel {
   };
 
   #receiveAreasFromKubb = (areaIdentifiers) => {
-    debugger;
     this.#sendSnackbarMessage({
       nativeType: "områden",
       nativeKind: "receive",
     });
     console.log("Tar emot områden från KubbX", areaIdentifiers);
     this.searchResponseTool = "search";
+
     this.searchModel.findAreasWithNumbers(areaIdentifiers);
   };
 
