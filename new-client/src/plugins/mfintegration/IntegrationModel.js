@@ -1374,8 +1374,8 @@ class IntegrationModel {
       nativeType: "fastigheter",
       nativeKind: "send",
     });
-    console.log("Skickar områden till KubbX", this.kubbData["area"]);
-    connection.invoke("SendFeatures", this.kubbData["area"]);
+    console.log("Skickar områden till KubbX", `${this.kubbData["area"]}`);
+    connection.invoke("SendFeatures", `${this.kubbData["area"]}`);
   };
 
   #receiveSurveysFromKubb = (surveyIdentifiers) => {
@@ -1487,21 +1487,21 @@ class IntegrationModel {
 
   #updateKubbWithAreas = (feature) => {
     return {
-      Id: feature.id,
+      Id: feature.name,
       Type: 1,
     };
   };
 
   #updateKubbWithSurveys = (feature) => {
     return {
-      Id: feature.id,
+      Id: feature.name,
       Type: 2,
     };
   };
 
   #updateKubbWithContaminations = (feature) => {
     return {
-      Id: feature.id,
+      Id: feature.name,
       Type: 3,
     };
   };
