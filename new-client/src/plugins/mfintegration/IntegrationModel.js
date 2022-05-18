@@ -1365,17 +1365,20 @@ class IntegrationModel {
     });
     console.log("Tar emot områden från KubbX", areaIdentifiers);
     this.searchResponseTool = "search";
-
     this.searchModel.findAreasWithNumbers(areaIdentifiers);
   };
 
   #sendAreasToKubb = (connection) => {
     this.#sendSnackbarMessage({
-      nativeType: "fastigheter",
+      nativeType: "områden",
       nativeKind: "send",
     });
-    console.log("Skickar områden till KubbX", `${this.kubbData["area"]}`);
-    connection.invoke("SendFeatures", `${this.kubbData["area"]}`);
+    console.log("Områdesdata till KubbX", this.kubbData["area"]);
+    const kubbData = this.kubbData["area"].map((area) => {
+      return { id: "" + area.name, type: 1 };
+    });
+    console.log("Skickar områden till KubbX", kubbData);
+    connection.invoke("SendFeatures", kubbData);
   };
 
   #receiveSurveysFromKubb = (surveyIdentifiers) => {
@@ -1384,20 +1387,21 @@ class IntegrationModel {
       nativeKind: "receive",
     });
     console.log("Tar emot undersökningar från KubbX", surveyIdentifiers);
-    const surveysList = surveyIdentifiers.map((survey) => {
-      return survey.Id;
-    });
     this.searchResponseTool = "search";
-    this.searchModel.findAreasWithNumbers(surveysList);
+    this.searchModel.findAreasWithNumbers(surveyIdentifiers);
   };
 
   #sendSurveysToKubb = (connection) => {
     this.#sendSnackbarMessage({
-      nativeType: "fastigheter",
+      nativeType: "undersökningar",
       nativeKind: "send",
     });
-    console.log("Skickar undersökningar till KubbX", this.kubbData["survey"]);
-    connection.invoke("SendFeatures", this.kubbData["survey"]);
+    console.log("Undersökningsdata till KubbX", this.kubbData["area"]);
+    const kubbData = this.kubbData["area"].map((survey) => {
+      return { id: "" + survey.name, type: 2 };
+    });
+    console.log("Skickar undersökningar till KubbX", kubbData);
+    connection.invoke("SendFeatures", kubbData);
   };
 
   #receiveContaminationsFromKubb = (contaminationIdentifiers) => {
@@ -1406,20 +1410,21 @@ class IntegrationModel {
       nativeKind: "receive",
     });
     console.log("Tar emot föroreningar från KubbX", contaminationIdentifiers);
-    const contaminationsList = contaminationIdentifiers.map((contamination) => {
-      return contamination.Id;
-    });
     this.searchResponseTool = "search";
-    this.searchModel.findAreasWithNumbers(contaminationsList);
+    this.searchModel.findAreasWithNumbers(contaminationIdentifiers);
   };
 
   #sendContaminationsToKubb = (connection) => {
     this.#sendSnackbarMessage({
-      nativeType: "fastigheter",
+      nativeType: "föroreningar",
       nativeKind: "send",
     });
-    console.log("Skickar föroreningar till KubbX", this.kubbData["survey"]);
-    connection.invoke("SendFeatures", this.kubbData["survey"]);
+    console.log("Föroreningsdata till KubbX", this.kubbData["contamination"]);
+    const kubbData = this.kubbData["contamination"].map((contamination) => {
+      return { id: "" + contamination.name, type: 3 };
+    });
+    console.log("Skickar undersökningar till KubbX", kubbData);
+    connection.invoke("SendFeatures", kubbData);
   };
 
   #sendGeometryToKubb = (connection) => {
