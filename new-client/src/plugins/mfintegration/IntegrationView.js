@@ -530,14 +530,30 @@ class IntegrationView extends React.PureComponent {
     if (props.isNew) id = this.state.currentListResults.area.length - 1;
     let areaData = props.features.map((feature) => {
       const properties = feature.getProperties();
-      const name = props.isNew ? `Nytt område` : properties.omrade;
+      const name = props.isNew ? `Nytt område` : properties[props.propertyName];
       return {
         id: ++id,
         name: name,
         information: [
           {
-            description: "saknas",
-            value: properties["saknas"],
+            description: "Fastighetsbeteckning",
+            value: properties["strFastighetsbeteckning"],
+          },
+          {
+            description: "Adress",
+            value: properties["strAdress"],
+          },
+          {
+            description: "Status",
+            value: properties["strStatus"],
+          },
+          {
+            description: "Fas",
+            value: properties["strFasNamn"],
+          },
+          {
+            description: "Beskrivning",
+            value: properties["strOmraadeBeskrivning"],
           },
         ],
         visible: true,
@@ -568,14 +584,32 @@ class IntegrationView extends React.PureComponent {
     if (props.isNew) id = this.state.currentListResults.survey.length - 1;
     let surveyData = props.features.map((feature) => {
       const properties = feature.getProperties();
-      const name = props.isNew ? "Ny undersökning" : properties.omrade;
+      const name = props.isNew
+        ? "Ny undersökning"
+        : properties[props.propertyName];
       return {
         id: ++id,
         name: name,
         information: [
           {
-            description: "saknas",
-            value: properties["saknas"],
+            description: "Undersökningskod",
+            value: properties["strUndersoekningsKod"],
+          },
+          {
+            description: "Undersökningsnamn",
+            value: properties["strUndersoekningsNamn"],
+          },
+          {
+            description: "Undersökningstyp",
+            value: properties["strUndersoekningstyp"],
+          },
+          {
+            description: "Fas",
+            value: properties["strFasNamn"],
+          },
+          {
+            description: "Sammanfattning",
+            value: properties["strSammanfattning"],
           },
         ],
         visible: true,
@@ -606,14 +640,40 @@ class IntegrationView extends React.PureComponent {
       id = this.state.currentListResults.contamination.length - 1;
     let contaminationData = props.features.map((feature) => {
       const properties = feature.getProperties();
-      const name = props.isNew ? "Ny förorening" : properties.omrade;
+      const name = props.isNew
+        ? "Ny förorening"
+        : properties[props.propertyName];
       return {
         id: ++id,
         name: name,
         information: [
           {
-            description: "saknas",
-            value: properties["saknas"],
+            description: "Områdeskod",
+            value: properties["strOmraadeKod"],
+          },
+          {
+            description: "Områdesnamn",
+            value: properties["strOmrNamn"],
+          },
+          {
+            description: "Föroreningskod",
+            value: properties["strFoeroreningKod"],
+          },
+          {
+            description: "Medium",
+            value: properties["strMediumNamn"],
+          },
+          {
+            description: "Föroreningsnamn",
+            value: properties["strFoeoreningsNamn"],
+          },
+          {
+            description: "Känslighet",
+            value: properties["strKaenslighet"],
+          },
+          {
+            description: "Beskrivning",
+            value: properties["strBeskrivning"],
           },
         ],
         visible: true,
