@@ -1232,23 +1232,14 @@ class IntegrationModel {
       this.#sendCoordiantesToKubb(connection);
     });
 
-    connection.on(
-      "HandleFeatures",
-      function (featureInfo) {
-        try {
-          console.log("Tar emot HandleFeatures från KubbX", featureInfo);
-          console.log(
-            "this.kubbHandleFeatureFunctions",
-            this.kubbHandleFeatureFunctions
-          );
-          this.kubbHandleFeatureFunctions[featureInfo.type]([featureInfo.id]);
-        } catch (error) {
-          console.error(
-            `Failed to invoke 'kubbHandleFeatureFunctions', error: ${error}`
-          );
-        }
-      }.bind(this)
-    );
+    connection.on("HandleFeatures", (featureInfo) => {
+      console.log("Tar emot HandleFeatures från KubbX", featureInfo);
+      console.log(
+        "this.kubbHandleFeatureFunctions",
+        this.kubbHandleFeatureFunctions
+      );
+      this.kubbHandleFeatureFunctions[featureInfo.type]([featureInfo.id]);
+    });
     connection.on("SendFeatures", () => {
       console.log("Skickar SendFeatures från KubbX", this.kubbSendType);
       if (this.kubbSendFeatureFunctions[this.kubbSendType])
@@ -1370,9 +1361,12 @@ class IntegrationModel {
       nativeKind: "receive",
     });
     console.log("Tar emot områden från KubbX", areaIdentifiers);
-    const areasList = areaIdentifiers.map((area) => {
-      return area.Id;
-    });
+    const areasList =
+      typeof areaIdentifiers === "string"
+        ? [areaIdentifiers]
+        : areaIdentifiers.map((area) => {
+            return area.id;
+          });
     this.searchResponseTool = "search";
     this.searchModel.findAreasWithNumbers(areasList);
   };
