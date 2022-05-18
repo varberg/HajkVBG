@@ -1234,6 +1234,10 @@ class IntegrationModel {
 
     connection.on("HandleFeatures", (featureInfo) => {
       console.log("Tar emot HandleFeatures från KubbX", featureInfo);
+      console.log(
+        "this.kubbHandleFeatureFunctions",
+        this.kubbHandleFeatureFunctions
+      );
       this.kubbHandleFeatureFunctions[featureInfo.type]([featureInfo.id]);
     });
     connection.on("SendFeatures", () => {
