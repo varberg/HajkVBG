@@ -1270,30 +1270,26 @@ class IntegrationModel {
   };
 
   #getKubbQuery = () => {
-    // let userName = "";
+    let userName = "";
 
-    // // If there are no userDetails, check if there is a test userName.
-    // if (this.options.test_kubbUserName) {
-    //   userName = this.options.test_kubbUserName;
-    // }
+    // If there are no userDetails, check if there is a test userName.
+    if (this.options.test_kubbUserName) {
+      userName = this.options.test_kubbUserName;
+    }
 
-    // // Use the userDetails provided back to the client from the AD lookup.
-    // // You cannot use the entire user-details-object... It contains several properties and
-    // // *is never* a string. Added 'sAMAccountName' /@Hallbergs.
-    // if (this.app.config.userDetails) {
-    //   userName = this.app.config.userDetails.sAMAccountName;
-    // }
+    // Use the userDetails provided back to the client from the AD lookup.
+    // You cannot use the entire user-details-object... It contains several properties and
+    // *is never* a string. Added 'sAMAccountName' /@Hallbergs.
+    if (this.app.config.userDetails) {
+      userName = this.app.config.userDetails.sAMAccountName;
+    }
 
-    // // If we have no user, warn that we are creating a Kubb connectio with no user.
-    // if (!userName) {
-    //   console.warn("Empty userName provided to Kubb Connection");
-    // }
+    // If we have no user, warn that we are creating a Kubb connectio with no user.
+    if (!userName) {
+      console.warn("Empty userName provided to Kubb Connection");
+    }
 
-    // console.log("userName to Kubb:", userName);
-    // const organisation = this.options.kubbOrganisationId;
-    // return `?user=${userName}&organisation=${organisation}&clientType=External&client=webmapapp`;
-
-    const userName = "w3erik.arvroth";
+    console.log("userName to Kubb:", userName);
     const organisation = this.options.kubbOrganisationId;
     return `?user=${userName}&organisation=${organisation}&clientType=External&client=webmapapp`;
   };
