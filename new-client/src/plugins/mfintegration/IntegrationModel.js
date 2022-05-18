@@ -1361,14 +1361,8 @@ class IntegrationModel {
       nativeKind: "receive",
     });
     console.log("Tar emot områden från KubbX", areaIdentifiers);
-    const areasList =
-      typeof areaIdentifiers === "string"
-        ? [areaIdentifiers]
-        : areaIdentifiers.map((area) => {
-            return area.id;
-          });
     this.searchResponseTool = "search";
-    this.searchModel.findAreasWithNumbers(areasList);
+    this.searchModel.findAreasWithNumbers(areaIdentifiers);
   };
 
   #sendAreasToKubb = (connection) => {
