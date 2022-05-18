@@ -1232,14 +1232,23 @@ class IntegrationModel {
       this.#sendCoordiantesToKubb(connection);
     });
 
-    connection.on("HandleFeatures", (featureInfo) => {
-      console.log("Tar emot HandleFeatures från KubbX", featureInfo);
-      console.log(
-        "this.kubbHandleFeatureFunctions",
-        this.kubbHandleFeatureFunctions
-      );
-      this.kubbHandleFeatureFunctions[featureInfo.type]([featureInfo.id]);
-    });
+    connection.on(
+      "HandleFeatures",
+      function (featureInfo) {
+        try {
+          console.log("Tar emot HandleFeatures från KubbX", featureInfo);
+          console.log(
+            "this.kubbHandleFeatureFunctions",
+            this.kubbHandleFeatureFunctions
+          );
+          this.kubbHandleFeatureFunctions[featureInfo.type]([featureInfo.id]);
+        } catch (error) {
+          console.error(
+            `Failed to invoke 'kubbHandleFeatureFunctions', error: ${error}`
+          );
+        }
+      }.bind(this)
+    );
     connection.on("SendFeatures", () => {
       console.log("Skickar SendFeatures från KubbX", this.kubbSendType);
       if (this.kubbSendFeatureFunctions[this.kubbSendType])
