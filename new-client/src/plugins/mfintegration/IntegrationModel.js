@@ -1234,20 +1234,28 @@ class IntegrationModel {
       this.#sendCoordinatesToKubb(connection);
     });
 
-    connection.on("HandleAskingForFeatures", (featureInfos) => {
-      if (!featureInfos || featureInfos.length === 0 || !featureInfos[0].type) {
-        return console.warn(
-          `'HandleAskingForFeatures' was invoked with missing parameters...`
-        );
-      }
+    connection.on("HandleAskingForFeatures", () => {
+      // My guess is that we should send all the currently chosen objects to Vision straight away...
+      // Im not really sure though...
       try {
-        const idList = featureInfos.map((fi) => fi.id) || [];
-        this.kubbHandleFeatureFunctions[featureInfos[0].type](idList);
+        this.kubbSendFeatureFunctions[this.kubbSendType]();
       } catch (error) {
-        console.error(
-          `KubbX: Error while handling 'HandleAskingForFeatures'. Error: ${error}`
-        );
+        console.error(`Failed to send features to Vision. Error: ${error}`);
       }
+
+      // if (!featureInfos || featureInfos.length === 0 || !featureInfos[0].type) {
+      //   return console.warn(
+      //     `'HandleAskingForFeatures' was invoked with missing parameters...`
+      //   );
+      // }
+      // try {
+      //   const idList = featureInfos.map((fi) => fi.id) || [];
+      //   this.kubbHandleFeatureFunctions[featureInfos[0].type](idList);
+      // } catch (error) {
+      //   console.error(
+      //     `KubbX: Error while handling 'HandleAskingForFeatures'. Error: ${error}`
+      //   );
+      // }
     });
 
     connection.on("HandleAskingForFeatureGeometry", (geometryInfo) => {
