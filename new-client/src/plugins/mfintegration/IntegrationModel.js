@@ -1229,29 +1229,41 @@ class IntegrationModel {
       this.#sendRealEstatesToKubb(connection);
     });
 
-    connection.on("HandleCoordinates", this.#receiveCoordiantesFromKubb);
+    connection.on("HandleCoordinates", this.#receiveCoordinatesFromKubb);
     connection.on("HandleAskingForCoordinates", () => {
-      this.#sendCoordiantesToKubb(connection);
+      this.#sendCoordinatesToKubb(connection);
     });
 
-    connection.on("HandleFeatures", (featureInfos) => {
-      console.log("Tar emot HandleFeatures från KubbX", featureInfos);
-      featureInfos.forEach((featureInfo) => {
-        this.kubbHandleFeatureFunctions[featureInfo.type]([featureInfo.id]);
-      });
-    });
-    connection.on("HandleAskingForFeatures", () => {
-      console.log(
-        "Tar emot HandleAskingForFeatures från KubbX, kartobjekt: ",
-        this.kubbSendType
-      );
-      if (this.kubbSendFeatureFunctions[this.kubbSendType])
-        this.kubbSendFeatureFunctions[this.kubbSendType](connection);
+    connection.on("HandleAskingForFeatures", (featureInfos) => {
+      if (!featureInfos || featureInfos.length === 0 || !featureInfos[0].type) {
+        return console.warn(
+          `'HandleAskingForFeatures' was invoked with missing parameters...`
+        );
+      }
+      try {
+        const idList = featureInfos.map((fi) => fi.id) || [];
+        this.kubbHandleFeatureFunctions[featureInfos[0].type](idList);
+      } catch (error) {
+        console.error(
+          `KubbX: Error while handling 'HandleAskingForFeatures'. Error: ${error}`
+        );
+      }
     });
 
-    connection.on("HandleAskingForFeatureGeometry", (askedGeometryId) => {
-      this.kubbGeometryId = askedGeometryId.Id;
-      this.#sendGeometryToKubb();
+    connection.on("HandleAskingForFeatureGeometry", (geometryInfo) => {
+      if (!geometryInfo || !geometryInfo.id) {
+        return console.warn(
+          `'HandleAskingForFeatureGeometry' was invoked with missing id...`
+        );
+      }
+      try {
+        this.kubbGeometryId = geometryInfo.id;
+        this.#sendGeometryToKubb();
+      } catch (error) {
+        console.error(
+          `KubbX: Error while handling 'HandleAskingForFeatureGeometry'. Error: ${error}`
+        );
+      }
     });
 
     connection.on("HandleOperationFeedback", (feedback) => {
@@ -1330,7 +1342,7 @@ class IntegrationModel {
     connection.invoke("SendRealEstateIdentifiers", this.kubbData["realEstate"]);
   };
 
-  #receiveCoordiantesFromKubb = (coordinates) => {
+  #receiveCoordinatesFromKubb = (coordinates) => {
     this.#sendSnackbarMessage({
       nativeType: "koordinater",
       nativeKind: "receive",
@@ -1349,7 +1361,7 @@ class IntegrationModel {
     this.searchModel.findCoordinatesWithCoordinates(coordinateList);
   };
 
-  #sendCoordiantesToKubb = (connection) => {
+  #sendCoordinatesToKubb = (connection) => {
     this.#sendSnackbarMessage({
       nativeType: "koordinater",
       nativeKind: "send",
@@ -1375,7 +1387,7 @@ class IntegrationModel {
     });
     console.log("Områdesdata till KubbX", this.kubbData["area"]);
     const kubbData = this.kubbData["area"].map((area) => {
-      return { id: "" + area.name, type: 1 };
+      return { id: "" + area.id, type: 1 };
     });
     console.log("Skickar områden till KubbX", kubbData);
     connection.invoke("SendFeatures", kubbData);
@@ -1398,7 +1410,7 @@ class IntegrationModel {
     });
     console.log("Undersökningsdata till KubbX", this.kubbData["area"]);
     const kubbData = this.kubbData["area"].map((survey) => {
-      return { id: "" + survey.name, type: 2 };
+      return { id: "" + survey.id, type: 2 };
     });
     console.log("Skickar undersökningar till KubbX", kubbData);
     connection.invoke("SendFeatures", kubbData);
@@ -1421,7 +1433,7 @@ class IntegrationModel {
     });
     console.log("Föroreningsdata till KubbX", this.kubbData["contamination"]);
     const kubbData = this.kubbData["contamination"].map((contamination) => {
-      return { id: "" + contamination.name, type: 3 };
+      return { id: "" + contamination.id, type: 3 };
     });
     console.log("Skickar undersökningar till KubbX", kubbData);
     connection.invoke("SendFeatures", kubbData);
@@ -1429,21 +1441,20 @@ class IntegrationModel {
 
   #sendGeometryToKubb = (connection) => {
     if (this.kubbUppdateFeatures.features.length === 0) {
-      this.localObserver.subscribe("mf-kubb-geometry-message-error");
+      this.localObserver.publish("mf-kubb-geometry-message-error");
       return;
     }
-
     this.#sendSnackbarMessage({
       nativeType: "geometri",
       nativeKind: "send",
     });
     this.kubbPendingFeature = this.kubbUppdateFeatures.features.pop();
-    const wkt = {
-      SrsId: 3007,
+    const updatedGeometry = {
+      srsId: 3007,
       wkt: new WKT().writeFeature(this.kubbPendingFeature),
     };
-    console.log("Skickar geometrin till KubbX", wkt);
-    connection.invoke("SendGeometry", wkt);
+    console.log("Skickar geometrin till KubbX", updatedGeometry);
+    connection.invoke("SendGeometry", updatedGeometry);
   };
 
   #feedbackSendGeometryToKubb = (feedback) => {
@@ -1492,22 +1503,22 @@ class IntegrationModel {
 
   #updateKubbWithAreas = (feature) => {
     return {
-      Id: feature.name,
-      Type: 1,
+      id: feature.name,
+      type: 1,
     };
   };
 
   #updateKubbWithSurveys = (feature) => {
     return {
-      Id: feature.name,
-      Type: 2,
+      id: feature.name,
+      type: 2,
     };
   };
 
   #updateKubbWithContaminations = (feature) => {
     return {
-      Id: feature.name,
-      Type: 3,
+      id: feature.name,
+      type: 3,
     };
   };
 }
