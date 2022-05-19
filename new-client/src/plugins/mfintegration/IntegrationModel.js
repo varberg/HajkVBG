@@ -171,12 +171,14 @@ class IntegrationModel {
   };
 
   startDrawSearchPoint = (mode) => {
+    // TODO: Spelling...
     this.#removeMapSelecton();
     this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Point", this.mapStyles.drawSearchStyle);
   };
 
   startDrawSearchPolygon = (mode) => {
+    // TODO: Spelling...
     this.#removeMapSelecton();
     this.drawingToolFunctions.search.source.mode = mode;
     this.#drawGeometry("search", "Polygon", this.mapStyles.drawSearchStyle);
@@ -193,6 +195,7 @@ class IntegrationModel {
   #addMapSelection = () => {
     // Fix for multiple select interactions, they have an ability to multiply themselves.
     // Removing all select interactions will counteract the bug.
+    // TODO: Spelling...
     if (this.selectInteraction) this.#removeMapSelecton();
 
     this.selectInteraction = new Select({
@@ -233,6 +236,7 @@ class IntegrationModel {
   /**
    * Removes all select mapinteractions. They have an ability to multiply themselves.
    */
+  // TODO: Spelling...
   #removeMapSelecton = () => {
     const selectInteractions = this.map
       .getInteractions()
@@ -764,6 +768,7 @@ class IntegrationModel {
       this.editSources.new
     );
     let newFeature = updateStatus.addFeature ? updateStatus.feature : null;
+    // TODO: Spelling...
     this.#setGeomtryProperty(newFeature);
     this.#publishNewFeature(newFeature);
     this.#clearSource(this.drawingToolFunctions.new.source);
@@ -777,6 +782,7 @@ class IntegrationModel {
   };
 
   #createDataset = (feature) => {
+    // TODO: Spelling...
     const coordinates = this.#extractCoordintesFromFeature(feature);
     const features = [
       {
@@ -799,6 +805,7 @@ class IntegrationModel {
     };
   };
 
+  // TODO: Spelling...
   #extractCoordintesFromFeature = (feature) => {
     let pairs = [];
     for (let i = 0; i < feature.getGeometry().flatCoordinates.length; i += 2) {
@@ -828,9 +835,11 @@ class IntegrationModel {
   #addWfsSearch = (data) => {
     this.#addFeaturesToSource(this.dataSources[data.type], data);
     this.#updateList(this.dataSources[data.type], data);
+    // TODO: Spelling...
     this.#zoomToFeaturenWhenKubbSearch(data);
   };
 
+  // TODO: Spelling...
   #zoomToFeaturenWhenKubbSearch = (data) => {
     if (data.searchType !== "List") return;
 
@@ -966,11 +975,13 @@ class IntegrationModel {
   };
 
   #updateList = (source, data) => {
+    // TODO: Spelling...
     const featuresAndGeometryProperyName = {
       features: source.getFeatures(),
       propertyName: data.geometryField,
       type: data.type,
     };
+    // TODO: Spelling...
     this.localObserver.publish(
       "mf-wfs-map-updated-features",
       featuresAndGeometryProperyName
@@ -1025,6 +1036,7 @@ class IntegrationModel {
   };
 
   #getTurfPolygon = (feature) => {
+    // TODO: Spelling...
     const coordiantes = this.#extractCoordintesFromFeature(feature);
     return polygon(coordiantes);
   };
@@ -1050,6 +1062,7 @@ class IntegrationModel {
     );
   };
 
+  // TODO: Dead code?
   #updateCombineArray = (data) => {
     if (!this.combineChildren) this.combineChildren = [];
 
@@ -1214,6 +1227,7 @@ class IntegrationModel {
   };
 
   initEdpConnection = () => {
+    // TODO: Why var's...?
     var address = this.#getKubbAddress();
     var path = this.#getKubbPath();
     var query = this.#getKubbQuery();
@@ -1449,6 +1463,7 @@ class IntegrationModel {
   };
 
   #sendGeometryToKubb = (connection) => {
+    // TODO: Spelling...
     if (this.kubbUppdateFeatures.features.length === 0) {
       this.localObserver.publish("mf-kubb-geometry-message-error");
       return;
@@ -1457,6 +1472,7 @@ class IntegrationModel {
       nativeType: "geometri",
       nativeKind: "send",
     });
+    // TODO: Spelling...
     this.kubbPendingFeature = this.kubbUppdateFeatures.features.pop();
     const updatedGeometry = {
       srsId: 3007,
@@ -1490,10 +1506,12 @@ class IntegrationModel {
   };
 
   updateKubbWithGeometry = (feature) => {
+    // TODO: Spelling...
     this.kubbUppdateFeatures = feature;
   };
 
   #updateKubbWithRealEstate = (feature) => {
+    // TODO: Casing?
     return {
       Fnr: feature.fnr,
       Name: feature.name,
@@ -1503,6 +1521,7 @@ class IntegrationModel {
   };
 
   #updateKubbWithCoordinates = (feature) => {
+    // TODO: Hard-coded SRS?
     return {
       northing: feature.feature.getGeometry().flatCoordinates[1],
       easting: feature.feature.getGeometry().flatCoordinates[0],
