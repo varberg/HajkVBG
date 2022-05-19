@@ -1410,7 +1410,7 @@ class IntegrationModel {
     });
     console.log("Tar emot undersökningar från KubbX", surveyIdentifiers);
     this.searchResponseTool = "search";
-    this.searchModel.findAreasWithNumbers(surveyIdentifiers);
+    this.searchModel.findSurveysWithNumbers(surveyIdentifiers);
   };
 
   #sendSurveysToKubb = (connection) => {
@@ -1418,8 +1418,7 @@ class IntegrationModel {
       nativeType: "undersökningar",
       nativeKind: "send",
     });
-    console.log("Undersökningsdata till KubbX", this.kubbData["area"]);
-    const kubbData = this.kubbData["area"].map((survey) => {
+    const kubbData = this.kubbData["survey"].map((survey) => {
       return { id: "" + survey.id, type: 2 };
     });
     console.log("Skickar undersökningar till KubbX", kubbData);
