@@ -1226,74 +1226,138 @@ class IntegrationModel {
     this.localObserver.publish("mf-kubb-message-received", nativeMessageType);
   };
 
+  // Initiates all listeners etc. to KubbX
   initEdpConnection = () => {
-    // TODO: Why var's...?
-    var address = this.#getKubbAddress();
-    var path = this.#getKubbPath();
-    var query = this.#getKubbQuery();
-
-    const url = address + path + query;
+    // Let's get all url-parts so that we can create the connection-url
+    // for the KubbX-connection:
+    const address = this.#getKubbAddress();
+    const path = this.#getKubbPath();
+    const query = this.#getKubbQuery();
+    // Then we can create the url
+    const url = `${address}${path}${query}`;
+    // Finally, we can create a connection using the connection-builder:
     const connection = new HubConnectionBuilder().withUrl(url).build();
 
+    // Handles when Vision is sending real-estate-identifiers(?)
+    // (More information needed, could not find this in the specification)
     connection.on(
       "HandleRealEstateIdentifiers",
       this.#receiveRealEstatesFromKubb
     );
+
+    // Handles when Vision is asking for real-estate-identifiers(?)
+    // (More information needed, could not find this in the specification)
     connection.on("HandleAskingForRealEstateIdentifiers", () => {
       this.#sendRealEstatesToKubb(connection);
     });
 
+    // Handles when Vision is sending coordinates to the map to show(?)
+    // (More information needed, could not find this in the specification)
     connection.on("HandleCoordinates", this.#receiveCoordinatesFromKubb);
+
+    // Handles when Vision is asking for the currently selected coordinate.
+    // (More information should be provided here...)
     connection.on("HandleAskingForCoordinates", () => {
-      this.#sendCoordinatesToKubb(connection);
+      try {
+        // Let's play it safe and try-catch the connection-handlers...
+        this.#sendCoordinatesToKubb(connection);
+      } catch (error) {
+        // Let's make sure to log some information if something goes boom.
+        console.error(
+          `KubbX: Error while handling 'HandleAskingForCoordinates'. Error: ${error}`
+        );
+      }
     });
 
+    // Handles when Vision sends an array of feature-information regarding features that
+    // we should find (and show) in the map.
     connection.on("HandleFeatures", (featureInfos) => {
+      // We have to make sure that 'HandleFeatures' was invoked with a proper payload...
+      // In this case, a proper payload is an array with one or more feature-information-objects.
       if (!featureInfos || featureInfos.length === 0 || !featureInfos[0].type) {
         return console.warn(
           `'HandleAskingForFeatures' was invoked with missing parameters...`
         );
       }
+      // Let's play it safe and try-catch the connection-handlers...
       try {
+        // We're only really interested in the feature-id's, so let's map over
+        // the payload-objects and create an array with id's.
         const idList = featureInfos.map((fi) => fi.id) || [];
+        // Then we'll search for features connected to the id's in the id-list.
+        // (And show them in the map down the line).
         this.kubbHandleFeatureFunctions[featureInfos[0].type](idList);
       } catch (error) {
+        // Let's make sure to log some information if something goes boom.
+        console.error(
+          `KubbX: Error while handling 'HandleFeatures'. Error: ${error}`
+        );
+      }
+    });
+
+    // Handles when Vision is asking for all currently selected features in the map. This function
+    // is invoked without a payload (since all we want to do is to send some information regarding
+    // the currently selected features).
+    connection.on("HandleAskingForFeatures", () => {
+      // Let's play it safe and try-catch the connection-handlers...
+      try {
+        // My guess is that we should send all the currently chosen objects to Vision straight away...
+        // (Down the line, this means we will be invoking 'sendFeatures', which Vision is listening for).
+        this.kubbSendFeatureFunctions[this.kubbSendType](connection);
+      } catch (error) {
+        // Let's make sure to log some information if something goes boom.
         console.error(
           `KubbX: Error while handling 'HandleAskingForFeatures'. Error: ${error}`
         );
       }
     });
 
-    connection.on("HandleAskingForFeatures", () => {
-      // My guess is that we should send all the currently chosen objects to Vision straight away...
-      // Im not really sure though...
-      try {
-        this.kubbSendFeatureFunctions[this.kubbSendType](connection);
-      } catch (error) {
-        console.error(`Failed to send features to Vision. Error: ${error}`);
-      }
-    });
-
+    // Handles when Vision is asking for a geometry from the map. Requires an object with an id property.
+    // Responds with 'SendGeometry' down the line.
     connection.on("HandleAskingForFeatureGeometry", (geometryInfo) => {
-      if (!geometryInfo || !geometryInfo.id) {
-        return console.warn(
-          `'HandleAskingForFeatureGeometry' was invoked with missing id...`
-        );
-      }
+      // Let's play it safe and try-catch the connection-handlers...
       try {
+        // If we were invoked without any information (or if the id-parameter is missing),
+        // we'll throw an error. (Im not sure we have to force this... Vision should be able to
+        // ask for a geometry, even if an id is not supplied? Does the map really care where the
+        // geometry is to be used?) It seems like this information is only used in the feedback
+        // to vision...
+        if (!geometryInfo || !geometryInfo.id) {
+          throw new Error(`Invoked with missing parameter <id>.`);
+        }
+        // We'll update a private field that can be used later when sending feedback to vision.
         this.kubbGeometryId = geometryInfo.id;
-        this.#sendGeometryToKubb();
+        // Then we'll create an object containing the geometry, and send it back to Vision.
+        this.#sendGeometryToKubb(connection);
       } catch (error) {
+        // Let's make sure to log some information if something goes boom.
         console.error(
           `KubbX: Error while handling 'HandleAskingForFeatureGeometry'. Error: ${error}`
         );
       }
     });
 
+    // Handles when Vision is sending operation feedback regarding saved geometries.
+    // In the map we want to make sure to prompt the user with a snack, stating wether the
+    // geometry was saved in Vision successfully or if any errors were found.
     connection.on("HandleOperationFeedback", (feedback) => {
-      this.#feedbackSendGeometryToKubb(feedback);
+      // Let's play it safe and try-catch the connection-handlers...
+      try {
+        // Prompt the user with a snack, based on the provided feedback.
+        this.#feedbackSendGeometryToKubb(feedback);
+      } catch (error) {
+        // Let's make sure to log some information if something goes boom.
+        console.error(
+          `KubbX: Error while handling 'HandleOperationFeedback'. Error: ${error}`
+        );
+      }
     });
 
+    // We have to make sure to start the connection so that we can catch
+    // all invoked events from vision! Let's make sure to catch any potential
+    // connection issues, and prompt the user if we fail to connect.
+    // TODO: Now we're prompting the user when we connect as well, is that
+    // really necessary?
     connection
       .start()
       .then(() => this.#kubbConnectionEstablished())
@@ -1385,13 +1449,22 @@ class IntegrationModel {
     this.searchModel.findCoordinatesWithCoordinates(coordinateList);
   };
 
+  // Handles sending
   #sendCoordinatesToKubb = (connection) => {
     this.#sendSnackbarMessage({
       nativeType: "koordinater",
       nativeKind: "send",
     });
     console.log("Skickar koordinater till KubbX", this.kubbData["coordinate"]);
-    connection.invoke("SendCoordinates", this.kubbData["coordinate"]);
+    // Let's play it safe and try-catch the connection-invokers...
+    try {
+      connection.invoke("SendCoordinates", this.kubbData["coordinate"]);
+    } catch (error) {
+      // Let's make sure to log some information if something goes boom.
+      console.error(
+        `KubbX: Error while invoking 'SendCoordinates'. Error: ${error}`
+      );
+    }
   };
 
   #receiveAreasFromKubb = (areaIdentifiers) => {
@@ -1479,22 +1552,40 @@ class IntegrationModel {
       wkt: new WKT().writeFeature(this.kubbPendingFeature),
     };
     console.log("Skickar geometrin till KubbX", updatedGeometry);
-    connection.invoke("SendGeometry", updatedGeometry);
+    // Let's play it safe and try-catch the connection-invokers...
+    try {
+      connection.invoke("SendGeometry", updatedGeometry);
+    } catch (error) {
+      console.error(
+        `KubbX: Error while invoking 'SendGeometry'. Error: ${error}`
+      );
+    }
   };
 
+  // Makes sure to prompt the user with some information regarding the geometry-updates in Vision.
   #feedbackSendGeometryToKubb = (feedback) => {
-    console.log("Geometriåterkoppling från Vision", feedback);
-    if (!feedback.Success) {
-      this.localObserver.publish("mf-kubb-geometry-update-error");
-      return;
+    // There seems to be some confusion regarding casing convention in the
+    // project... We should use camelCase, but just to be sure, we try to catch both.
+    // TODO: Finalize DTO.
+    const updateSuccessful = feedback.Success ?? feedback.success ?? false;
+    // If the 'success' (or 'Success') property is set to false, we prompt the
+    // user with some error-information.
+    if (updateSuccessful === false) {
+      return this.localObserver.publish("mf-kubb-geometry-update-error");
     }
-
+    // Since we're not sure about the DTO, let's try to get the message
+    // trough both camelCase and PascalCase.
+    // (TODO:) camelCase should be used!!
+    const promptMessage = feedback.Text ?? feedback.text ?? "";
+    // TODO: Remove logging....
     console.log("Återkoppling sker mot kartobjekt ", this.kubbSendType);
     console.log("Återkoppling sker mot geometri ", this.kubbGeometryId);
+    // Then we're running some feedback-function. Hmm...?
     this.kubbFeedbackFunctions[this.kubbSendType]([this.kubbGeometryId]);
+    // And publishing (probably to show a snack?)
     this.localObserver.publish(
       "mf-kubb-geometry-update-success",
-      feedback.Text
+      promptMessage
     );
   };
 

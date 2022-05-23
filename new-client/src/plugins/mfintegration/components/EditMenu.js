@@ -345,9 +345,14 @@ class EditMenu extends React.PureComponent {
               disabled={disableCopy}
               className={classes.stepButtonGroup}
               aria-label="Kopiera befintlig objekt"
-              onClick={() => {
-                this.#moveToCreateStep("copy");
-              }}
+              component={disableCopy ? "div" : undefined}
+              onClick={
+                disableCopy
+                  ? undefined
+                  : () => {
+                      this.#moveToCreateStep("copy");
+                    }
+              }
             >
               Kopiera
             </Button>
@@ -357,9 +362,14 @@ class EditMenu extends React.PureComponent {
               disabled={disableCombine}
               className={classes.stepButtonGroup}
               aria-label="Kombinera befintliga objekt"
-              onClick={() => {
-                this.#moveToCreateStep("combine");
-              }}
+              component={disableCombine ? "div" : undefined}
+              onClick={
+                disableCombine
+                  ? undefined
+                  : () => {
+                      this.#moveToCreateStep("combine");
+                    }
+              }
             >
               Kombinera
             </Button>
@@ -391,7 +401,12 @@ class EditMenu extends React.PureComponent {
           <Button
             className={classes.stepButtonGroup}
             disabled={!featureUpdateInProgress}
-            onClick={() => this.#handleResetUpdate(editMode)}
+            component={!featureUpdateInProgress ? "div" : undefined}
+            onClick={
+              !featureUpdateInProgress
+                ? undefined
+                : () => this.#handleResetUpdate(editMode)
+            }
             aria-label="Ångra"
           >
             Ångra
@@ -475,12 +490,20 @@ class EditMenu extends React.PureComponent {
               <ToggleButton
                 className={classes.toggleButton}
                 disabled={updateButtonDisabled}
+                component={updateButtonDisabled ? "div" : undefined}
                 value="modify"
                 selected={this.state.chosenUpdateTool === "modify"}
-                onChange={(e, newValue) => {
-                  e.preventDefault();
-                  this.#handleChangeUpdateTool(newValue, this.state.editMode);
-                }}
+                onChange={
+                  updateButtonDisabled
+                    ? undefined
+                    : (e, newValue) => {
+                        e.preventDefault();
+                        this.#handleChangeUpdateTool(
+                          newValue,
+                          this.state.editMode
+                        );
+                      }
+                }
               >
                 <FormatShapesIcon size="small" />
                 <Typography noWrap variant="button">
@@ -499,12 +522,20 @@ class EditMenu extends React.PureComponent {
               <ToggleButton
                 className={classes.toggleButton}
                 disabled={updateButtonDisabled}
+                component={updateButtonDisabled ? "div" : undefined}
                 value="move"
                 selected={this.state.chosenUpdateTool === "move"}
-                onChange={(e, newValue) => {
-                  e.preventDefault();
-                  this.#handleChangeUpdateTool(newValue, this.state.editMode);
-                }}
+                onChange={
+                  updateButtonDisabled
+                    ? undefined
+                    : (e, newValue) => {
+                        e.preventDefault();
+                        this.#handleChangeUpdateTool(
+                          newValue,
+                          this.state.editMode
+                        );
+                      }
+                }
               >
                 <OpenWithIcon size="small" />
                 <Typography noWrap variant="button">
@@ -523,12 +554,17 @@ class EditMenu extends React.PureComponent {
               <ToggleButton
                 className={classes.toggleButton}
                 disabled={updateButtonDisabled}
+                component={updateButtonDisabled ? "div" : undefined}
                 value="delete"
                 selected={this.state.chosenUpdateTool === "delete"}
-                onChange={(e, newValue) => {
-                  e.preventDefault();
-                  this.#handleDeleteEdit(this.state.editMode);
-                }}
+                onChange={
+                  updateButtonDisabled
+                    ? undefined
+                    : (e, newValue) => {
+                        e.preventDefault();
+                        this.#handleDeleteEdit(this.state.editMode);
+                      }
+                }
               >
                 <DeleteIcon size="small" />
                 <Typography noWrap variant="button">

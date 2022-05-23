@@ -26,7 +26,7 @@ const styles = (theme) => ({
     padding: theme.spacing(0.3),
   },
   itemSelected: { backgroundColor: selectedListFeatureBackgroudColor },
-  itemUnselected: { backgroundColor: "#fff" },
+  itemUnselected: { backgroundColor: theme.palette.paper },
   infoDescription: { fontWeight: "bold", fontSize: "0.85rem" },
   infoText: { fontSize: "0.9rem" },
 });
