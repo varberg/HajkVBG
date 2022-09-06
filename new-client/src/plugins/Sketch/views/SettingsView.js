@@ -9,7 +9,14 @@ import {
   Select,
   Switch,
   Tooltip,
+  Typography,
+  Accordion,
+  AccordionDetails,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+
+import { StyledAccordionSummary } from "../components/StyledAccordionSummary";
+import { StyledAccordionDetails } from "../components/StyledAccordionDetails";
 
 import LocalStorageHelper from "utils/LocalStorageHelper";
 import useCookieStatus from "hooks/useCookieStatus";
@@ -43,239 +50,265 @@ const SettingsView = (props) => {
   }, [model, showHelperSnacks, functionalCookiesOk]);
 
   return (
-    <Grid container>
-      <Grid item xs={12} sx={{ marginTop: 2 }}>
-        <FormControl component="fieldset">
-          <FormLabel focused={false} component="legend">
-            Generella inställningar
-          </FormLabel>
-          <Tooltip
-            disableInteractive
-            title={`Slå ${
-              measurementSettings.showText ? "av" : "på"
-            } om du vill ${
-              measurementSettings.showText ? "dölja" : "visa"
-            } text på objekten.`}
-          >
-            <FormControlLabel
-              label="Visa text på objekten"
-              control={
-                <Switch
-                  checked={measurementSettings.showText}
-                  onChange={() => {
-                    setMeasurementSettings((settings) => ({
-                      ...settings,
-                      showText: !settings.showText,
-                    }));
-                  }}
-                  color="primary"
-                />
-              }
-            />
-          </Tooltip>
-          <Tooltip
-            disableInteractive
-            title={`Slå ${showHelperSnacks ? "av" : "på"} om du vill ${
-              showHelperSnacks ? "dölja" : "visa"
-            } hjälptexter.`}
-          >
-            <FormControlLabel
-              label="Hjälptexter aktiverade"
-              control={
-                <Switch
-                  checked={showHelperSnacks}
-                  onChange={() => setShowHelperSnacks((show) => !show)}
-                  color="primary"
-                />
-              }
-            />
-          </Tooltip>
-        </FormControl>
+    <Grid container spacing={2}>
+      <Grid item xs={12}>
+        <Accordion size="small">
+          <StyledAccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography>Generella inställningar</Typography>
+          </StyledAccordionSummary>
+          <AccordionDetails style={{ maxWidth: "100%" }}>
+            <Grid container>
+              <Grid item xs={12}>
+                <Tooltip
+                  disableInteractive
+                  title={`Slå ${
+                    measurementSettings.showText ? "av" : "på"
+                  } om du vill ${
+                    measurementSettings.showText ? "dölja" : "visa"
+                  } text på objekten.`}
+                >
+                  <FormControlLabel
+                    label="Text på objekten"
+                    control={
+                      <Switch
+                        checked={measurementSettings.showText}
+                        onChange={() => {
+                          setMeasurementSettings((settings) => ({
+                            ...settings,
+                            showText: !settings.showText,
+                          }));
+                        }}
+                        color="primary"
+                      />
+                    }
+                  />
+                </Tooltip>
+              </Grid>
+              <Grid item xs={12}>
+                <Tooltip
+                  disableInteractive
+                  title={`Slå ${showHelperSnacks ? "av" : "på"} om du vill ${
+                    showHelperSnacks ? "dölja" : "visa"
+                  } hjälptexter.`}
+                >
+                  <FormControlLabel
+                    label="Hjälptexter"
+                    control={
+                      <Switch
+                        checked={showHelperSnacks}
+                        onChange={() => setShowHelperSnacks((show) => !show)}
+                        color="primary"
+                      />
+                    }
+                  />
+                </Tooltip>
+              </Grid>
+            </Grid>
+          </AccordionDetails>
+        </Accordion>
       </Grid>
       <Grid item xs={12}>
-        <FormControl component="fieldset">
-          <FormLabel focused={false} component="legend">
-            Mätinställningar
-          </FormLabel>
-
-          <Tooltip
-            disableInteractive
-            title={
-              !measurementSettings.showText
-                ? "Aktivera text på objekten om du vill visa objektens omkrets/radie."
-                : `Slå ${
-                    measurementSettings.showArea ? "av" : "på"
-                  } om du vill ${
-                    measurementSettings.showArea ? "dölja" : "visa"
-                  } area på objekten.`
-            }
-          >
-            <FormControlLabel
-              label="Visa area"
-              control={
-                <Switch
-                  disabled={!measurementSettings.showText}
-                  checked={measurementSettings.showArea}
-                  onChange={() => {
-                    setMeasurementSettings((settings) => ({
-                      ...settings,
-                      showArea: !settings.showArea,
-                    }));
-                  }}
-                  color="primary"
-                />
-              }
-            />
-          </Tooltip>
-          <Tooltip
-            disableInteractive
-            title={
-              !measurementSettings.showText
-                ? "Aktivera text på objekten om du vill visa objektens längd"
-                : `Slå ${
-                    measurementSettings.showLength ? "av" : "på"
-                  } om du vill ${
-                    measurementSettings.showLength ? "dölja" : "visa"
-                  } längd på objekten.`
-            }
-          >
-            <FormControlLabel
-              label="Visa längd"
-              control={
-                <Switch
-                  disabled={!measurementSettings.showText}
-                  checked={measurementSettings.showLength ?? false}
-                  onChange={() => {
-                    setMeasurementSettings((settings) => ({
-                      ...settings,
-                      showLength: !settings.showLength,
-                    }));
-                  }}
-                  color="primary"
-                />
-              }
-            />
-          </Tooltip>
-          <Tooltip
-            disableInteractive
-            title={
-              !measurementSettings.showText
-                ? "Aktivera text på objekten om du vill visa objektens omkrets/radie."
-                : `Slå ${
-                    measurementSettings.showPerimeter ? "av" : "på"
-                  } om du vill ${
-                    measurementSettings.showPerimeter ? "dölja" : "visa"
-                  } omkrets/radie. på objekten.`
-            }
-          >
-            <FormControlLabel
-              label="Visa omkrets/radie"
-              control={
-                <Switch
-                  disabled={!measurementSettings.showText}
-                  checked={measurementSettings.showPerimeter}
-                  onChange={() => {
-                    setMeasurementSettings((settings) => ({
-                      ...settings,
-                      showPerimeter: !settings.showPerimeter,
-                    }));
-                  }}
-                  color="primary"
-                />
-              }
-            />
-          </Tooltip>
-          <Tooltip title="Välj enhet för mätning av areal.">
-            <FormControl size="small" style={{ marginTop: 8 }}>
-              <InputLabel
-                variant="outlined"
-                id="sketch-select-area-measurement-unit-label"
-              >
-                Mätenhet, areal
-              </InputLabel>
-              <Select
-                id="sketch-select-area-measurement-unit"
-                labelId="sketch-select-area-measurement-unit-label"
-                value={measurementSettings.areaUnit}
-                label="Mätenhet, areal"
-                variant="outlined"
-                onChange={(e) => {
-                  setMeasurementSettings((settings) => ({
-                    ...settings,
-                    areaUnit: e.target.value,
-                  }));
-                }}
-              >
-                {AREA_MEASUREMENT_UNITS.map((unit, index) => {
-                  return (
-                    <MenuItem value={unit.type} key={index}>
-                      {unit.name}
-                    </MenuItem>
-                  );
-                })}
-              </Select>
-            </FormControl>
-          </Tooltip>
-          <Tooltip title="Välj enhet för mätning av längd.">
-            <FormControl size="small" style={{ marginTop: 16 }}>
-              <InputLabel
-                variant="outlined"
-                id="sketch-select-length-measurement-unit-label"
-              >
-                Mätenhet, längd
-              </InputLabel>
-              <Select
-                id="sketch-select-length-measurement-unit"
-                labelId="sketch-select-length-measurement-unit-label"
-                value={measurementSettings.lengthUnit}
-                label="Mätenhet, längd"
-                variant="outlined"
-                onChange={(e) => {
-                  setMeasurementSettings((settings) => ({
-                    ...settings,
-                    lengthUnit: e.target.value,
-                  }));
-                }}
-              >
-                {LENGTH_MEASUREMENT_UNITS.map((unit, index) => {
-                  return (
-                    <MenuItem value={unit.type} key={index}>
-                      {unit.name}
-                    </MenuItem>
-                  );
-                })}
-              </Select>
-            </FormControl>
-          </Tooltip>
-          <Tooltip title="Välj med vilken precision mätvärdena ska presenteras.">
-            <FormControl size="small" style={{ marginTop: 16 }}>
-              <InputLabel variant="outlined" id="sketch-select-precision-label">
-                Mätprecision
-              </InputLabel>
-              <Select
-                id="sketch-select-precision"
-                labelId="sketch-select-precision-label"
-                value={measurementSettings.precision ?? 0}
-                label="Mätprecision"
-                variant="outlined"
-                onChange={(e) => {
-                  setMeasurementSettings((settings) => ({
-                    ...settings,
-                    precision: parseInt(e.target.value),
-                  }));
-                }}
-              >
-                {MEASUREMENT_PRECISIONS.map((precision, index) => {
-                  return (
-                    <MenuItem value={precision.value} key={index}>
-                      {precision.name}
-                    </MenuItem>
-                  );
-                })}
-              </Select>
-            </FormControl>
-          </Tooltip>
-        </FormControl>
+        <Accordion size="small">
+          <StyledAccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography>Mätinställningar</Typography>
+          </StyledAccordionSummary>
+          <StyledAccordionDetails style={{ maxWidth: "100%" }}>
+            <Grid container>
+              <Grid item xs={12}>
+                <Tooltip
+                  disableInteractive
+                  title={
+                    !measurementSettings.showText
+                      ? "Aktivera text på objekten om du vill visa objektens omkrets/radie."
+                      : `Slå ${
+                          measurementSettings.showArea ? "av" : "på"
+                        } om du vill ${
+                          measurementSettings.showArea ? "dölja" : "visa"
+                        } area på objekten.`
+                  }
+                >
+                  <FormControlLabel
+                    label="Visa area"
+                    control={
+                      <Switch
+                        disabled={!measurementSettings.showText}
+                        checked={measurementSettings.showArea}
+                        onChange={() => {
+                          setMeasurementSettings((settings) => ({
+                            ...settings,
+                            showArea: !settings.showArea,
+                          }));
+                        }}
+                        color="primary"
+                      />
+                    }
+                  />
+                </Tooltip>
+              </Grid>
+              <Grid item xs={12}>
+                <Tooltip
+                  disableInteractive
+                  title={
+                    !measurementSettings.showText
+                      ? "Aktivera text på objekten om du vill visa objektens längd"
+                      : `Slå ${
+                          measurementSettings.showLength ? "av" : "på"
+                        } om du vill ${
+                          measurementSettings.showLength ? "dölja" : "visa"
+                        } längd på objekten.`
+                  }
+                >
+                  <FormControlLabel
+                    label="Visa längd"
+                    control={
+                      <Switch
+                        disabled={!measurementSettings.showText}
+                        checked={measurementSettings.showLength ?? false}
+                        onChange={() => {
+                          setMeasurementSettings((settings) => ({
+                            ...settings,
+                            showLength: !settings.showLength,
+                          }));
+                        }}
+                        color="primary"
+                      />
+                    }
+                  />
+                </Tooltip>
+              </Grid>
+              <Grid item xs={12}>
+                <Tooltip
+                  disableInteractive
+                  title={
+                    !measurementSettings.showText
+                      ? "Aktivera text på objekten om du vill visa objektens omkrets/radie."
+                      : `Slå ${
+                          measurementSettings.showPerimeter ? "av" : "på"
+                        } om du vill ${
+                          measurementSettings.showPerimeter ? "dölja" : "visa"
+                        } omkrets/radie. på objekten.`
+                  }
+                >
+                  <FormControlLabel
+                    label="Visa omkrets/radie"
+                    control={
+                      <Switch
+                        disabled={!measurementSettings.showText}
+                        checked={measurementSettings.showPerimeter}
+                        onChange={() => {
+                          setMeasurementSettings((settings) => ({
+                            ...settings,
+                            showPerimeter: !settings.showPerimeter,
+                          }));
+                        }}
+                        color="primary"
+                      />
+                    }
+                  />
+                </Tooltip>
+              </Grid>
+              <Grid item xs={12}>
+                <Tooltip title="Välj enhet för mätning av areal.">
+                  <FormControl size="small" style={{ marginTop: 8 }}>
+                    <InputLabel
+                      variant="outlined"
+                      id="sketch-select-area-measurement-unit-label"
+                    >
+                      Mätenhet, areal
+                    </InputLabel>
+                    <Select
+                      id="sketch-select-area-measurement-unit"
+                      labelId="sketch-select-area-measurement-unit-label"
+                      value={measurementSettings.areaUnit}
+                      label="Mätenhet, areal"
+                      variant="outlined"
+                      onChange={(e) => {
+                        setMeasurementSettings((settings) => ({
+                          ...settings,
+                          areaUnit: e.target.value,
+                        }));
+                      }}
+                    >
+                      {AREA_MEASUREMENT_UNITS.map((unit, index) => {
+                        return (
+                          <MenuItem value={unit.type} key={index}>
+                            {unit.name}
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </Tooltip>
+              </Grid>
+              <Grid item xs={12}>
+                <Tooltip title="Välj enhet för mätning av längd.">
+                  <FormControl size="small" fullWidth style={{ marginTop: 16 }}>
+                    <InputLabel
+                      variant="outlined"
+                      id="sketch-select-length-measurement-unit-label"
+                    >
+                      Mätenhet, längd
+                    </InputLabel>
+                    <Select
+                      id="sketch-select-length-measurement-unit"
+                      labelId="sketch-select-length-measurement-unit-label"
+                      value={measurementSettings.lengthUnit}
+                      label="Mätenhet, längd"
+                      variant="outlined"
+                      onChange={(e) => {
+                        setMeasurementSettings((settings) => ({
+                          ...settings,
+                          lengthUnit: e.target.value,
+                        }));
+                      }}
+                    >
+                      {LENGTH_MEASUREMENT_UNITS.map((unit, index) => {
+                        return (
+                          <MenuItem value={unit.type} key={index}>
+                            {unit.name}
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </Tooltip>
+              </Grid>
+              <Grid item xs={12}>
+                <Tooltip title="Välj med vilken precision mätvärdena ska presenteras.">
+                  <FormControl size="small" fullWidth style={{ marginTop: 16 }}>
+                    <InputLabel
+                      variant="outlined"
+                      id="sketch-select-precision-label"
+                    >
+                      Mätprecision
+                    </InputLabel>
+                    <Select
+                      id="sketch-select-precision"
+                      labelId="sketch-select-precision-label"
+                      value={measurementSettings.precision ?? 0}
+                      label="Mätprecision"
+                      variant="outlined"
+                      onChange={(e) => {
+                        setMeasurementSettings((settings) => ({
+                          ...settings,
+                          precision: parseInt(e.target.value),
+                        }));
+                      }}
+                    >
+                      {MEASUREMENT_PRECISIONS.map((precision, index) => {
+                        return (
+                          <MenuItem value={precision.value} key={index}>
+                            {precision.name}
+                          </MenuItem>
+                        );
+                      })}
+                    </Select>
+                  </FormControl>
+                </Tooltip>
+              </Grid>
+            </Grid>
+          </StyledAccordionDetails>
+        </Accordion>
       </Grid>
     </Grid>
   );
