@@ -131,17 +131,22 @@ class LayersView extends React.PureComponent {
     };
 
     const iterateGroups = (groups) => {
-      return groups.map((g) => {
-        // If config says that current group should be expanded at start, put it into our state
-        g.expanded === true && this.defaultExpanded.push(g.id);
+      return Array.isArray(groups) === false
+        ? []
+        : groups.map((g) => {
+            // If config says that current group should be expanded at start, put it into our state
+            g.expanded === true && this.defaultExpanded.push(g.id);
 
-        return {
-          id: g.id,
-          title: g.name,
-          children: [...iterateGroups(g.groups), ...iterateLayers(g.layers)],
-          type: "group",
-        };
-      });
+            return {
+              id: g.id,
+              title: g.name,
+              children: [
+                ...iterateGroups(g.groups),
+                ...iterateLayers(g.layers),
+              ],
+              type: "group",
+            };
+          });
     };
 
     return iterateGroups(groups);

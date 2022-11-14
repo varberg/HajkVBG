@@ -38,6 +38,7 @@ class LayersSwitcherView extends React.PureComponent {
 
   constructor(props) {
     super(props);
+    this.options = props.options;
     this.state = {
       chapters: [],
       baseLayers: props.model.getBaseLayers(),
@@ -97,7 +98,7 @@ class LayersSwitcherView extends React.PureComponent {
           display: shouldRender === true ? "block" : "none",
         }}
       >
-        {this.props.options.groups.map((group, i) => {
+        {this.options.groups.map((group, i) => {
           return (
             <LayerGroup
               key={i}
@@ -105,7 +106,7 @@ class LayersSwitcherView extends React.PureComponent {
               model={this.props.model}
               chapters={this.state.chapters}
               app={this.props.app}
-              options={this.props.options}
+              options={this.options}
             />
           );
         })}
@@ -124,7 +125,7 @@ class LayersSwitcherView extends React.PureComponent {
    */
   renderBreadCrumbs = () => {
     return (
-      this.props.options.showBreadcrumbs &&
+      this.options.showBreadcrumbs &&
       createPortal(
         // We must wrap the component in a div, on which we can catch
         // events. This is done to prevent event bubbling to the
@@ -142,7 +143,7 @@ class LayersSwitcherView extends React.PureComponent {
   };
 
   render() {
-    const { windowVisible, options } = this.props;
+    const { windowVisible } = this.props;
     return (
       <Root sx={{ display: windowVisible ? "block" : "none" }}>
         <StyledAppBar
@@ -172,20 +173,20 @@ class LayersSwitcherView extends React.PureComponent {
             display={this.state.activeTab === 1}
             layers={this.state.baseLayers}
             layerMap={this.props.model.layerMap}
-            backgroundSwitcherBlack={options.backgroundSwitcherBlack}
-            backgroundSwitcherWhite={options.backgroundSwitcherWhite}
-            enableOSM={options.enableOSM}
+            backgroundSwitcherBlack={this.options.backgroundSwitcherBlack}
+            backgroundSwitcherWhite={this.options.backgroundSwitcherWhite}
+            enableOSM={this.options.enableOSM}
             map={this.props.map}
             app={this.props.app}
           />
           <LayersView
             app={this.props.app}
-            groups={this.props.options.groups}
+            groups={this.options.groups}
             model={this.props.model}
             display={this.state.activeTab === 2}
           />
           {this.options.showActiveLayersView === true &&
-            this.state.activeTab === 2 && (
+            this.state.activeTab === 3 && (
               <DrawOrder map={this.props.map} app={this.props.app} />
             )}
         </ContentWrapper>
