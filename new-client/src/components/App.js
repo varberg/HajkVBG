@@ -34,6 +34,8 @@ import MapResetter from "../controls/MapResetter";
 import MapSwitcher from "../controls/MapSwitcher";
 import Information from "../controls/Information";
 import PresetLinks from "../controls/PresetLinks";
+import ExternalLinks from "../controls/ExternalLinks";
+import RecentlyUsedPlugins from "../controls/RecentlyUsedPlugins";
 
 import DrawerToggleButtons from "../components/Drawer/DrawerToggleButtons";
 
@@ -347,11 +349,13 @@ class App extends React.PureComponent {
       globalObserver: this.globalObserver,
     });
 
-    this.appModel = new AppModel({
+    AppModel.init({
       config: props.config,
       globalObserver: this.globalObserver,
       refreshMUITheme: props.refreshMUITheme,
     });
+
+    this.appModel = AppModel;
   }
 
   hasAnyToolbarTools = () => {
@@ -405,14 +409,6 @@ class App extends React.PureComponent {
       this.props.config.mapConfig.analytics,
       this.globalObserver
     );
-
-    // Subscribe to events on global observer
-    this.globalObserver.publish("analytics.trackPageView");
-
-    this.globalObserver.publish("analytics.trackEvent", {
-      eventName: "MapLoad",
-      mapName: this.props.config.activeMap,
-    });
   }
 
   componentDidMount() {
@@ -425,6 +421,17 @@ class App extends React.PureComponent {
       .loadPlugins(this.props.activeTools);
 
     Promise.all(promises).then(() => {
+      // Track the page view
+      this.globalObserver.publish("analytics.trackPageView");
+
+      // Track the mapLoaded event, distinguish between regular and
+      // cleanMode loads. See #1077.
+      this.globalObserver.publish("analytics.trackEvent", {
+        eventName: "mapLoaded",
+        activeMap: this.props.config.activeMap,
+        cleanMode: this.props.config.mapConfig.map.clean,
+      });
+
       this.setState(
         {
           tools: this.appModel.getPlugins(),
@@ -536,8 +543,9 @@ class App extends React.PureComponent {
     });
 
     this.globalObserver.subscribe("core.addDrawerToggleButton", (button) => {
-      const newState = [...this.state.drawerButtons, button];
-      this.setState({ drawerButtons: newState });
+      this.setState((prevState) => ({
+        drawerButtons: [...prevState.drawerButtons, button],
+      }));
     });
 
     /**
@@ -567,13 +575,27 @@ class App extends React.PureComponent {
     //     });
     //   });
 
-    // TODO: More plugins could use this - currently only Snap helper registers though
+    // Add some listeners to each layer's change event
     this.appModel
       .getMap()
       .getLayers()
       .getArray()
       .forEach((layer) => {
         layer.on("change:visible", (e) => {
+          // If the Analytics object exists, let's track layer visibility
+          if (this.analytics && e.target.get("visible") === true) {
+            const opts = {
+              eventName: "layerShown",
+              activeMap: this.props.config.activeMap,
+              layerId: e.target.get("name"),
+              layerName: e.target.get("caption"),
+            };
+            // Send a custom event to the Analytics model
+            this.globalObserver.publish("analytics.trackEvent", opts);
+          }
+
+          // Not related to Analytics: send an event on the global observer
+          // to anyone wanting to act on layer visibility change.
           this.globalObserver.publish("core.layerVisibilityChanged", e);
         });
       });
@@ -635,7 +657,7 @@ class App extends React.PureComponent {
   }
 
   /**
-   * Flip the @this.state.drawerPermanent switch, then preform some
+   * Flip the @this.state.drawerPermanent switch, then perform some
    * more work to ensure the OpenLayers canvas has the correct
    * canvas size.
    *
@@ -955,6 +977,7 @@ class App extends React.PureComponent {
                 {showMapSwitcher && <MapSwitcher appModel={this.appModel} />}
                 {clean === false && <MapCleaner appModel={this.appModel} />}
                 {clean === false && <PresetLinks appModel={this.appModel} />}
+                {clean === false && <ExternalLinks appModel={this.appModel} />}
                 {clean === false && (
                   <ThemeToggler
                     showThemeToggler={
@@ -964,6 +987,14 @@ class App extends React.PureComponent {
                   />
                 )}
                 {clean === false && this.renderInformationPlugin()}
+                {clean === false && (
+                  <RecentlyUsedPlugins
+                    globalObserver={this.globalObserver}
+                    showRecentlyUsedPlugins={
+                      this.appModel.config.mapConfig.map.showRecentlyUsedPlugins
+                    }
+                  />
+                )}
               </Box>
             </StyledMain>
             <StyledFooter

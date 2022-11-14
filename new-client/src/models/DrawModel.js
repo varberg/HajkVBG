@@ -11,6 +11,7 @@ import GeoJSON from "ol/format/GeoJSON";
 import transformTranslate from "@turf/transform-translate";
 import { getArea as getExtentArea, getCenter, getWidth } from "ol/extent";
 import { Feature } from "ol";
+import { handleClick } from "./Click";
 
 /*
  * A model supplying useful Draw-functionality.
@@ -75,7 +76,6 @@ class DrawModel {
   #modifyInteraction;
   #keepModifyActive;
   #keepTranslateActive;
-  #allowedLabelFormats;
   #customHandleDrawStart;
   #customHandleDrawEnd;
   #customHandlePointerMove;
@@ -84,6 +84,7 @@ class DrawModel {
   #highlightStrokeColor;
   #circleRadius;
   #circleInteractionActive;
+  #selectInteractionActive;
 
   constructor(settings) {
     // Let's make sure that we don't allow initiation if required settings
@@ -104,7 +105,7 @@ class DrawModel {
     // which will act as a prefix on all messages published on the
     // supplied observer.
     this.#observerPrefix = this.#getObserverPrefix(settings);
-    this.measurementSettings =
+    this.#measurementSettings =
       settings.measurementSettings ?? this.#getDefaultMeasurementSettings();
     this.#drawStyleSettings =
       settings.drawStyleSettings ?? this.#getDefaultDrawStyleSettings();
@@ -141,6 +142,7 @@ class DrawModel {
     this.#highlightFillColor = "rgba(35,119,252,1)";
     this.#highlightStrokeColor = "rgba(255,255,255,1)";
     this.#circleRadius = 0;
+    this.#selectInteractionActive = false;
 
     // A Draw-model is not really useful without a vector-layer, let's initiate it
     // right away, either by creating a new layer, or connect to an existing layer.
@@ -247,7 +249,7 @@ class DrawModel {
   // the layerName supplied when initiating the model. Also makes
   // sure that the layer is a vectorLayer.
   #layerHasCorrectNameAndType = (layer) => {
-    return layer.get("type") === this.#layerName && this.#isVectorLayer(layer);
+    return layer.get("name") === this.#layerName && this.#isVectorLayer(layer);
   };
 
   // Checks wether the supplied layer is a vectorLayer or not.
@@ -275,11 +277,11 @@ class DrawModel {
     this.#drawSource = this.#getNewVectorSource();
     // Then we'll create the layer
     this.#drawLayer = this.#getNewVectorLayer(this.#drawSource);
-    // Make sure to set the layer type to something understandable.
-    this.#drawLayer.set("type", this.#layerName);
-    // FIXME: Remove "type", use only "name" throughout
-    // the application. Should be done as part of #883.
+    // Make sure to set a unique name
     this.#drawLayer.set("name", this.#layerName);
+    // We're also gonna have to set the queryable-property to true
+    // so that we can enable "Select" on the layer.
+    this.#drawLayer.set("queryable", true);
     // Then we can add the layer to the map.
     this.#map.addLayer(this.#drawLayer);
   };
@@ -411,6 +413,17 @@ class DrawModel {
     const featureIsPoint = feature?.getGeometry() instanceof Point;
     // We also have to check if we're dealing with a text-feature or not
     const featureIsTextType = feature?.get("DRAW_METHOD") === "Text";
+    // Let's grab the foreground (fill) and background (stroke) colors that we're supposed to use.
+    // First we'll try to grab the color from the feature style, then from the current settings, and lastly from the fallback.
+    const foregroundColor = featureIsTextType
+      ? feature.get("TEXT_SETTINGS")?.foregroundColor ??
+        this.#textStyleSettings.foregroundColor
+      : "#FFF";
+    // Same applies for the background
+    const backgroundColor = featureIsTextType
+      ? feature.get("TEXT_SETTINGS")?.backgroundColor ??
+        this.#textStyleSettings.backgroundColor
+      : "rgba(0, 0, 0, 0.5)";
     // Then we can create and return the style
     return new Text({
       textAlign: "center",
@@ -428,13 +441,17 @@ class DrawModel {
       }),
       text: this.#getFeatureLabelText(feature),
       overflow: true,
-      stroke: new Stroke({
-        color: featureIsTextType
-          ? feature.get("TEXT_SETTINGS")?.backgroundColor ??
-            this.#textStyleSettings.backgroundColor
-          : "rgba(0, 0, 0, 0.5)",
-        width: 3,
-      }),
+      stroke:
+        // If the foreground and the background are the same color, we don't need a stroke.
+        foregroundColor !== backgroundColor
+          ? new Stroke({
+              color: featureIsTextType
+                ? feature.get("TEXT_SETTINGS")?.backgroundColor ??
+                  this.#textStyleSettings.backgroundColor
+                : "rgba(0, 0, 0, 0.5)",
+              width: 3,
+            })
+          : null,
       offsetX: 0,
       offsetY: featureIsPoint && !featureIsTextType ? -15 : 0,
       rotation: 0,
@@ -594,7 +611,7 @@ class DrawModel {
     // the supplied type (if we're creating a tooltip, we're always showing everything!).
     const showMeasurement =
       labelType === "TOOLTIP" ||
-      type === "LENGTH" ||
+      (type === "LENGTH" && this.#measurementSettings.showLength) ||
       (type === "AREA" && this.#measurementSettings.showArea) ||
       (type === "PERIMETER" && this.#measurementSettings.showPerimeter);
     // If we're not supposed to be showing the measurement, lets return an empty string.
@@ -659,11 +676,19 @@ class DrawModel {
     if (feature.get("DRAW_METHOD") === "Text") {
       return feature.get("USER_TEXT") ?? "";
     }
-    // Otherwise we return the measurement-text (If we're supposed to
-    // show it)!
-    return this.#measurementSettings.showText
+    // There might be a title present on the feature, if there is, we'll want
+    // to display it.
+    const featureTitle = feature.get("FEATURE_TITLE") ?? "";
+    // We'll also have to grab the eventual measurement-label
+    const measurementLabel = this.#measurementSettings.showText
       ? this.#getFeatureMeasurementLabel(feature, "LABEL")
       : "";
+    // Finally, we can return the eventual title, and the eventual measurement-label combined.
+    return featureTitle.length > 0
+      ? `${featureTitle}${
+          measurementLabel.length > 0 ? "\n" : ""
+        }${measurementLabel}`
+      : measurementLabel;
   };
 
   // Returns the supplied measurement as a kilometer-formatted string.
@@ -979,6 +1004,10 @@ class DrawModel {
   #getNewVectorLayer = (source) => {
     return new VectorLayer({
       source: source,
+      layerType: "system",
+      ignoreInFeatureInfo: true,
+      zIndex: 5000,
+      caption: "Draw model",
     });
   };
 
@@ -1094,7 +1123,7 @@ class DrawModel {
     // of the user drawn features. We also set "DRAW_TYPE" so that we can
     // handle special features, such as arrows.
     feature.set("USER_DRAWN", true);
-    feature.set("DRAW_METHOD", this.#drawInteraction.get("DRAW_METHOD"));
+    feature.set("DRAW_METHOD", this.#drawInteraction?.get("DRAW_METHOD"));
     feature.set("TEXT_SETTINGS", this.#textStyleSettings);
     // And set a nice style on the feature to be added.
     feature.setStyle(this.#getFeatureStyle(feature));
@@ -1197,6 +1226,9 @@ class DrawModel {
     }
     if (this.#moveInteractionActive) {
       return this.#disableMoveInteraction();
+    }
+    if (this.#selectInteractionActive) {
+      this.#disableSelectInteraction();
     }
     if (this.#circleInteractionActive) {
       this.#disableCircleInteraction();
@@ -1397,8 +1429,13 @@ class DrawModel {
   // Move-interaction.
   #enableMoveInteraction = (settings) => {
     // The Move-interaction will obviously need a Select-interaction so that the features to
-    // move can be selected.
-    this.#selectInteraction = new Select();
+    // move can be selected. We provide `null` as style - this will cancel the default OL Select
+    // interaction (which was problematic in some situations, see #1225).
+    this.#selectInteraction = new Select({
+      layers: [this.#drawLayer],
+      style: null,
+    });
+
     // We need a handler catching the "select"-events so that we can keep track of if any
     // features has been selected or not.
     this.#selectInteraction.on("select", this.#handleFeatureSelect);
@@ -1477,6 +1514,73 @@ class DrawModel {
     this.#map.clickLock.delete("coreDrawModel");
     this.#map.un("singleclick", this.#createRadiusOnClick);
     this.#circleInteractionActive = false;
+  };
+
+  // Enables functionality so that the user can select features from the map and
+  // create a "copy" of that feature.
+  #enableSelectInteraction = () => {
+    this.#map.clickLock.add("coreDrawModel");
+    this.#map.on("singleclick", this.#handleOnSelectClick);
+    this.#selectInteractionActive = true;
+  };
+
+  #disableSelectInteraction = () => {
+    this.#map.clickLock.delete("coreDrawModel");
+    this.#map.un("singleclick", this.#handleOnSelectClick);
+    this.#selectInteractionActive = true;
+  };
+
+  drawSelectedFeature = (feature) => {
+    try {
+      // We create a new feature with the same geometry as the supplied one. This way
+      // we ensure that the copy and the original feature are not connected.
+      const featureCopy = new Feature({
+        geometry: feature.getGeometry().clone(),
+      });
+      // We're gonna need to set some properties on the new feature... First, we'll set an ID.
+      featureCopy.setId(Math.random().toString(36).substring(2, 15));
+      // Then we'll set some draw-properties from the original feature.
+      featureCopy.set("USER_DRAWN", true);
+      featureCopy.set("DRAW_METHOD", feature.get("DRAW_METHOD"));
+      featureCopy.set("TEXT_SETTINGS", feature.get("TEXT_SETTINGS"));
+      // We're gonna need to set some styling on the feature as-well. Let's use the same
+      // styling as on the supplied feature.
+      featureCopy.setStyle(this.#getFeatureStyle(featureCopy));
+      // Then we can add the feature to the draw-layer!
+      this.#drawSource.addFeature(featureCopy);
+    } catch (error) {
+      console.error(`Failed to add selected feature. Error: ${error}`);
+    }
+  };
+
+  #handleOnSelectClick = async (event) => {
+    try {
+      // Try to fetch features from WMS-layers etc. (Also from all vector-layers).
+      const clickResult = await new Promise((resolve) =>
+        handleClick(event, event.map, resolve)
+      );
+      // The response should contain an array of features
+      const { features } = clickResult;
+      // Which might contain features without geometry. We have to make sure we remove those.
+      const featuresWithGeom = features.filter((feature) =>
+        feature.getGeometry()
+      );
+      // If we've fetched exactly one feature, we can add it straight away...
+      featuresWithGeom.length === 1 &&
+        this.drawSelectedFeature(featuresWithGeom[0]);
+      // If we have more than one feature, we'll have to let the user
+      // pick which features they want to add. Let's publish an event that the view can catch...
+      if (featuresWithGeom.length > 1) {
+        return this.#publishInformation({
+          subject: "drawModel.select.click",
+          payLoad: featuresWithGeom,
+        });
+      }
+    } catch (error) {
+      console.error(
+        `Failed to select features in drawModel... Error: ${error}`
+      );
+    }
   };
 
   // Creates a Feature with a circle geometry with fixed radius
@@ -1797,13 +1901,34 @@ class DrawModel {
   translateSelectedFeatures = (length, angle) => {
     this.#selectInteraction.getFeatures().forEach((f) => {
       try {
-        // We'll have to create a GeoJSON-feature from the ol-feature (since
-        // turf only accepts geoJSON).
+        // Since geoJSON cannot handle OL's circle-geometries, we'll have to check
+        // if we're dealing with a circle before creating the geoJSON-feature...
+        const isCircle = f.getGeometry() instanceof CircleGeometry;
+        // We also have to make sure to store the eventual radius so that we can use that to create a 'real' circle later.
+        const radius = isCircle ? f.getGeometry().getRadius() : 0;
+        // If we are dealing with a circle, we have to set the feature-geometry to a
+        // simplified circle (Don't worry, we'll create a "real" circle again later).
+        if (isCircle) {
+          f.setGeometry(fromCircle(f.getGeometry()));
+        }
+        // Then we'll create a GeoJSON-feature from the ol-feature (since turf only accepts geoJSON).
         const gjFeature = this.#geoJSONParser.writeFeatureObject(f);
         // Then we'll translate the feature according to the supplied parameters
         const translated = transformTranslate(gjFeature, length / 1000, angle);
-        // When thats done, we'll update the duplicates geometry.
-        f.setGeometry(this.#geoJSONParser.readGeometry(translated.geometry));
+        // When thats done, we'll read the geometry from the translated geoJSON
+        const translatedGeometry = this.#geoJSONParser.readGeometry(
+          translated.geometry
+        );
+        // When thats done, we'll update the feature geometry to the translated one. If we are dealing
+        // with a circle, we have to create a "real" circle:
+        if (isCircle) {
+          f.setGeometry(
+            this.#creteCircleGeomFromSimplified(translatedGeometry, radius)
+          );
+        } else {
+          // Otherwise we can just set the geometry.
+          f.setGeometry(translatedGeometry);
+        }
       } catch (error) {
         console.error(`Failed to translate selected features. Error: ${error}`);
       }
@@ -1932,6 +2057,9 @@ class DrawModel {
     }
     if (drawMethod === "Move") {
       return this.#enableMoveInteraction(settings);
+    }
+    if (drawMethod === "Select") {
+      return this.#enableSelectInteraction(settings);
     }
     if (drawMethod === "Circle") {
       this.#enableCircleInteraction();
@@ -2077,6 +2205,18 @@ class DrawModel {
         f.setStyle(this.#getFeatureStyle(f));
       }
     });
+  };
+
+  // Updates the supplied features' <attribute> with the supplied <value>.
+  // When the attribute has been updated, the style is refreshed.
+  setFeatureAttribute = (feature, attribute, value) => {
+    // If no feature was supplied, or if the supplied 'feature' is not
+    // a feature, we'll abort.
+    if (!(feature instanceof Feature)) {
+      return;
+    }
+    // Otherwise we'll update the attribute.
+    feature.set(attribute, value);
   };
 
   // Updates the Text-style-settings.
