@@ -487,7 +487,7 @@ export default class PrintModel {
     );
 
     // Here we get number of lines we will draw below
-    const { divLinesArray, divider } = this.getDivLinesArrayAndDivider(
+    const { divLinesArray } = this.getDivLinesArrayAndDivider(
       scaleBarLengthMeters,
       scaleBarLength
     );
@@ -560,8 +560,15 @@ export default class PrintModel {
     );
 
     // Here we add the middle number or if no middle exists...
-    // a number thats close to the middle
-    const midIndex = Math.floor(divLinesArray.length / 2);
+    // a number that's close to the middle
+
+    // let midIndex =
+    //   divLinesArray.length % 2 === 0
+    //     ? divLinesArray.length / 2
+    //     : Math.floor(divLinesArray.length / 2);
+
+    const midIndex = Math.round(divLinesArray.length / 2);
+
     divNr = (calculatedScaleBarLengthMeters / divider) * midIndex;
     divNrString = divNr.toLocaleString();
     pdf.text(
@@ -779,6 +786,7 @@ export default class PrintModel {
       const imageLayer = new ImageLayer({
         opacity: layerOpacity,
         source: imageSource,
+        zIndex: layer.getZIndex(),
       });
       // Finally we add the new layer to the map... First we have to check where
       // the original layer was placed (so that it keeps its draw-order).
