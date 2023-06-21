@@ -228,7 +228,7 @@ const FmeServerView = (props) => {
     setActiveGroup("");
     setActiveProduct("");
     resetOrderInformation();
-    handleResetDraw();
+    //handleResetDraw();
   }
 
   // If the user chooses to reset the stepper, we must make sure
