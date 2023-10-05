@@ -48,12 +48,18 @@ class PSAD {
   }
 
   runCommand(cmd) {
-    try {
-      let res = execSync(cmd, { shell: "powershell.exe" }).toString();
-      return { error: null, success: true, value: res };
-    } catch (error) {
-      return { error: error, success: false, value: null };
-    }
+    // force powershell to UTF8
+    cmd =
+      "$OutputEncoding = [System.Console]::OutputEncoding = [System.Console]::InputEncoding = [System.Text.Encoding]::UTF8;\n" +
+      cmd;
+    let res = execSync(cmd, {
+      shell: "powershell.exe",
+      encoding: "utf8",
+    }).toString();
+    return { error: null, success: true, value: res };
+  } catch (error) {
+    return { error: error, success: false, value: null };
+  }
   }
 
   validUserName(userName) {
