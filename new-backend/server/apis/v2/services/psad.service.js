@@ -155,6 +155,7 @@ class PSAD {
 
     const cmd = `$b = New-Object system.DirectoryServices.DirectorySearcher;
     $b.filter = "(objectclass=group)";
+    $b.PageSize = 5000
     $b.PropertiesToLoad.Clear();
     $b.PropertiesToLoad.Add("distinguishedname");
     $b.FindAll();`;
