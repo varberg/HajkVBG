@@ -1,5 +1,5 @@
 import log4js from "log4js";
-import psad from "./psad.service";
+import psad from "./psad.service.js";
 
 const logger = log4js.getLogger("service.auth.v2");
 
