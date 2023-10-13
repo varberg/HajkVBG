@@ -23,6 +23,12 @@ class ActiveDirectoryService {
 
   #checkConnection() {
     const user = process.env.AD_POWERSHELL_LOOKUP_TEST_USER;
+    if (!user) {
+      logger.info(
+        "Testing AD skipped, set AD_POWERSHELL_LOOKUP_TEST_USER to activate."
+      );
+      return;
+    }
     logger.info(`Testing AD with user ${user}`);
     const groups = psad.getUserGroups(user);
     if (groups.length === 0) {
