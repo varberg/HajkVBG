@@ -3,7 +3,7 @@ import adgroupheader from "./adgroupheader.service.js";
 
 const logger = log4js.getLogger("service.auth.v2");
 
-// NOTE! This is a modded version of the file that uses the psad service.
+// NOTE! This is a modded version of the file that uses the adgroupheader service.
 
 class ActiveDirectoryService {
   constructor() {

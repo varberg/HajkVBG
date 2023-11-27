@@ -1,21 +1,5 @@
-// import { execSync } from "child_process";
-import log4js from "log4js";
-
-const logger = log4js.getLogger("adgroupheader.service");
-
-// AD Lookup using powershell commands.
-//
-// AD_POWERSHELL_LOOKUP=true
-// AD_POWERSHELL_LOOKUP_TEST_USER=username # A user that has a minimum of one group.
-// AD_POWERSHELL_CACHE_TIMEOUT=3600 # Timeout in seconds
-// curl --header "X-Control-Header: username" -v http://localhost:3002/api/v2/config/xxxxxxxx
-
 class AdGroupHeaderService {
   constructor() {
-    // this._trustedUserHeader =
-    //   process.env.AD_TRUSTED_HEADER || "X-Control-Header";
-    // this._trustedGroupHeader =
-    //   process.env.AD_TRUSTED_HEADER || "X-Control-Group-Header";
     this.users = {};
   }
 
