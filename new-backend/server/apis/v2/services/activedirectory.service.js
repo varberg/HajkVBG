@@ -163,9 +163,6 @@ class ActiveDirectoryService {
         );
       }
 
-      // user = "jead003";
-      // adgroupheader.setUserGroups(user, "a,b,c,d");
-
       // Check if the user-value contains backslash (we might get DOMAIN\userName in the header, and if we do
       // we want to remove the domain).
       if (user?.match(/\\/)) {
