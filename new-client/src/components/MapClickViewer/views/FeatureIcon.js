@@ -20,26 +20,25 @@ const FeatureIcon = (props) => {
         }
       })
       .then((svg) => {
-        try {
-          const tmpContainer = document.createElement("div");
-          tmpContainer.innerHTML = svg;
-          const svgElement = tmpContainer.querySelector("svg");
-          const placeholderSvg = img.parentElement.querySelector("svg");
-          svgElement.setAttribute(
-            "class",
-            placeholderSvg.getAttribute("class")
-          );
-          svgElement.setAttribute(
-            "viewBox",
-            placeholderSvg.getAttribute("viewBox")
-          );
-          img.parentElement.replaceChild(svgElement, placeholderSvg);
-        } catch (error) {
-          console.warn("FeatureIcon swapImgWithSvg", error);
-        } finally {
-          img.onLoad = () => {};
-          img.style.display = "none";
-        }
+        // try {
+        //   const tmpContainer = document.createElement("div");
+        //   tmpContainer.innerHTML = svg;
+        //   const svgElement = tmpContainer.querySelector("svg");
+        //   const placeholderSvg = img.parentElement.querySelector("svg");
+        //   svgElement.setAttribute(
+        //     "class",
+        //     placeholderSvg.getAttribute("class")
+        //   );
+        //   svgElement.setAttribute(
+        //     "viewBox",
+        //     placeholderSvg.getAttribute("viewBox")
+        //   );
+        //   img.parentElement.replaceChild(svgElement, placeholderSvg);
+        // } catch (error) {
+        //   console.warn("FeatureIcon swapImgWithSvg", error);
+        // } finally {
+        //   img.onLoad = () => {};
+        // }
       });
   };
 
