@@ -37,7 +37,8 @@ const FeatureIcon = (props) => {
         } catch (error) {
           console.warn("FeatureIcon swapImgWithSvg", error);
         } finally {
-          img.remove();
+          img.onLoad = () => {};
+          img.style.display = "none";
         }
       });
   };
