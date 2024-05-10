@@ -159,7 +159,7 @@ class Window extends React.PureComponent {
       top: 0,
       width: 300,
       height: this.props.height === "dynamic" ? "auto" : 400,
-      mode: "minimized"
+      mode: "minimized",
     };
 
     window.addEventListener("resize", () => {
