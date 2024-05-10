@@ -175,6 +175,7 @@ class Window extends React.PureComponent {
       //This is ugly but there is a timing problem further down somewhere (i suppose?).
       //componentDidUpdate is run before the render is actually fully completed and the DOM is ready
       setTimeout(() => {
+        this.updatePosition();
         this.windowRef.current.focus();
       }, 200);
     }
