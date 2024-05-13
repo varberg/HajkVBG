@@ -159,7 +159,6 @@ class Window extends React.PureComponent {
       top: 0,
       width: 300,
       height: this.props.height === "dynamic" ? "auto" : 400,
-      mode: "minimized",
     };
 
     window.addEventListener("resize", () => {
@@ -176,7 +175,6 @@ class Window extends React.PureComponent {
       //This is ugly but there is a timing problem further down somewhere (i suppose?).
       //componentDidUpdate is run before the render is actually fully completed and the DOM is ready
       setTimeout(() => {
-        this.maximize();
         this.windowRef.current.focus();
       }, 200);
     }
@@ -530,13 +528,13 @@ class Window extends React.PureComponent {
         minHeight={this.state.mode === "minimized" ? 42 : 100}
         size={{
           width: width,
-          height: height,
+          height: height === "dynamic" ? "auto" : height,
         }}
         default={{
           x: left,
           y: top,
           width: width,
-          height: height,
+          height: height === "dynamic" ? "auto" : height,
         }}
       >
         <PanelContent
