@@ -264,7 +264,7 @@ const FmeAppsView = (props) => {
 
   // Render the view
   return (
-    <Grid container spacing={1} sx={{ mt: 1 }}>
+    <Grid container spacing={1} sx={{ mt: 1, overflowX: "hidden" }}>
       <Grid item xs={12}>
         <FormControl fullWidth size="small">
           <InputLabel id="fme-app-label">Tillgängliga appar</InputLabel>

@@ -25,7 +25,7 @@ const TruncatedTextBlock = styled("div")({
   width: "100%",
   whiteSpace: "nowrap",
   textOverflow: "ellipsis",
-  opacity: 0.8,
+  opacity: 0.7,
 });
 
 const InputFileUpload = (props) => {
