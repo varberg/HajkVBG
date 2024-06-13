@@ -27,6 +27,7 @@ const InputSlider = (props) => {
         {d.value}
       </Typography>
       <Slider
+        disabled={d.disabled}
         defaultValue={Number(d.defaultValue)}
         min={minValue}
         max={maxValue}

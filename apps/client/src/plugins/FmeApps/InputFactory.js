@@ -4,9 +4,11 @@ import InputFileUpload from "./components/InputFileUpload";
 import InputSlider from "./components/InputSlider";
 
 class InputFactory {
-  constructor(form, setForm) {
+  constructor(app, form, setForm, services) {
+    this.app = app;
     this.form = form;
     this.setForm = setForm;
+    this.services = services;
   }
 
   updateForm() {
@@ -23,6 +25,7 @@ class InputFactory {
   getTextInput(d) {
     return (
       <TextField
+        disabled={d.disabled}
         size="small"
         label={d.title}
         value={d.value}
@@ -37,6 +40,7 @@ class InputFactory {
   getNumberInput(d) {
     return (
       <TextField
+        disabled={d.disabled}
         size="small"
         type="number"
         label={d.title}
@@ -88,6 +92,7 @@ class InputFactory {
       <div sx={{ minWidth: "100%" }}>
         <InputLabel id={d.id + "-label"}>{d.title}</InputLabel>
         <Select
+          disabled={d.disabled}
           fullWidth
           labelId={d.id + "-label"}
           id={d.id + "-select"}
@@ -112,9 +117,12 @@ class InputFactory {
     return (
       <div>
         <InputFileUpload
+          app={this.app}
+          form={this.form}
+          services={this.services}
           formItem={d}
           onChange={(data) => {
-            d.file = data;
+            // todo: add error handling for file upload
             this.updateForm();
           }}
         ></InputFileUpload>

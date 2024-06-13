@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   FormControl,
@@ -24,34 +24,42 @@ const FmeAppsView = (props) => {
   const [inputFactory, setInputFactory] = useState(null);
   const [vectorSource, setVectorSource] = useState(null);
   const [vectorLayer, setVectorLayer] = useState(null);
-  const fmeAppsService = new FmeAppsService(props);
+  const fmeAppsService = useMemo(() => new FmeAppsService(props), [props]);
   const { enqueueSnackbar } = useSnackbar();
+
+  const handleAppChanged = async (event) => {
+    changeApp(event.target.value);
+  };
+
+  const changeApp = useCallback(
+    (targetApp) => {
+      setApp(targetApp);
+
+      console.log(targetApp);
+
+      targetApp.form.forEach((formItem) => {
+        // set value to default
+        formItem.value = formItem.defaultValue;
+      });
+
+      const inputFactory = new InputFactory(
+        targetApp,
+        targetApp.form,
+        setForm,
+        fmeAppsService
+      );
+      setInputFactory(inputFactory);
+      setForm(targetApp.form);
+    },
+    [setApp, setInputFactory, setForm, fmeAppsService]
+  );
 
   useEffect(() => {
     // If theres only one app, set it as the starting app
     if (props.options.applicationList.length === 1) {
       changeApp(props.options.applicationList[0]);
     }
-  }, [props.options.applicationList]);
-
-  const handleAppChanged = async (event) => {
-    changeApp(event.target.value);
-  };
-
-  const changeApp = (targetApp) => {
-    setApp(targetApp);
-
-    console.log(targetApp);
-
-    targetApp.form.forEach((formItem) => {
-      // set value to default
-      formItem.value = formItem.defaultValue;
-    });
-
-    const inputFactory = new InputFactory(targetApp.form, setForm);
-    setInputFactory(inputFactory);
-    setForm(targetApp.form);
-  };
+  }, [props.options.applicationList, changeApp]);
 
   const styles = {
     Point: new Style({
@@ -176,6 +184,10 @@ const FmeAppsView = (props) => {
    * Fits the map view to the extent of the vector layer.
    */
   const handleExecution = async () => {
+    const currentVectorSource = getVectorSource();
+    // Clear the vector source
+    getVectorSource().clear();
+
     // Retrieve the results of the app execution from the FmeFlow API
     const results = await fmeAppsService.getDataStreamingServiceResults(
       app,
@@ -192,11 +204,6 @@ const FmeAppsView = (props) => {
     const features = new GeoJSON().readFeatures(results, {
       featureProjection: AppModel.map.getView().getProjection(),
     });
-
-    const currentVectorSource = getVectorSource();
-
-    // Clear the vector source
-    currentVectorSource.clear();
 
     // Add the retrieved features to the vector source
     // TIP: If you get an error here when running addFeatures, about something "function getExtent() does not exist".

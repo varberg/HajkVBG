@@ -4,6 +4,11 @@ class FmeAppsService {
   constructor(props) {
     this.props = props;
     this.options = props.options;
+
+    // Create a unique session ID for each user.
+    // This is used for the upload feature.
+    // A timestamp is used and should be enough.
+    this.sessionID = new Date().getTime();
   }
 
   /**
@@ -22,15 +27,96 @@ class FmeAppsService {
       oUrl.searchParams.append(input.fmeParameterName, input.value);
     });
 
-    // console.log(oUrl.href);
+    oUrl.searchParams.append("opt_responseformat", "json");
 
-    const response = await hfetch(oUrl.href);
-
-    if (response.ok && response.status === 200) {
-      const data = await response.json();
-      return data;
+    // Have we uploaded a file?
+    // Add the URL of the file upload if it exists
+    const fileUpload = form.find((input) => input.inputType === "fileupload");
+    if (fileUpload && fileUpload.inputFileUploadUrl) {
+      oUrl.searchParams.append("opt_geturl", fileUpload.inputFileUploadUrl);
     }
-    return { error: true, code: response.status, message: response.statusText };
+
+    const response = await hfetch(oUrl.href, {});
+
+    // FME sometimes returns 204 instead of a geojson with no features.
+    // Thats why we have to check the status code and only accept 200.
+    if (response.ok && response.status === 200) {
+      try {
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        return {
+          error: true,
+          code: 666,
+          message: `Failed to parse response: ${error.message}`,
+        };
+      }
+    } else {
+      try {
+        const errorData = await response.json();
+        // decorate response
+        response.fmeErrorMessage =
+          errorData.serviceResponse?.statusInfo?.message;
+        console.error("serviceResponse from FME", errorData.serviceResponse);
+      } catch (error) {
+        // silence, there is no need to handle the error of an error.
+      }
+    }
+    return {
+      error: true,
+      code: response.status,
+      message: response.statusText + (response.fmeErrorMessage ?? ""),
+    };
+  }
+
+  async uploadFile(app, form, file) {
+    const oUrl = new URL(
+      `${this.options.fmeFlowBaseUrl}/fmedataupload/${app.repository}/${app.workspace}/${file.name}`
+    );
+    oUrl.searchParams.append("opt_fullpath", "true");
+    oUrl.searchParams.append("opt_namespace", this.sessionID);
+    oUrl.searchParams.append("opt_responseformat", "json");
+
+    const response = await hfetch(oUrl.href, {
+      method: "PUT",
+      body: file,
+    });
+
+    // Check status code, should be 200 or 201.
+    if (response.ok && response.status >= 200 && response.status <= 201) {
+      try {
+        const data = await response.json();
+        let fn = data.serviceResponse.files.path;
+        let path = data.serviceResponse.files.folder[0].path;
+        // We need to fix the incoming path with the original base url.
+        path = path.replace(
+          "$(FME_DATA_REPOSITORY)",
+          this.options.fmeFlowBaseUrlOriginal
+        );
+        return { url: path + fn };
+      } catch (error) {
+        return {
+          error: true,
+          code: 666,
+          message: `Failed to parse response: ${error.message}`,
+        };
+      }
+    } else {
+      try {
+        const errorData = await response.json();
+        // decorate response
+        response.fmeErrorMessage =
+          errorData.serviceResponse?.statusInfo?.message;
+        console.error("serviceResponse from FME", errorData.serviceResponse);
+      } catch (error) {
+        // silence, there is no need to handle the error of an error.
+      }
+    }
+    return {
+      error: true,
+      code: response.status,
+      message: response.statusText + (response.fmeErrorMessage ?? ""),
+    };
   }
 }
 

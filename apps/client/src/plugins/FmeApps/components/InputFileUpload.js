@@ -38,9 +38,17 @@ const InputFileUpload = (props) => {
     let inputFileName = file ? file.name : null;
 
     setFileName(inputFileName);
+    props.formItem.inputFileUploadUrl = null; // reset the url in advance
 
-    if (props.onChange) {
-      props.onChange(file);
+    if (inputFileName) {
+      props.services
+        .uploadFile(props.app, props.form, file)
+        .then((response) => {
+          props.formItem.inputFileUploadUrl = response.url;
+          if (props.onChange) {
+            props.onChange(response.url);
+          }
+        });
     }
   };
 
@@ -48,6 +56,7 @@ const InputFileUpload = (props) => {
     <Grid container sx={{ mb: 1 }}>
       <Grid item xs={5}>
         <Button
+          disabled={props.formItem.disabled}
           fullWidth
           component="label"
           role={undefined}
