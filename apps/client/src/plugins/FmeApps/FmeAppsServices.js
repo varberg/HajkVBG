@@ -32,8 +32,8 @@ class FmeAppsService {
     // Have we uploaded a file?
     // Add the URL of the file upload if it exists
     const fileUpload = form.find((input) => input.inputType === "fileupload");
-    if (fileUpload && fileUpload.inputFileUploadUrl) {
-      oUrl.searchParams.append("opt_geturl", fileUpload.inputFileUploadUrl);
+    if (fileUpload && fileUpload.value) {
+      oUrl.searchParams.append("opt_geturl", fileUpload.value);
     }
 
     let response = await hfetch(oUrl.href, {});

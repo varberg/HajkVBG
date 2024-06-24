@@ -17,10 +17,13 @@ import FmeAppsService from "./FmeAppsServices";
 import { useSnackbar } from "notistack";
 import VectorSource from "ol/source/Vector";
 import VectorLayer from "ol/layer/Vector";
+import LoaderOverlay from "./components/LoaderOverlay";
 
 const FmeAppsView = (props) => {
   const [app, setApp] = useState("");
   const [form, setForm] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loaderText, setLoaderText] = useState("");
   const [inputFactory, setInputFactory] = useState(null);
   const [vectorSource, setVectorSource] = useState(null);
   const [vectorLayer, setVectorLayer] = useState(null);
@@ -31,11 +34,18 @@ const FmeAppsView = (props) => {
     changeApp(event.target.value);
   };
 
+  const startLoading = (data) => {
+    setLoaderText(data?.text || "Laddar");
+    setIsLoading(true);
+  };
+
+  const stopLoading = () => {
+    setIsLoading(false);
+  };
+
   const changeApp = useCallback(
     (targetApp) => {
       setApp(targetApp);
-
-      console.log(targetApp);
 
       targetApp.form.forEach((formItem) => {
         // set value to default
@@ -46,10 +56,29 @@ const FmeAppsView = (props) => {
         targetApp,
         targetApp.form,
         setForm,
-        fmeAppsService
+        fmeAppsService,
+        {
+          onProgress: (data) => {
+            // progress is 0%
+            // For now we just handle the progress as 0% or 100%
+            startLoading(data);
+          },
+          onProgressEnd: () => {
+            // progress is 100%
+            stopLoading();
+          },
+        }
       );
       setInputFactory(inputFactory);
       setForm(targetApp.form);
+
+      // setTimeout(() => {
+      //   startLoading({ text: "PUNG!" });
+      // }, 2000);
+
+      // setTimeout(() => {
+      //   stopLoading();
+      // }, 10000);
     },
     [setApp, setInputFactory, setForm, fmeAppsService]
   );
@@ -162,7 +191,8 @@ const FmeAppsView = (props) => {
     return styles[feature.getGeometry().getType()];
   };
 
-  const handleError = (results) => {
+  const handleFMEError = (results) => {
+    stopLoading();
     console.error(results.code, results.message);
     enqueueSnackbar(
       `Appen '${app.title}' fick felsvar från FME Flow.\nFelmeddelande: ${results.message}\nFelkod: ${results.code}`,
@@ -184,6 +214,7 @@ const FmeAppsView = (props) => {
    * Fits the map view to the extent of the vector layer.
    */
   const handleExecution = async () => {
+    startLoading({ text: "Kör. V.g. vänta." });
     const currentVectorSource = getVectorSource();
     // Clear the vector source
     getVectorSource().clear();
@@ -195,7 +226,7 @@ const FmeAppsView = (props) => {
     );
 
     if (results.error) {
-      handleError(results);
+      handleFMEError(results);
       return;
     }
 
@@ -217,6 +248,8 @@ const FmeAppsView = (props) => {
       padding: [50, 50, 50, 50],
       duration: 500,
     });
+
+    stopLoading();
   };
 
   /**
@@ -271,36 +304,54 @@ const FmeAppsView = (props) => {
 
   // Render the view
   return (
-    <Grid container spacing={1} sx={{ mt: 1, overflowX: "hidden" }}>
-      <Grid item xs={12}>
-        <FormControl fullWidth size="small">
-          <InputLabel id="fme-app-label">Tillgängliga appar</InputLabel>
-          <Select
-            labelId="fme-app-label"
-            id="fme-app-id"
-            label="Tillgängliga appar"
-            value={app}
-            onChange={handleAppChanged}
-          >
-            {props.options.applicationList.map((app, index) => (
-              <MenuItem key={app.id + index} value={app}>
-                {app.title}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Grid>
-      <Grid item xs={12}>
-        {renderForm()}
-      </Grid>
-      {form && (
-        <Grid item xs={12} sx={{ justifyContent: "flex-end", display: "flex" }}>
-          <Button variant="contained" onClick={handleExecution}>
-            Kör
-          </Button>
+    // Make wrapper div relative so the LoaderOverlay is positioned correctly.
+    <div style={{ position: "relative" }}>
+      <Grid
+        container
+        spacing={1}
+        sx={{
+          mt: 1,
+          overflowX: "hidden",
+          filter: `grayscale(${isLoading ? 1 : 0}) blur(${isLoading ? "1px" : 0})`,
+          opacity: isLoading ? 0.3 : 1,
+          transition: "all 500ms",
+        }}
+      >
+        <Grid item xs={12}>
+          <FormControl fullWidth size="small">
+            <InputLabel id="fme-app-label">Tillgängliga appar</InputLabel>
+            <Select
+              labelId="fme-app-label"
+              id="fme-app-id"
+              label="Tillgängliga appar"
+              value={app}
+              onChange={handleAppChanged}
+            >
+              {props.options.applicationList.map((app, index) => (
+                <MenuItem key={app.id + index} value={app}>
+                  {app.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Grid>
-      )}
-    </Grid>
+        <Grid item xs={12}>
+          {renderForm()}
+        </Grid>
+        {form && (
+          <Grid
+            item
+            xs={12}
+            sx={{ justifyContent: "flex-end", display: "flex" }}
+          >
+            <Button variant="contained" onClick={handleExecution}>
+              Kör
+            </Button>
+          </Grid>
+        )}
+      </Grid>
+      <LoaderOverlay isLoading={isLoading} text={loaderText} />
+    </div>
   );
 };
 

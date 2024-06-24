@@ -3,12 +3,18 @@ import HajkToolTip from "components/HajkToolTip";
 import InputFileUpload from "./components/InputFileUpload";
 import InputSlider from "./components/InputSlider";
 
+/**
+ * The InputFactory class is a factory class that creates input components based on the input type specified in the formItem object.
+ * It provides methods to update the form state and wrap input components with tooltips.
+ */
+
 class InputFactory {
-  constructor(app, form, setForm, services) {
+  constructor(app, form, setForm, services, methods) {
     this.app = app;
     this.form = form;
     this.setForm = setForm;
     this.services = services;
+    this.methods = methods;
   }
 
   updateForm() {
@@ -100,6 +106,20 @@ class InputFactory {
           value={d.value}
           onChange={(e) => {
             d.value = e.target.value;
+            // The loop below is needed to clear potential file upload inputs when the select value changes.
+            // If not cleared, the form will include the file input value when posting the form data.
+            // The other input types are not affected by this.
+            // Note: That this approach is not optimal, the logic should probably be moved to the service class
+            // which could cleanup right before a form post. But this works for now.
+            this.form.forEach((formItem) => {
+              if (
+                formItem.inputType === "fileupload" &&
+                formItem.visibleIf?.id === d.id &&
+                formItem.visibleIf?.value !== d.value
+              ) {
+                formItem.value = formItem.defaultValue; // probably always null here.
+              }
+            });
             this.updateForm();
           }}
         >
@@ -125,12 +145,17 @@ class InputFactory {
             // todo: add error handling for file upload
             this.updateForm();
           }}
+          onProgress={this.methods.onProgress ?? (() => {})}
+          onProgressEnd={this.methods.onProgressEnd ?? (() => {})}
         ></InputFileUpload>
       </div>
     );
   }
 
   getInputItem(formItem) {
+    // I considered a more dynamic approach, but it's not worth it right now.
+    // This is the more robust approach.
+    // The only downside is that if you add a new input type, you have to add it here.
     if (formItem.inputType === "text") {
       return this.wrap(formItem, this.getTextInput(formItem));
     } else if (formItem.inputType === "number") {

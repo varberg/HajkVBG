@@ -38,16 +38,19 @@ const InputFileUpload = (props) => {
     let inputFileName = file ? file.name : null;
 
     setFileName(inputFileName);
-    props.formItem.inputFileUploadUrl = null; // reset the url in advance
+
+    props.formItem.value = null; // reset the url in advance
 
     if (inputFileName) {
+      props.onProgress({ text: `Laddar upp fil` });
       props.services
         .uploadFile(props.app, props.form, file)
         .then((response) => {
-          props.formItem.inputFileUploadUrl = response.url;
+          props.formItem.value = response.url;
           if (props.onChange) {
             props.onChange(response.url);
           }
+          props.onProgressEnd();
         });
     }
   };
