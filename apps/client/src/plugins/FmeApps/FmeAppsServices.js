@@ -36,7 +36,7 @@ class FmeAppsService {
       oUrl.searchParams.append("opt_geturl", fileUpload.inputFileUploadUrl);
     }
 
-    const response = await hfetch(oUrl.href, {});
+    let response = await hfetch(oUrl.href, {});
 
     // FME sometimes returns 204 instead of a geojson with no features.
     // Thats why we have to check the status code and only accept 200.
@@ -52,15 +52,7 @@ class FmeAppsService {
         };
       }
     } else {
-      try {
-        const errorData = await response.json();
-        // decorate response
-        response.fmeErrorMessage =
-          errorData.serviceResponse?.statusInfo?.message;
-        console.error("serviceResponse from FME", errorData.serviceResponse);
-      } catch (error) {
-        // silence, there is no need to handle the error of an error.
-      }
+      response = await this.getFMEErrorMessage(response);
     }
     return {
       error: true,
@@ -77,7 +69,7 @@ class FmeAppsService {
     oUrl.searchParams.append("opt_namespace", this.sessionID);
     oUrl.searchParams.append("opt_responseformat", "json");
 
-    const response = await hfetch(oUrl.href, {
+    let response = await hfetch(oUrl.href, {
       method: "PUT",
       body: file,
     });
@@ -88,7 +80,7 @@ class FmeAppsService {
         const data = await response.json();
         let fn = data.serviceResponse.files.path;
         let path = data.serviceResponse.files.folder[0].path;
-        // We need to fix the incoming path with the original base url.
+        // We need to fix the incoming path with the original base url when running through the proxy.
         path = path.replace(
           "$(FME_DATA_REPOSITORY)",
           this.options.fmeFlowBaseUrlOriginal
@@ -102,21 +94,31 @@ class FmeAppsService {
         };
       }
     } else {
-      try {
-        const errorData = await response.json();
-        // decorate response
-        response.fmeErrorMessage =
-          errorData.serviceResponse?.statusInfo?.message;
-        console.error("serviceResponse from FME", errorData.serviceResponse);
-      } catch (error) {
-        // silence, there is no need to handle the error of an error.
-      }
+      response = await this.getFMEErrorMessage(response);
     }
     return {
       error: true,
       code: response.status,
       message: response.statusText + (response.fmeErrorMessage ?? ""),
     };
+  }
+
+  async getFMEErrorMessage(response) {
+    // When we got to this point, the response is not ok.
+    // Therefore, we need to check for an error message from the FME response.
+    try {
+      // Check for error message from the FME response
+      const errorData = await response.json();
+      // Decorate response with message from FME
+      response.fmeErrorMessage = errorData.serviceResponse?.statusInfo?.message;
+      console.error("serviceResponse from FME", errorData.serviceResponse);
+    } catch (error) {
+      // silence, there is no need to handle the error of an error.
+    }
+
+    // Return the response with or without the FME error message.
+    // At least we tried.
+    return response;
   }
 }
 
