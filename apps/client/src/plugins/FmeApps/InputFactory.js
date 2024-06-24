@@ -1,7 +1,8 @@
-import { InputLabel, MenuItem, Select, TextField } from "@mui/material";
+import { TextField } from "@mui/material";
 import HajkToolTip from "components/HajkToolTip";
 import InputFileUpload from "./components/InputFileUpload";
 import InputSlider from "./components/InputSlider";
+import InputSelect from "./components/InputSelect";
 
 /**
  * The InputFactory class is a factory class that creates input components based on the input type specified in the formItem object.
@@ -96,39 +97,13 @@ class InputFactory {
   getSelectInput(d) {
     return (
       <div sx={{ minWidth: "100%" }}>
-        <InputLabel id={d.id + "-label"}>{d.title}</InputLabel>
-        <Select
-          disabled={d.disabled}
-          fullWidth
-          labelId={d.id + "-label"}
-          id={d.id + "-select"}
-          label={d.title}
-          value={d.value}
-          onChange={(e) => {
-            d.value = e.target.value;
-            // The loop below is needed to clear potential file upload inputs when the select value changes.
-            // If not cleared, the form will include the file input value when posting the form data.
-            // The other input types are not affected by this.
-            // Note: That this approach is not optimal, the logic should probably be moved to the service class
-            // which could cleanup right before a form post. But this works for now.
-            this.form.forEach((formItem) => {
-              if (
-                formItem.inputType === "fileupload" &&
-                formItem.visibleIf?.id === d.id &&
-                formItem.visibleIf?.value !== d.value
-              ) {
-                formItem.value = formItem.defaultValue; // probably always null here.
-              }
-            });
+        <InputSelect
+          formItem={d}
+          form={this.form}
+          onChange={(e, value) => {
             this.updateForm();
           }}
-        >
-          {d.options.map((option, index) => (
-            <MenuItem key={option.title + index} value={option.value}>
-              {option.title}
-            </MenuItem>
-          ))}
-        </Select>
+        />
       </div>
     );
   }
