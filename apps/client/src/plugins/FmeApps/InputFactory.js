@@ -19,6 +19,7 @@ class InputFactory {
   }
 
   updateForm() {
+    // Force setForm with new object to re-render.
     this.setForm([...this.form]);
   }
 

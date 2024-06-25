@@ -214,6 +214,8 @@ const FmeAppsView = (props) => {
    * Fits the map view to the extent of the vector layer.
    */
   const handleExecution = async () => {
+    // TODO: Add form validation!!
+
     startLoading({ text: "Kör. V.g. vänta." });
     const currentVectorSource = getVectorSource();
     // Clear the vector source

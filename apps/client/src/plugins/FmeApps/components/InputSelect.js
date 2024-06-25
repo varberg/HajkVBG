@@ -28,7 +28,7 @@ const InputSelect = (props) => {
               formItem.visibleIf?.id === d.id &&
               formItem.visibleIf?.value !== d.value
             ) {
-              formItem.value = formItem.defaultValue; // probably always null here.
+              formItem.value = null; // Force null
             }
           });
           if (onChange) {
