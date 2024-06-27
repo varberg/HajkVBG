@@ -7,7 +7,7 @@ const AppInfo = (props) => {
     app && (
       <Grid item xs={12}>
         <Collapse in={infoIsVisible} timeout="auto">
-          <Paper elevation={2} variant="outlined" sx={{ p: 2 }}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography
               variant="body2"
               dangerouslySetInnerHTML={{ __html: app.description }}

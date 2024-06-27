@@ -43,8 +43,11 @@ class FmeAppsService {
     // Thats why we have to check the status code and only accept 200.
     if (response.ok && response.status === 200) {
       try {
-        const data = await response.json();
-        return data;
+        const simpleContentType = this.getSimpleContentType(response);
+        return {
+          data: await this.getResponseData(response, simpleContentType),
+          simpleContentType: simpleContentType,
+        };
       } catch (error) {
         return {
           error: true,
@@ -60,6 +63,18 @@ class FmeAppsService {
       code: response.status,
       message: response.statusText + (response.fmeErrorMessage ?? ""),
     };
+  }
+
+  async getResponseData(response, simpleContentType) {
+    if (simpleContentType === "json") {
+      return await response.json();
+    } else if (simpleContentType === "tiff") {
+      return await response.blob();
+    } else {
+      throw new Error(
+        `FmeAppsService.getResponseData: Content type '${simpleContentType}' is not supported, cannot return data`
+      );
+    }
   }
 
   async uploadFile(app, form, file) {
@@ -102,6 +117,18 @@ class FmeAppsService {
       code: response.status,
       message: response.statusText + (response.fmeErrorMessage ?? ""),
     };
+  }
+
+  getSimpleContentType(response) {
+    const contentType = (
+      "" + response.headers.get("content-type")
+    ).toLowerCase();
+    if (contentType.includes("json")) {
+      return "json";
+    } else if (contentType.includes("tiff")) {
+      return "tiff";
+    }
+    return contentType;
   }
 
   async getFMEErrorMessage(response) {

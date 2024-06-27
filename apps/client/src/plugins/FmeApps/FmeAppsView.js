@@ -1,35 +1,25 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Grid, Button } from "@mui/material";
-import AppModel from "models/AppModel";
-import GeoJSON from "ol/format/GeoJSON.js";
-import { Fill, Stroke, Style } from "ol/style";
-import CircleStyle from "ol/style/Circle";
 import InputFactory from "./InputFactory";
 import FmeAppsService from "./FmeAppsServices";
 import { useSnackbar } from "notistack";
-import VectorSource from "ol/source/Vector";
-import VectorLayer from "ol/layer/Vector";
 import LoaderOverlay from "./components/LoaderOverlay";
 import AppList from "./components/AppList";
 import AppInfo from "./components/AppInfo";
 import AppForm from "./components/AppForm";
+import LayerController from "./LayerController";
 
 const FmeAppsView = (props) => {
+  const layerController = useMemo(() => new LayerController(), []);
   const [app, setApp] = useState("");
   const [form, setForm] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [infoIsVisible, setInfoIsVisible] = useState(false);
   const [loaderText, setLoaderText] = useState("");
   const [inputFactory, setInputFactory] = useState(null);
-  const [vectorSource, setVectorSource] = useState(null);
-  const [vectorLayer, setVectorLayer] = useState(null);
   const fmeAppsService = useMemo(() => new FmeAppsService(props), [props]);
   const { enqueueSnackbar } = useSnackbar();
-
-  // const handleAppChanged = async (event) => {
-  //   changeApp(event.target.value);
-  // };
 
   const handleAppClick = async (app) => {
     changeApp(app);
@@ -91,106 +81,74 @@ const FmeAppsView = (props) => {
     // }
   }, [props.options.applicationList, changeApp]);
 
-  const styles = {
-    Point: new Style({
-      // image: image,
-    }),
-    LineString: new Style({
-      stroke: new Stroke({
-        color: "green",
-        width: 1,
-      }),
-    }),
-    MultiLineString: new Style({
-      stroke: new Stroke({
-        color: "green",
-        width: 1,
-      }),
-    }),
-    MultiPoint: new Style({
-      // image: image,
-    }),
-    MultiPolygon: new Style({
-      stroke: new Stroke({
-        color: "yellow",
-        width: 1,
-      }),
-      fill: new Fill({
-        color: "rgba(255, 255, 0, 0.1)",
-      }),
-    }),
-    Polygon: new Style({
-      stroke: new Stroke({
-        color: "red",
-        lineDash: [4],
-        width: 3,
-      }),
-      fill: new Fill({
-        color: "rgba(255, 255, 0, 0.3)",
-      }),
-    }),
-    GeometryCollection: new Style({
-      stroke: new Stroke({
-        color: "magenta",
-        width: 2,
-      }),
-      fill: new Fill({
-        color: "magenta",
-      }),
-      image: new CircleStyle({
-        radius: 10,
-        fill: null,
-        stroke: new Stroke({
-          color: "magenta",
-        }),
-      }),
-    }),
-    Circle: new Style({
-      stroke: new Stroke({
-        color: "red",
-        width: 2,
-      }),
-      fill: new Fill({
-        color: "rgba(255,0,0,0.2)",
-      }),
-    }),
-  };
+  // const styles = {
+  //   Point: new Style({
+  //     // image: image,
+  //   }),
+  //   LineString: new Style({
+  //     stroke: new Stroke({
+  //       color: "green",
+  //       width: 1,
+  //     }),
+  //   }),
+  //   MultiLineString: new Style({
+  //     stroke: new Stroke({
+  //       color: "green",
+  //       width: 1,
+  //     }),
+  //   }),
+  //   MultiPoint: new Style({
+  //     // image: image,
+  //   }),
+  //   MultiPolygon: new Style({
+  //     stroke: new Stroke({
+  //       color: "yellow",
+  //       width: 1,
+  //     }),
+  //     fill: new Fill({
+  //       color: "rgba(255, 255, 0, 0.1)",
+  //     }),
+  //   }),
+  //   Polygon: new Style({
+  //     stroke: new Stroke({
+  //       color: "red",
+  //       lineDash: [4],
+  //       width: 3,
+  //     }),
+  //     fill: new Fill({
+  //       color: "rgba(255, 255, 0, 0.3)",
+  //     }),
+  //   }),
+  //   GeometryCollection: new Style({
+  //     stroke: new Stroke({
+  //       color: "magenta",
+  //       width: 2,
+  //     }),
+  //     fill: new Fill({
+  //       color: "magenta",
+  //     }),
+  //     image: new CircleStyle({
+  //       radius: 10,
+  //       fill: null,
+  //       stroke: new Stroke({
+  //         color: "magenta",
+  //       }),
+  //     }),
+  //   }),
+  //   Circle: new Style({
+  //     stroke: new Stroke({
+  //       color: "red",
+  //       width: 2,
+  //     }),
+  //     fill: new Fill({
+  //       color: "rgba(255,0,0,0.2)",
+  //     }),
+  //   }),
+  // };
 
-  /**
-   * Returns the vector source.
-   * If the vector source is not initialized, it creates a new vector source and sets it.
-   * @returns {VectorSource} The vector source.
-   */
-  const getVectorSource = () => {
-    let currentVectorSource = vectorSource;
-    if (!currentVectorSource) {
-      currentVectorSource = new VectorSource({ wrapX: false });
-      setVectorSource(currentVectorSource);
-    }
-    return currentVectorSource;
-  };
-
-  /**
-   * Returns the vector layer.
-   * If the vector layer is not initialized, it creates a new vector layer and sets it.
-   * @returns {VectorLayer} The vector layer.
-   */
-  const getVectorLayer = (source) => {
-    let currentVectorLayer = vectorLayer;
-    if (!currentVectorLayer) {
-      currentVectorLayer = new VectorLayer({
-        source: source,
-        style: styleFunction,
-      });
-      setVectorLayer(currentVectorLayer);
-      AppModel.map.addLayer(currentVectorLayer);
-    }
-    return currentVectorLayer;
-  };
-
-  const styleFunction = function (feature) {
-    return styles[feature.getGeometry().getType()];
-  };
+  // const styleFunction = function (feature) {
+  //   return styles[feature.getGeometry().getType()];
+  // };
 
   const handleFMEError = (results) => {
     stopLoading();
@@ -218,9 +176,6 @@ const FmeAppsView = (props) => {
     // TODO: Add form validation!!
 
     startLoading({ text: "Kör. V.g. vänta." });
-    const currentVectorSource = getVectorSource();
-    // Clear the vector source
-    getVectorSource().clear();
 
     // Retrieve the results of the app execution from the FmeFlow API
     const results = await fmeAppsService.getDataStreamingServiceResults(
@@ -233,24 +188,7 @@ const FmeAppsView = (props) => {
       return;
     }
 
-    // We assume that the results are GeoJSON, this is required.
-    // Convert projection if necessary
-    const features = new GeoJSON().readFeatures(results, {
-      featureProjection: AppModel.map.getView().getProjection(),
-    });
-
-    // Add the retrieved features to the vector source
-    // TIP: If you get an error here when running addFeatures, about something "function getExtent() does not exist".
-    // Its probably malformed GeoJson. Check your incoming data.
-    currentVectorSource.addFeatures(features);
-
-    // Fit the map view to the extent of the vector layer
-    const currentVectorLayer = getVectorLayer(currentVectorSource);
-    AppModel.map.getView().fit(currentVectorLayer.getSource().getExtent(), {
-      size: AppModel.map.getSize(),
-      padding: [50, 50, 50, 50],
-      duration: 500,
-    });
+    layerController.applyResultDataToMap(results);
 
     stopLoading();
   };
