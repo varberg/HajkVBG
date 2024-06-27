@@ -27,6 +27,7 @@ class FmeAppsService {
       oUrl.searchParams.append(input.fmeParameterName, input.value);
     });
 
+    // Response format is always JSON and is actually the format for errors etc, not for features etc.
     oUrl.searchParams.append("opt_responseformat", "json");
 
     // Have we uploaded a file?
