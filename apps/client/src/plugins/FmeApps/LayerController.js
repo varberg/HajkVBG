@@ -49,6 +49,12 @@ class LayerController {
     }
   }
 
+  clearTiffSource() {
+    if (this.#geoTiffLayer) {
+      this.geoTiffLayer.setSource(null);
+    }
+  }
+
   /**
    * Returns the GeoTIFF layer.
    *
@@ -90,6 +96,7 @@ class LayerController {
    * @param {Object} results - The results containing GeoTIFF data.
    */
   applyTiffData(results) {
+    this.clearTiffSource();
     this.geoTiffLayer.setSource(
       new GeoTIFFSource({
         sources: [
@@ -100,7 +107,8 @@ class LayerController {
       })
     );
     // Right now its a mystery on how to get the extent of the GeoTIFF and zoom to it....
-    // TODO: Investigate
+    // Well, it's not a mystery, its probably just tricky and will need geotiff.js library.
+    // Not worth the effort right now.
     // this.fitMapToExtent(this.geoTiffLayer);
   }
 
@@ -111,6 +119,7 @@ class LayerController {
    */
   fitMapToExtent(layer) {
     // Fit the map view to the extent of the layer
+    // Currently only works for vector layers
     this.map.getView().fit(layer.getSource().getExtent(), {
       size: this.map.getSize(),
       padding: [50, 50, 50, 50],
@@ -127,7 +136,7 @@ class LayerController {
     // Here we rely on the results to determine the type of data to apply
     // The function call is dynamic based on the results type
     // For example, if the results are Json, we use the applyJsonData function
-    // The supported type are already defined in the FmeAppsService class.
+    // The supported type are already defined and verified in the FmeAppsService class.
     let type = results.simpleContentType;
     type = type.charAt(0).toUpperCase() + type.slice(1);
     this[`apply${type}Data`](results);

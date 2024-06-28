@@ -188,9 +188,18 @@ const FmeAppsView = (props) => {
       return;
     }
 
-    layerController.applyResultDataToMap(results);
+    try {
+      layerController.applyResultDataToMap(results);
+    } catch (error) {
+      console.error(`applyResultDataToMap: ${error.message}`);
+    }
 
     stopLoading();
+  };
+
+  const handleReset = () => {
+    layerController.clearTiffSource();
+    layerController.clearVectorSource();
   };
 
   /**
@@ -231,9 +240,16 @@ const FmeAppsView = (props) => {
         <AppForm app={app} form={form} inputFactory={inputFactory} />
 
         {app && (
+          <Grid item xs={6} sx={{ display: "flex" }}>
+            <Button variant="text" onClick={handleReset}>
+              Rensa
+            </Button>
+          </Grid>
+        )}
+        {app && (
           <Grid
             item
-            xs={12}
+            xs={6}
             sx={{ justifyContent: "flex-end", display: "flex" }}
           >
             <Button variant="contained" onClick={handleExecution}>
