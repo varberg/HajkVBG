@@ -15,7 +15,7 @@ const LoaderOverlay = (props) => {
         width: "100%",
         justifyContent: "center",
         alignItems: "center",
-        paddingBottom: "4rem",
+        // paddingBottom: "4rem",
         opacity: props.isLoading ? 1 : 0,
         transition: "all 500ms",
         pointerEvents: props.isLoading ? "all" : "none",

@@ -37,6 +37,7 @@ class InputFactory {
         size="small"
         label={d.title}
         value={d.value}
+        required={!d.optional}
         onChange={(e) => {
           d.value = e.target.value;
           this.updateForm();
@@ -53,6 +54,7 @@ class InputFactory {
         type="number"
         label={d.title}
         value={d.value}
+        required={!d.optional}
         InputProps={{
           inputProps: { min: d.min, max: d.max },
         }}

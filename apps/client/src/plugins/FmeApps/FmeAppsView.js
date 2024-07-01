@@ -9,6 +9,7 @@ import AppList from "./components/AppList";
 import AppInfo from "./components/AppInfo";
 import AppForm from "./components/AppForm";
 import LayerController from "./LayerController";
+import { ArrowForward, LayersClear } from "@mui/icons-material";
 
 const FmeAppsView = (props) => {
   const layerController = useMemo(() => new LayerController(), []);
@@ -63,13 +64,14 @@ const FmeAppsView = (props) => {
       setInputFactory(inputFactory);
       setForm(targetApp.form);
 
+      // Keeping this here for testing loader
       // setTimeout(() => {
-      //   startLoading({ text: "Oops!" });
-      // }, 2000);
+      //   startLoading({ text: "Testing loader!" });
+      // }, 3000);
 
       // setTimeout(() => {
       //   stopLoading();
-      // }, 10000);
+      // }, 7000);
     },
     [setApp, setInputFactory, setForm, fmeAppsService]
   );
@@ -215,6 +217,7 @@ const FmeAppsView = (props) => {
       <AppList
         app={app}
         onReset={() => {
+          handleReset();
           setInfoIsVisible(false);
           setApp(null);
         }}
@@ -241,7 +244,11 @@ const FmeAppsView = (props) => {
 
         {app && (
           <Grid item xs={6} sx={{ display: "flex" }}>
-            <Button variant="text" onClick={handleReset}>
+            <Button
+              variant="text"
+              onClick={handleReset}
+              endIcon={<LayersClear />}
+            >
               Rensa
             </Button>
           </Grid>
@@ -252,7 +259,11 @@ const FmeAppsView = (props) => {
             xs={6}
             sx={{ justifyContent: "flex-end", display: "flex" }}
           >
-            <Button variant="contained" onClick={handleExecution}>
+            <Button
+              variant="contained"
+              onClick={handleExecution}
+              endIcon={<ArrowForward />}
+            >
               Kör
             </Button>
           </Grid>

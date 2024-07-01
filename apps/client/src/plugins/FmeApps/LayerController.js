@@ -2,8 +2,8 @@ import AppModel from "models/AppModel";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON.js";
-import GeoTIFFSource from "ol/source/GeoTIFF";
 import TileLayer from "ol/layer/WebGLTile.js";
+import { GeoTIFF } from "ol/source";
 
 class LayerController {
   #vectorSource = null;
@@ -62,7 +62,27 @@ class LayerController {
    */
   get geoTiffLayer() {
     if (!this.#geoTiffLayer) {
-      this.#geoTiffLayer = new TileLayer();
+      this.#geoTiffLayer = new TileLayer({
+        style: {
+          color: [
+            "interpolate",
+            ["linear"],
+            ["band", 1],
+            -1000,
+            [0, 0, 0, 0],
+            193,
+            [0, 0, 0, 0],
+            194,
+            [0, 0, 255, 0],
+            600,
+            [0, 0, 255, 1],
+            1000,
+            [255, 255, 0, 1],
+            1670,
+            [255, 0, 0, 1],
+          ],
+        },
+      });
       this.#geoTiffLayer.setMap(this.map);
     }
     return this.#geoTiffLayer;
@@ -98,14 +118,23 @@ class LayerController {
   applyTiffData(results) {
     this.clearTiffSource();
     this.geoTiffLayer.setSource(
-      new GeoTIFFSource({
+      new GeoTIFF({
         sources: [
           {
             blob: results.data,
+            // interpolate: false,
+            normalize: false,
+            // min: 195,
+            // max: 1670,
           },
         ],
+        interpolate: true,
+        normalize: false,
+        // convertToRGB: true,
       })
     );
+    let s = this.geoTiffLayer.getSources()[0];
+    console.log(s);
     // Right now its a mystery on how to get the extent of the GeoTIFF and zoom to it....
     // Well, it's not a mystery, its probably just tricky and will need geotiff.js library.
     // Not worth the effort right now.
@@ -136,7 +165,7 @@ class LayerController {
     // Here we rely on the results to determine the type of data to apply
     // The function call is dynamic based on the results type
     // For example, if the results are Json, we use the applyJsonData function
-    // The supported type are already defined and verified in the FmeAppsService class.
+    // The supported type are already defined and handled in the FmeAppsService class.
     let type = results.simpleContentType;
     type = type.charAt(0).toUpperCase() + type.slice(1);
     this[`apply${type}Data`](results);

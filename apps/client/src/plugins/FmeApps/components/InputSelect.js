@@ -7,7 +7,9 @@ const InputSelect = (props) => {
 
   return (
     <div sx={{ minWidth: "100%" }}>
-      <InputLabel id={d.id + "-label"}>{d.title}</InputLabel>
+      <InputLabel id={d.id + "-label"} required={!d.optional}>
+        {d.title}
+      </InputLabel>
       <Select
         disabled={d.disabled}
         fullWidth
@@ -15,6 +17,7 @@ const InputSelect = (props) => {
         id={d.id + "-select"}
         label={d.title}
         value={d.value}
+        required={!d.optional}
         onChange={(e) => {
           d.value = e.target.value;
           // The loop below is needed to clear potential file upload inputs when the select value changes.
