@@ -67,14 +67,16 @@ const FmeAppsView = (props) => {
       setInputFactory(inputFactory);
       setForm(targetApp.form);
 
-      // Keeping this here for testing loader
-      // setTimeout(() => {
-      //   startLoading({ text: "Testing loader!" });
-      // }, 3000);
+      //Keeping this here for testing loader
+      // (() => {
+      //   setTimeout(() => {
+      //     startLoading({ text: "Testing loader!" });
+      //   }, 3000);
 
-      // setTimeout(() => {
-      //   stopLoading();
-      // }, 7000);
+      //   setTimeout(() => {
+      //     stopLoading();
+      //   }, 7000);
+      // })();
     },
     [
       setApp,
@@ -93,9 +95,9 @@ const FmeAppsView = (props) => {
 
   useEffect(() => {
     // If theres only one app, set it as the starting app
-    // if (options.applicationList.length === 1) {
-    //   changeApp(options.applicationList[0]);
-    // }
+    if (options.applicationList.length === 1) {
+      changeApp(options.applicationList[0]);
+    }
     localObserver.subscribe("FMEApps:refreshForm", refreshForm);
   }, [options.applicationList, changeApp, localObserver, refreshForm]);
 

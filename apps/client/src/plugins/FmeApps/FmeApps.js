@@ -29,6 +29,9 @@ const FmeApps = (props) => {
         onWindowShow: () => {
           // console.log("onWindowShow");
         },
+        onWindowHide: () => {
+          localObserver.publish("FMEApps:windowHide", {});
+        },
       }}
     >
       <FmeAppsView

@@ -123,6 +123,7 @@ class InputFactory {
     return (
       <div sx={{ minWidth: "100%" }}>
         <InputCoordinatePicker
+          localObserver={this.localObserver}
           formItem={d}
           onChange={(e, value) => {
             d.value = value;

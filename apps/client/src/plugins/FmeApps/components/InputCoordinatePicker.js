@@ -8,9 +8,10 @@ import React, { useEffect, useRef, useState } from "react";
 const InputCoordinatePicker = (props) => {
   const d = props.formItem;
   const onChange = props.onChange;
+  const localObserver = props.localObserver;
   const [pickerActive, setPickerActive] = useState(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  let snackbarKey = 0;
+  const snackbarKey = useRef(1);
 
   const handleMapClick = (e) => {
     if (e?.coordinate) {
@@ -22,21 +23,22 @@ const InputCoordinatePicker = (props) => {
         );
       }
     }
+
     deactivatePickerClick();
   };
 
   const deactivatePickerClick = () => {
-    setPickerActive(false);
+    closeSnackbar(snackbarKey.current);
     window.removeEventListener("keydown", handleKeyDown);
     AppModel.map.un("singleclick", handleMapClick);
-    closeSnackbar(snackbarKey);
+    setPickerActive(false);
   };
   const activatePickerClick = (e) => {
-    setPickerActive(true);
     window.addEventListener("keydown", handleKeyDown);
     AppModel.map.on("singleclick", handleMapClick);
+    closeSnackbar(snackbarKey.current);
 
-    snackbarKey = enqueueSnackbar(
+    const key = enqueueSnackbar(
       "Klicka i kartan för att välja position. [Escape] för att avbryta.",
       {
         variant: "info",
@@ -47,6 +49,9 @@ const InputCoordinatePicker = (props) => {
         },
       }
     );
+
+    snackbarKey.current = key;
+    setPickerActive(true);
   };
 
   const handleKeyDown = (e) => {
@@ -72,6 +77,13 @@ const InputCoordinatePicker = (props) => {
     // Linter is very picky about this, but it's safe and working.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    localObserver.unsubscribe("FMEApps:windowHide");
+    localObserver.subscribe("FMEApps:windowHide", () => {
+      deactivatePickerClick();
+    });
+  });
 
   const renderTextField = () => {
     return (
