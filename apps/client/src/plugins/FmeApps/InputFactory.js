@@ -117,7 +117,7 @@ class InputFactory {
     // Override default value with the maps center position.
     if (!d.value) {
       const coordinate = AppModel.map.getView().getCenter();
-      d.value = `${coordinate[1].toFixed(0)},${coordinate[0].toFixed(0)}`;
+      d.value = `${coordinate[1].toFixed(3)},${coordinate[0].toFixed(3)}`;
     }
 
     return (

@@ -18,7 +18,7 @@ const InputCoordinatePicker = (props) => {
       if (onChange) {
         onChange(
           e,
-          `${e.coordinate[1].toFixed(0)},${e.coordinate[0].toFixed(0)}`
+          `${e.coordinate[1].toFixed(3)},${e.coordinate[0].toFixed(3)}`
         );
       }
     }
@@ -26,7 +26,6 @@ const InputCoordinatePicker = (props) => {
   };
 
   const deactivatePickerClick = () => {
-    console.log("deactivatePickerClick");
     setPickerActive(false);
     window.removeEventListener("keydown", handleKeyDown);
     AppModel.map.un("singleclick", handleMapClick);
