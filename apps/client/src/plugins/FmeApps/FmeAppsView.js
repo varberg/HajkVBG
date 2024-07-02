@@ -12,6 +12,8 @@ import LayerController from "./LayerController";
 import { ArrowForward, LayersClear } from "@mui/icons-material";
 
 const FmeAppsView = (props) => {
+  const { localObserver, options } = props;
+
   const layerController = useMemo(() => new LayerController(), []);
   const [app, setApp] = useState("");
   const [form, setForm] = useState(null);
@@ -38,6 +40,7 @@ const FmeAppsView = (props) => {
   const changeApp = useCallback(
     (targetApp) => {
       setApp(targetApp);
+      layerController.app = targetApp;
 
       targetApp.form.forEach((formItem) => {
         // set value to default
@@ -47,7 +50,7 @@ const FmeAppsView = (props) => {
       const inputFactory = new InputFactory(
         targetApp,
         targetApp.form,
-        setForm,
+        localObserver,
         fmeAppsService,
         {
           onProgress: (data) => {
@@ -73,15 +76,28 @@ const FmeAppsView = (props) => {
       //   stopLoading();
       // }, 7000);
     },
-    [setApp, setInputFactory, setForm, fmeAppsService]
+    [
+      setApp,
+      setInputFactory,
+      setForm,
+      fmeAppsService,
+      layerController,
+      localObserver,
+    ]
   );
+
+  const refreshForm = useCallback((formData) => {
+    // Form data has changed, force re-render.
+    setForm([...formData]);
+  }, []);
 
   useEffect(() => {
     // If theres only one app, set it as the starting app
-    // if (props.options.applicationList.length === 1) {
-    //   changeApp(props.options.applicationList[0]);
+    // if (options.applicationList.length === 1) {
+    //   changeApp(options.applicationList[0]);
     // }
-  }, [props.options.applicationList, changeApp]);
+    localObserver.subscribe("FMEApps:refreshForm", refreshForm);
+  }, [options.applicationList, changeApp, localObserver, refreshForm]);
 
   // const styles = {
   //   Point: new Style({
@@ -225,7 +241,7 @@ const FmeAppsView = (props) => {
         onInfo={() => {
           setInfoIsVisible(!infoIsVisible);
         }}
-        list={props.options.applicationList}
+        list={options.applicationList}
       />
 
       <Grid

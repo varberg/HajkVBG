@@ -6,11 +6,16 @@ import TileLayer from "ol/layer/WebGLTile.js";
 import { GeoTIFF } from "ol/source";
 
 class LayerController {
+  #app = null;
   #vectorSource = null;
   #vectorLayer = null;
   #geoTiffLayer = null;
   constructor() {
     this.map = AppModel.map;
+  }
+
+  set app(app) {
+    this.#app = app;
   }
 
   /**
@@ -62,28 +67,29 @@ class LayerController {
    */
   get geoTiffLayer() {
     if (!this.#geoTiffLayer) {
-      this.#geoTiffLayer = new TileLayer({
-        style: {
+      try {
+        // Default style is faded black, from 0 to 1024
+        const style = this.#app.geoTiff?.style ?? {
           color: [
             "interpolate",
             ["linear"],
             ["band", 1],
-            -1000,
+            -100000,
             [0, 0, 0, 0],
-            193,
+            0,
             [0, 0, 0, 0],
-            194,
-            [0, 0, 255, 0],
-            600,
-            [0, 0, 255, 1],
-            1000,
-            [255, 255, 0, 1],
-            1670,
-            [255, 0, 0, 1],
+            1024,
+            [0, 0, 0, 1],
           ],
-        },
-      });
-      this.#geoTiffLayer.setMap(this.map);
+        };
+
+        this.#geoTiffLayer = new TileLayer({
+          style: { ...style },
+        });
+        this.#geoTiffLayer.setMap(this.map);
+      } catch (error) {
+        console.error(`geoTiffLayer error: ${error.message}`);
+      }
     }
     return this.#geoTiffLayer;
   }
@@ -123,18 +129,18 @@ class LayerController {
           {
             blob: results.data,
             // interpolate: false,
-            normalize: false,
+            // normalize: false,
             // min: 195,
             // max: 1670,
           },
         ],
-        interpolate: true,
+        interpolate: this.#app.geoTiff?.interpolate ?? false,
         normalize: false,
         // convertToRGB: true,
       })
     );
-    let s = this.geoTiffLayer.getSources()[0];
-    console.log(s);
+    // let s = this.geoTiffLayer.getSources()[0];
+    // console.log(s);
     // Right now its a mystery on how to get the extent of the GeoTIFF and zoom to it....
     // Well, it's not a mystery, its probably just tricky and will need geotiff.js library.
     // Not worth the effort right now.

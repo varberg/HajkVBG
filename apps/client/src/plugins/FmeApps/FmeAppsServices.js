@@ -23,9 +23,12 @@ class FmeAppsService {
       `${this.props.options.fmeFlowBaseUrl}/fmedatastreaming/${app.repository}/${app.workspace}`
     );
 
-    form.forEach((input) => {
-      oUrl.searchParams.append(input.fmeParameterName, input.value);
-    });
+    // Make sure to filter out any inputs that have'nt any parameter name.
+    form
+      .filter((input) => input.fmeParameterName)
+      .forEach((input) => {
+        oUrl.searchParams.append(input.fmeParameterName, input.value);
+      });
 
     // Response format is always JSON and is actually the format for errors etc, not for features etc.
     oUrl.searchParams.append("opt_responseformat", "json");

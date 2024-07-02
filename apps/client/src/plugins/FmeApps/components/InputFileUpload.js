@@ -73,7 +73,7 @@ const InputFileUpload = (props) => {
           fullWidth
           component="label"
           role={undefined}
-          variant="contained"
+          variant="outlined"
           tabIndex={-1}
           startIcon={<UploadFileIcon />}
         >

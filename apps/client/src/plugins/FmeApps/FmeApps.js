@@ -4,6 +4,7 @@ import BaseWindowPlugin from "../BaseWindowPlugin";
 
 import FmeAppsView from "./FmeAppsView";
 import FmeAppsIcon from "@mui/icons-material/Apps";
+import Observer from "react-event-observer";
 
 /**
  * FmeApps component
@@ -14,6 +15,8 @@ import FmeAppsIcon from "@mui/icons-material/Apps";
  */
 
 const FmeApps = (props) => {
+  const localObserver = Observer();
+
   return (
     <BaseWindowPlugin
       {...props}
@@ -30,8 +33,8 @@ const FmeApps = (props) => {
     >
       <FmeAppsView
         options={props.options}
-        FmeApps={FmeApps}
         globalObserver={props.app.globalObserver}
+        localObserver={localObserver}
       />
     </BaseWindowPlugin>
   );

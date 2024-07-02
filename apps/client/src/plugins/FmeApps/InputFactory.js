@@ -1,8 +1,10 @@
-import { TextField } from "@mui/material";
+import { Paper, TextField, Typography } from "@mui/material";
 import HajkToolTip from "components/HajkToolTip";
 import InputFileUpload from "./components/InputFileUpload";
 import InputSlider from "./components/InputSlider";
 import InputSelect from "./components/InputSelect";
+import InputCoordinatePicker from "./components/InputCoordinatePicker";
+import AppModel from "models/AppModel";
 
 /**
  * The InputFactory class is a factory class that creates input components based on the input type specified in the formItem object.
@@ -10,17 +12,17 @@ import InputSelect from "./components/InputSelect";
  */
 
 class InputFactory {
-  constructor(app, form, setForm, services, methods) {
+  constructor(app, form, localObserver, services, methods) {
     this.app = app;
     this.form = form;
-    this.setForm = setForm;
+    this.localObserver = localObserver;
     this.services = services;
     this.methods = methods;
   }
 
-  updateForm() {
+  refreshForm() {
     // Force setForm with new object to re-render.
-    this.setForm([...this.form]);
+    this.localObserver.publish("FMEApps:refreshForm", this.form);
   }
 
   wrap(d, anInput) {
@@ -40,7 +42,7 @@ class InputFactory {
         required={!d.optional}
         onChange={(e) => {
           d.value = e.target.value;
-          this.updateForm();
+          this.refreshForm();
         }}
       ></TextField>
     );
@@ -60,7 +62,7 @@ class InputFactory {
         }}
         onChange={(e) => {
           d.value = e.target.value;
-          this.updateForm();
+          this.refreshForm();
         }}
         onBlur={(e) => {
           // Make sure the value is within the bounds, the built-in checks are not enough.
@@ -76,7 +78,7 @@ class InputFactory {
 
           if (n !== originalN) {
             d.value = n;
-            this.updateForm();
+            this.refreshForm();
           }
         }}
       ></TextField>
@@ -90,7 +92,7 @@ class InputFactory {
           formItem={d}
           onChange={(e, value) => {
             d.value = value;
-            this.updateForm();
+            this.refreshForm();
           }}
         ></InputSlider>
       </div>
@@ -104,7 +106,27 @@ class InputFactory {
           formItem={d}
           form={this.form}
           onChange={(e, value) => {
-            this.updateForm();
+            this.refreshForm();
+          }}
+        />
+      </div>
+    );
+  }
+
+  getCoordinatePicker(d) {
+    // Override default value with the maps center position.
+    if (!d.value) {
+      const coordinate = AppModel.map.getView().getCenter();
+      d.value = `${coordinate[1].toFixed(0)},${coordinate[0].toFixed(0)}`;
+    }
+
+    return (
+      <div sx={{ minWidth: "100%" }}>
+        <InputCoordinatePicker
+          formItem={d}
+          onChange={(e, value) => {
+            d.value = value;
+            this.refreshForm();
           }}
         />
       </div>
@@ -121,12 +143,25 @@ class InputFactory {
           formItem={d}
           onChange={(data) => {
             // todo: add error handling for file upload
-            this.updateForm();
+            this.refreshForm();
           }}
           onProgress={this.methods.onProgress ?? (() => {})}
           onProgressEnd={this.methods.onProgressEnd ?? (() => {})}
         ></InputFileUpload>
       </div>
+    );
+  }
+
+  // InfoItem is only a form element that is used to display information in the form.
+  // So it should not handle any input.
+  getInfoItem(formItem) {
+    return (
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Typography
+          variant="body2"
+          dangerouslySetInnerHTML={{ __html: formItem.value }}
+        ></Typography>
+      </Paper>
     );
   }
 
@@ -144,6 +179,10 @@ class InputFactory {
       return this.wrap(formItem, this.getFileUpload(formItem));
     } else if (formItem.inputType === "slider") {
       return this.wrap(formItem, this.getSliderInput(formItem));
+    } else if (formItem.inputType === "coordinatepicker") {
+      return this.getCoordinatePicker(formItem);
+    } else if (formItem.inputType === "infotext") {
+      return this.getInfoItem(formItem);
     }
     return (
       <div>
