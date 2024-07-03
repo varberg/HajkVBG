@@ -88,7 +88,7 @@ const InputCoordinatePicker = (props) => {
     });
   });
 
-  const renderTextField = () => {
+  const renderLabel = () => {
     return (
       <Paper
         variant="outlined"
@@ -120,7 +120,7 @@ const InputCoordinatePicker = (props) => {
         </HajkToolTip>
       </Grid>
       <Grid item xs={10}>
-        {renderTextField()}
+        {renderLabel()}
       </Grid>
     </Grid>
   );

@@ -35,10 +35,11 @@ class InputFactory {
   getTextInput(d) {
     return (
       <TextField
+        error={d.error}
         disabled={d.disabled}
         size="small"
         label={d.title}
-        value={d.value}
+        value={d.value ? d.value : ""}
         required={!d.optional}
         onChange={(e) => {
           d.value = e.target.value;
@@ -51,11 +52,12 @@ class InputFactory {
   getNumberInput(d) {
     return (
       <TextField
+        error={d.error}
         disabled={d.disabled}
         size="small"
         type="number"
         label={d.title}
-        value={d.value}
+        value={d.value ?? "" + d.min}
         required={!d.optional}
         InputProps={{
           inputProps: { min: d.min, max: d.max },

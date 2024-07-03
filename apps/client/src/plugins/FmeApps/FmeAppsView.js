@@ -190,6 +190,45 @@ const FmeAppsView = (props) => {
     );
   };
 
+  const validateItem = (item) => {
+    if (!item.optional && !item.value) {
+      if (item.visibleIf?.id && item.visibleIf?.value) {
+        const owner = form.find(
+          (formItem) => formItem.id === item.visibleIf.id
+        );
+        if (!owner) {
+          console.warn(
+            `Form item '${item.id}' has an invalid visibleIf value. Could not find owner.`
+          );
+        }
+        if (owner && owner.value === item.visibleIf.value) {
+          return false;
+        } else {
+          return true;
+        }
+      }
+      return false;
+    }
+    return true;
+  };
+
+  const validateForm = () => {
+    // A simple form validation.
+
+    let errors = [];
+
+    form.forEach((item) => {
+      const itemValid = validateItem(item);
+      if (!itemValid) {
+        errors.push(item);
+      }
+      // Swap bool to error instead, it is better suited for the inputs error property.
+      item.error = !itemValid;
+    });
+
+    return errors.length === 0;
+  };
+
   /**
    * Handles the execution of the app.
    * Retrieves the results of the app execution from the FmeFlow API.
@@ -198,6 +237,15 @@ const FmeAppsView = (props) => {
    */
   const handleExecution = async () => {
     // TODO: Add form validation!!
+
+    const formIsValid = validateForm();
+
+    // Trigger the form to be re-rendered. We want the error colors etc.
+    refreshForm(form);
+
+    if (!formIsValid) {
+      return;
+    }
 
     startLoading({ text: "Kör. V.g. vänta." });
 

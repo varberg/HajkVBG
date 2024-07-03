@@ -1,16 +1,21 @@
-import { InputLabel, MenuItem, Select } from "@mui/material";
+import { InputLabel, MenuItem, Select, styled } from "@mui/material";
 
 const InputSelect = (props) => {
   const d = props.formItem;
   let form = props.form;
   const onChange = props.onChange;
 
+  const StyledInputLabel = styled(InputLabel)(({ theme }) => ({
+    color: d.error ? theme.palette.error.main : null,
+  }));
+
   return (
     <div sx={{ minWidth: "100%" }}>
-      <InputLabel id={d.id + "-label"} required={!d.optional}>
+      <StyledInputLabel id={d.id + "-label"} required={!d.optional}>
         {d.title}
-      </InputLabel>
+      </StyledInputLabel>
       <Select
+        error={d.error}
         disabled={d.disabled}
         fullWidth
         labelId={d.id + "-label"}

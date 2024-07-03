@@ -3,6 +3,7 @@ import { styled } from "@mui/material/styles";
 import Button from "@mui/material/Button";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Grid } from "@mui/material";
+import { useTheme } from "@emotion/react";
 
 // Creates an invisible input
 const VisuallyHiddenInput = styled("input")({
@@ -29,7 +30,9 @@ const TruncatedTextBlock = styled("div")({
 });
 
 const InputFileUpload = (props) => {
+  const d = props.formItem;
   const [fileName, setFileName] = React.useState(null);
+  const theme = useTheme();
 
   const updateFormItem = (e) => {
     // Make sure the user has selected a file.
@@ -39,7 +42,7 @@ const InputFileUpload = (props) => {
 
     setFileName(inputFileName);
 
-    props.formItem.value = null; // reset the url in advance
+    d.value = null; // reset the url in advance
 
     if (inputFileName) {
       props.onProgress({ text: `Laddar upp fil` });
@@ -55,7 +58,7 @@ const InputFileUpload = (props) => {
           urlComponents.push(fileName);
           response.url = urlComponents.join("/");
 
-          props.formItem.value = response.url;
+          d.value = response.url;
 
           if (props.onChange) {
             props.onChange(response.url);
@@ -69,7 +72,7 @@ const InputFileUpload = (props) => {
     <Grid container sx={{ mb: 1 }}>
       <Grid item xs={5}>
         <Button
-          disabled={props.formItem.disabled}
+          disabled={d.disabled}
           fullWidth
           component="label"
           role={undefined}
@@ -82,7 +85,10 @@ const InputFileUpload = (props) => {
         </Button>
       </Grid>
       <Grid item xs={7} sx={{ alignContent: "center", pl: 1 }}>
-        <TruncatedTextBlock title={fileName}>
+        <TruncatedTextBlock
+          title={fileName}
+          sx={{ color: d.error ? theme.palette.error.main : null }}
+        >
           {fileName ?? "Ingen fil vald"}
         </TruncatedTextBlock>
       </Grid>
