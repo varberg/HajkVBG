@@ -4,14 +4,23 @@ import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON.js";
 import TileLayer from "ol/layer/WebGLTile.js";
 import { GeoTIFF } from "ol/source";
+import { Feature } from "ol";
+import { Point } from "ol/geom";
 
 class LayerController {
   #app = null;
   #vectorSource = null;
   #vectorLayer = null;
   #geoTiffLayer = null;
-  constructor() {
+  constructor(localObserver) {
+    this.localObserver = localObserver;
     this.map = AppModel.map;
+
+    // It is possible to add points to the vector layer using the local observer.
+    // One example is the InputCoordinatePicker that uses this functionality.
+    this.localObserver.subscribe("FMEApps:LayerController:addPoint", (data) =>
+      this.addPoint(data.coordinate)
+    );
   }
 
   set app(app) {
@@ -48,9 +57,27 @@ class LayerController {
     return this.#vectorLayer;
   }
 
-  clearVectorSource() {
-    if (this.#vectorSource) {
+  /**
+   * Clears the vector source
+   *
+   * @param {boolean} keepLocals - Indicates whether to keep local types or not.
+   */
+  clearVectorSource(keepLocals = false) {
+    if (!this.#vectorSource) {
+      return;
+    }
+    if (!keepLocals) {
       this.vectorSource.clear();
+    } else {
+      // Remove all features except the local types, for example, MapClickPoint.
+      this.vectorSource
+        .getFeatures()
+        .filter((feature) => {
+          return feature.get("localType") !== "MapClickPoint";
+        })
+        .forEach((feature) => {
+          this.vectorLayer.getSource().removeFeature(feature);
+        });
     }
   }
 
@@ -107,7 +134,7 @@ class LayerController {
     });
 
     // Clear the vector source
-    this.clearVectorSource();
+    this.clearVectorSource(true);
 
     // Add the retrieved features to the vector source
     // TIP: If you get an error here when running addFeatures, about something "function getExtent() does not exist".
@@ -135,12 +162,11 @@ class LayerController {
           },
         ],
         interpolate: this.#app.geoTiff?.interpolate ?? false,
-        normalize: false,
+        normalize: false, // needs to be false if we want to use styling min/max.
         // convertToRGB: true,
       })
     );
-    // let s = this.geoTiffLayer.getSources()[0];
-    // console.log(s);
+
     // Right now its a mystery on how to get the extent of the GeoTIFF and zoom to it....
     // Well, it's not a mystery, its probably just tricky and will need geotiff.js library.
     // Not worth the effort right now.
@@ -176,6 +202,32 @@ class LayerController {
     type = type.charAt(0).toUpperCase() + type.slice(1);
     this[`apply${type}Data`](results);
     type = null;
+  }
+
+  /**
+   * Adds a point to the vector layer based on the given coordinate.
+   *
+   * @param {Coordinate} coordinate - The coordinate of the point to be added.
+   */
+  addPoint(coordinate) {
+    // We could reuse the previously added point, but for now we remove it and add a new one.
+    // We might want to be able to add more than one point at a time in the future.
+    this.vectorLayer
+      .getSource()
+      .getFeatures()
+      .filter((feature) => {
+        return feature.get("localType") === "MapClickPoint";
+      })
+      .forEach((feature) => {
+        this.vectorLayer.getSource().removeFeature(feature);
+      });
+
+    this.vectorLayer.getSource().addFeature(
+      new Feature({
+        localType: "MapClickPoint",
+        geometry: new Point(coordinate),
+      })
+    );
   }
 }
 

@@ -114,7 +114,7 @@ class InputFactory {
   }
 
   getCoordinatePicker(d) {
-    // Override default value with the maps center position.
+    // Set start value with the maps center coordinates.
     if (!d.value) {
       const coordinate = AppModel.map.getView().getCenter();
       d.value = `${coordinate[1].toFixed(3)},${coordinate[0].toFixed(3)}`;

@@ -24,10 +24,10 @@ const FmeApps = (props) => {
       custom={{
         icon: <FmeAppsIcon />,
         title: "FmeApps",
-        height: 450,
+        height: "dynamic",
         width: 400,
         onWindowShow: () => {
-          // console.log("onWindowShow");
+          localObserver.publish("FMEApps:windowShow", {});
         },
         onWindowHide: () => {
           localObserver.publish("FMEApps:windowHide", {});

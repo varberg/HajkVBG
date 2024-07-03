@@ -6,21 +6,23 @@ import { useSnackbar } from "notistack";
 import React, { useEffect, useRef, useState } from "react";
 
 const InputCoordinatePicker = (props) => {
-  const d = props.formItem;
-  const onChange = props.onChange;
-  const localObserver = props.localObserver;
+  const { formItem, onChange, localObserver } = props;
   const [pickerActive, setPickerActive] = useState(false);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const snackbarKey = useRef(1);
 
   const handleMapClick = (e) => {
     if (e?.coordinate) {
-      d.value = e.coordinate;
+      formItem.value = e.coordinate;
       if (onChange) {
+        // Forward the change
         onChange(
           e,
           `${e.coordinate[1].toFixed(3)},${e.coordinate[0].toFixed(3)}`
         );
+        localObserver.publish("FMEApps:LayerController:addPoint", {
+          coordinate: e.coordinate,
+        });
       }
     }
 
@@ -33,6 +35,7 @@ const InputCoordinatePicker = (props) => {
     AppModel.map.un("singleclick", handleMapClick);
     setPickerActive(false);
   };
+
   const activatePickerClick = (e) => {
     window.addEventListener("keydown", handleKeyDown);
     AppModel.map.on("singleclick", handleMapClick);
@@ -55,7 +58,7 @@ const InputCoordinatePicker = (props) => {
   };
 
   const handleKeyDown = (e) => {
-    if (e.keyCode === 27 /*Escape*/) {
+    if (e.keyCode === 27 /*Escape char*/) {
       deactivatePickerClick();
     }
   };
@@ -97,7 +100,7 @@ const InputCoordinatePicker = (props) => {
           ml: 0.5,
         }}
       >
-        <Box sx={{ opacity: pickerActive ? 0.5 : 0.8 }}>{d.value}</Box>
+        <Box sx={{ opacity: pickerActive ? 0.5 : 0.8 }}>{formItem.value}</Box>
       </Paper>
     );
   };
@@ -105,10 +108,10 @@ const InputCoordinatePicker = (props) => {
   return (
     <Grid container spacing={1} sx={{ mb: 1 }}>
       <Grid item xs={2}>
-        <HajkToolTip title={d.tooltip}>
+        <HajkToolTip title={formItem.tooltip}>
           <Button
             variant="outlined"
-            disabled={d.disabled || pickerActive}
+            disabled={formItem.disabled || pickerActive}
             onClick={activatePickerClick}
             sx={{ height: "100%" }}
           >

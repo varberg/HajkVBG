@@ -14,7 +14,11 @@ import { ArrowForward, LayersClear } from "@mui/icons-material";
 const FmeAppsView = (props) => {
   const { localObserver, options } = props;
 
-  const layerController = useMemo(() => new LayerController(), []);
+  const layerController = useMemo(
+    () => new LayerController(localObserver),
+    [localObserver]
+  );
+
   const [app, setApp] = useState("");
   const [form, setForm] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
