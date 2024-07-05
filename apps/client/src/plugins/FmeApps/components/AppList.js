@@ -24,7 +24,7 @@ const AppList = (props) => {
           </Grid>
           <Grid item xs={2} sx={{ textAlign: "right" }}>
             <HajkToolTip title={`Information om appen '${app.title}'`}>
-              <IconButton onClick={onInfo} aria-label="delete">
+              <IconButton onClick={onInfo} aria-label="info">
                 <InfoIcon />
               </IconButton>
             </HajkToolTip>
@@ -40,7 +40,7 @@ const AppList = (props) => {
     (app && renderTitleBlock()) || (
       <Grid container spacing={1} sx={{}}>
         {list.map((_app, index) => (
-          <Grid item xs={6} md={4} key={_app.id + index}>
+          <Grid item xs={6} md={6} key={_app.id + index}>
             <Button
               fullWidth
               variant="outlined"

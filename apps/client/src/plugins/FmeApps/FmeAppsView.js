@@ -98,7 +98,7 @@ const FmeAppsView = (props) => {
   }, []);
 
   useEffect(() => {
-    // If theres only one app, set it as the starting app
+    // If there is only one app, set it as the starting app
     if (options.applicationList.length === 1) {
       changeApp(options.applicationList[0]);
     }
@@ -174,24 +174,37 @@ const FmeAppsView = (props) => {
   //   return styles[feature.getGeometry().getType()];
   // };
 
-  const handleFMEError = (results) => {
+  const handleResponseError = (results) => {
     stopLoading();
-    console.error(results.code, results.message);
-    enqueueSnackbar(
-      `Appen '${app.title}' fick felsvar från FME Flow.\nFelmeddelande: ${results.message}\nFelkod: ${results.code}`,
-      {
-        anchorOrigin: {
-          vertical: "top",
-          horizontal: "center",
-        },
-        variant: "error",
-        style: { whiteSpace: "pre-line" },
-      }
-    );
+
+    let snackbarMessage = "";
+
+    if (results.errorHandledByFME || results.errorHandledByHajk) {
+      // FME returned a handled error in json format which is nice.
+      // Or!! Hajk handled it in a similar way.
+      snackbarMessage = results.message;
+    } else {
+      // FME returned an unhandled error. Lets handle it.
+      snackbarMessage = `Appen '${app.title}' fick felsvar från FME.\nFelmeddelande: ${results.message}\nFelkod: ${results.code}`;
+    }
+
+    enqueueSnackbar(snackbarMessage, {
+      anchorOrigin: {
+        vertical: "top",
+        horizontal: "center",
+      },
+      variant: "error",
+      style: { whiteSpace: "pre-line" },
+    });
   };
 
   const validateItem = (item) => {
-    if (!item.optional && !item.value) {
+    let validValue = item.value;
+    if (validValue && typeof item.value === "string") {
+      validValue = item.value.trim().length > 0;
+    }
+
+    if (!item.optional && !validValue) {
       if (item.visibleIf?.id && item.visibleIf?.value) {
         const owner = form.find(
           (formItem) => formItem.id === item.visibleIf.id
@@ -217,16 +230,18 @@ const FmeAppsView = (props) => {
 
     let errors = [];
 
-    form.forEach((item) => {
-      const itemValid = validateItem(item);
-      if (!itemValid) {
-        errors.push(item);
-      }
-      // Swap bool to error instead, it is better suited for the inputs error property.
-      item.error = !itemValid;
-    });
+    form
+      .filter((formItem) => formItem.hidden !== true)
+      .forEach((item) => {
+        const itemValid = validateItem(item);
+        if (!itemValid) {
+          errors.push(item);
+        }
+        // Swap bool to error instead, it is better suited for the inputs error property.
+        item.error = !itemValid;
+      });
 
-    return errors.length === 0;
+    return errors;
   };
 
   /**
@@ -236,14 +251,14 @@ const FmeAppsView = (props) => {
    * Fits the map view to the extent of the vector layer.
    */
   const handleExecution = async () => {
-    // TODO: Add form validation!!
-
-    const formIsValid = validateForm();
+    const formErrors = validateForm();
+    const formIsValid = formErrors.length === 0;
 
     // Trigger the form to be re-rendered. We want the error colors etc.
     refreshForm(form);
 
     if (!formIsValid) {
+      console.log("formErrors", formErrors);
       return;
     }
 
@@ -256,7 +271,7 @@ const FmeAppsView = (props) => {
     );
 
     if (results.error) {
-      handleFMEError(results);
+      handleResponseError(results);
       return;
     }
 

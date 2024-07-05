@@ -11,6 +11,21 @@ class FmeAppsService {
     this.sessionID = new Date().getTime();
   }
 
+  formFilter(form, formItem) {
+    // If the formItem is hidden or has no fmeParameterName, return false.
+    if (formItem.hidden === true && !formItem.fmeParameterName) {
+      return false;
+    }
+
+    // visibleIf is used to show/hide the form item based on another form item's value.
+    if (formItem.visibleIf?.id && formItem.visibleIf?.value) {
+      const owner = form.find((item) => item.id === formItem.visibleIf.id);
+      return owner && owner.value === formItem.visibleIf.value;
+    }
+
+    return true;
+  }
+
   /**
    * Retrieves the results of an app execution from the FmeFlow API.
    *
@@ -20,12 +35,12 @@ class FmeAppsService {
    */
   async getDataStreamingServiceResults(app, form) {
     const oUrl = new URL(
-      `${this.props.options.fmeFlowBaseUrl}/fmedatastreaming/${app.repository}/${app.workspace}`
+      `${this.props.options.fmeFlowBaseUrl}/fmedatastreaming/${app.fmeRepository}/${app.fmeWorkspace}`
     );
 
     // Make sure to filter out any inputs that have'nt any parameter name.
     form
-      .filter((input) => input.fmeParameterName)
+      .filter((input) => this.formFilter(form, input))
       .forEach((input) => {
         oUrl.searchParams.append(input.fmeParameterName, input.value);
       });
@@ -42,14 +57,18 @@ class FmeAppsService {
 
     let response = await hfetch(oUrl.href, {});
 
-    // FME sometimes returns 204 instead of a geojson with no features.
-    // Thats why we have to check the status code and only accept 200.
-    if (response.ok && response.status === 200) {
+    if ((response.ok && response.status === 200) || response.status === 204) {
       try {
         const simpleContentType = this.getSimpleContentType(response);
+        const data = await this.getResponseData(response, simpleContentType);
+
         return {
-          data: await this.getResponseData(response, simpleContentType),
+          data: data,
           simpleContentType: simpleContentType,
+          error: data.error === true,
+          errorHandledByFME: data.errorHandledByFME || false,
+          errorHandledByHajk: data.errorHandledByHajk || false,
+          message: data.message ?? "",
         };
       } catch (error) {
         return {
@@ -70,9 +89,23 @@ class FmeAppsService {
 
   async getResponseData(response, simpleContentType) {
     if (simpleContentType === "json") {
-      return await response.json();
+      const jsonData = await response.json();
+      if (jsonData.error) {
+        // Used internally for separating handled and unhandled errors.
+        jsonData.errorHandledByFME = true;
+      }
+      return jsonData;
     } else if (simpleContentType === "tiff") {
       return await response.blob();
+    } else if (response.status === 204) {
+      // FME sometimes returns 204 instead of a geojson with no features.
+      // We have no idea if we expect json or not at this point,
+      // so here we assume it is json.
+      return {
+        error: true,
+        errorHandledByHajk: true,
+        message: "Svaret från FME hade inget innehåll.",
+      };
     } else {
       throw new Error(
         `FmeAppsService.getResponseData: Content type '${simpleContentType}' is not supported, cannot return data`
@@ -82,7 +115,7 @@ class FmeAppsService {
 
   async uploadFile(app, form, file) {
     const oUrl = new URL(
-      `${this.options.fmeFlowBaseUrl}/fmedataupload/${app.repository}/${app.workspace}/${file.name}`
+      `${this.options.fmeFlowBaseUrl}/fmedataupload/${app.fmeRepository}/${app.fmeWorkspace}/${file.name}`
     );
     oUrl.searchParams.append("opt_fullpath", "true");
     oUrl.searchParams.append("opt_namespace", this.sessionID);

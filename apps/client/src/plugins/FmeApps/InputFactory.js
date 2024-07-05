@@ -120,6 +120,9 @@ class InputFactory {
     if (!d.value) {
       const coordinate = AppModel.map.getView().getCenter();
       d.value = `${coordinate[1].toFixed(3)},${coordinate[0].toFixed(3)}`;
+      this.localObserver.publish("FMEApps:LayerController:addPoint", {
+        coordinate: coordinate,
+      });
     }
 
     return (
