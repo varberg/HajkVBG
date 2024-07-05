@@ -18,7 +18,7 @@ class LayerController {
 
     // It is possible to add points to the vector layer using the local observer.
     // One example is the InputCoordinatePicker that uses this functionality.
-    this.localObserver.subscribe("FMEApps:LayerController:addPoint", (data) =>
+    this.localObserver.subscribe("fmeapps.layercontroller.addpoint", (data) =>
       this.addPoint(data.coordinate)
     );
   }
@@ -163,7 +163,6 @@ class LayerController {
         ],
         interpolate: this.#app.geoTiff?.interpolate ?? false,
         normalize: false, // needs to be false if we want to use styling min/max.
-        // convertToRGB: true,
       })
     );
 

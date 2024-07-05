@@ -102,7 +102,7 @@ const FmeAppsView = (props) => {
     if (options.applicationList.length === 1) {
       changeApp(options.applicationList[0]);
     }
-    localObserver.subscribe("FMEApps:refreshForm", refreshForm);
+    localObserver.subscribe("fmeapps.refreshform", refreshForm);
   }, [options.applicationList, changeApp, localObserver, refreshForm]);
 
   // const styles = {

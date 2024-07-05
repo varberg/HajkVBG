@@ -27,10 +27,10 @@ const FmeApps = (props) => {
         height: "dynamic",
         width: 400,
         onWindowShow: () => {
-          localObserver.publish("FMEApps:windowShow", {});
+          localObserver.publish("fmeapps.windowshow", {});
         },
         onWindowHide: () => {
-          localObserver.publish("FMEApps:windowHide", {});
+          localObserver.publish("fmeapps.windowhide", {});
         },
       }}
     >

@@ -22,7 +22,7 @@ class InputFactory {
 
   refreshForm() {
     // Force setForm with new object to re-render.
-    this.localObserver.publish("FMEApps:refreshForm", this.form);
+    this.localObserver.publish("fmeapps.refreshform", this.form);
   }
 
   wrap(d, anInput) {
@@ -120,7 +120,7 @@ class InputFactory {
     if (!d.value) {
       const coordinate = AppModel.map.getView().getCenter();
       d.value = `${coordinate[1].toFixed(3)},${coordinate[0].toFixed(3)}`;
-      this.localObserver.publish("FMEApps:LayerController:addPoint", {
+      this.localObserver.publish("fmeapps.layercontroller.addpoint", {
         coordinate: coordinate,
       });
     }

@@ -20,7 +20,7 @@ const InputCoordinatePicker = (props) => {
           e,
           `${e.coordinate[1].toFixed(3)},${e.coordinate[0].toFixed(3)}`
         );
-        localObserver.publish("FMEApps:LayerController:addPoint", {
+        localObserver.publish("fmeapps.layercontroller.addpoint", {
           coordinate: e.coordinate,
         });
       }
@@ -82,8 +82,8 @@ const InputCoordinatePicker = (props) => {
   }, []);
 
   useEffect(() => {
-    localObserver.unsubscribe("FMEApps:windowHide");
-    localObserver.subscribe("FMEApps:windowHide", () => {
+    localObserver.unsubscribe("fmeapps.windowhide");
+    localObserver.subscribe("fmeapps.windowhide", () => {
       deactivatePickerClick();
     });
   });
