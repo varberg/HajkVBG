@@ -15,6 +15,7 @@ class LayerController {
   constructor(localObserver) {
     this.localObserver = localObserver;
     this.map = AppModel.map;
+    this.layerName = "FmeAppsVectorLayer";
 
     // It is possible to add points to the vector layer using the local observer.
     // One example is the InputCoordinatePicker that uses this functionality.
@@ -51,8 +52,8 @@ class LayerController {
         source: this.vectorSource,
         // style: styleFunction,
       });
-      // this.map.addLayer(currentVectorLayer);
-      this.#vectorLayer.setMap(this.map);
+      this.#vectorLayer.set("name", this.layerName);
+      this.map.addLayer(this.#vectorLayer);
     }
     return this.#vectorLayer;
   }
@@ -92,32 +93,39 @@ class LayerController {
    *
    * @return {TileLayer} The GeoTIFF layer.
    */
+
+  get #geoTiffStyle() {
+    return (
+      this.#app.geoTiff?.style ?? {
+        color: [
+          "interpolate",
+          ["linear"],
+          ["band", 1],
+          -100000,
+          [0, 0, 0, 0],
+          0,
+          [0, 0, 0, 0],
+          1024,
+          [0, 0, 0, 1],
+        ],
+      }
+    );
+  }
   get geoTiffLayer() {
     if (!this.#geoTiffLayer) {
       try {
         // Default style is faded black, from 0 to 1024
-        const style = this.#app.geoTiff?.style ?? {
-          color: [
-            "interpolate",
-            ["linear"],
-            ["band", 1],
-            -100000,
-            [0, 0, 0, 0],
-            0,
-            [0, 0, 0, 0],
-            1024,
-            [0, 0, 0, 1],
-          ],
-        };
 
-        this.#geoTiffLayer = new TileLayer({
-          style: { ...style },
-        });
+        this.#geoTiffLayer = new TileLayer();
         this.#geoTiffLayer.setMap(this.map);
       } catch (error) {
         console.error(`geoTiffLayer error: ${error.message}`);
       }
     }
+
+    // We need to set the style of the GeoTIFF layer every time.
+    this.#geoTiffLayer.setStyle(this.#geoTiffStyle);
+
     return this.#geoTiffLayer;
   }
 

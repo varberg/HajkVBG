@@ -1,3 +1,7 @@
+import DrawModel from "models/DrawModel";
+import KmlModel from "models/KmlModel";
+// import { saveAs } from "file-saver";
+
 import { hfetch } from "utils/FetchWrapper";
 
 class FmeAppsService {
@@ -13,7 +17,7 @@ class FmeAppsService {
 
   formFilter(form, formItem) {
     // If the formItem is hidden or has no fmeParameterName, return false.
-    if (formItem.hidden === true && !formItem.fmeParameterName) {
+    if (formItem.hidden === true || !formItem.fmeParameterName) {
       return false;
     }
 
@@ -65,6 +69,7 @@ class FmeAppsService {
         return {
           data: data,
           simpleContentType: simpleContentType,
+          imageUrl: oUrl.href,
           error: data.error === true,
           errorHandledByFME: data.errorHandledByFME || false,
           errorHandledByHajk: data.errorHandledByHajk || false,
@@ -183,6 +188,37 @@ class FmeAppsService {
     // Return the response with or without the FME error message.
     // At least we tried.
     return response;
+  }
+
+  downloadResults(app, layerController, results) {
+    if (results.simpleContentType === "tiff") {
+      // Here we create a blob url from the data and download it.
+      // This way we can download the image without creating a new request to FME.
+      const blobUrl = URL.createObjectURL(results.data);
+      window.location.replace(blobUrl);
+      URL.revokeObjectURL(blobUrl);
+    } else if (results.simpleContentType === "json") {
+      // Lets create a kml file with default draw model settings.
+      const drawModel = new DrawModel({
+        layerName: layerController.layerName,
+        map: layerController.map,
+      });
+      const kmlModel = new KmlModel({
+        layerName: layerController.layerName,
+        map: layerController.map,
+        drawModel: drawModel,
+      });
+      kmlModel.export();
+      // Save the results in a json file, in the example below the point of origin is missing.
+      // const blob = new Blob([JSON.stringify(results.data)], {
+      //   type: "application/json",
+      // });
+      // saveAs(blob, "geojson.json", { type: "application/json" });
+    } else {
+      console.warn(
+        `FmeAppsService.downloadResults: Content type ${results.simpleContentType} is not supported, cannot download data`
+      );
+    }
   }
 }
 

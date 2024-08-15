@@ -9,7 +9,11 @@ import AppList from "./components/AppList";
 import AppInfo from "./components/AppInfo";
 import AppForm from "./components/AppForm";
 import LayerController from "./LayerController";
-import { ArrowForward, LayersClear } from "@mui/icons-material";
+import {
+  ArrowForward as IconArrowForward,
+  LayersClear as IconLayersClear,
+  Download as IconDownload,
+} from "@mui/icons-material";
 
 const FmeAppsView = (props) => {
   const { localObserver, options } = props;
@@ -21,6 +25,7 @@ const FmeAppsView = (props) => {
 
   const [app, setApp] = useState("");
   const [form, setForm] = useState(null);
+  const [results, setResults] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [infoIsVisible, setInfoIsVisible] = useState(false);
   const [loaderText, setLoaderText] = useState("");
@@ -253,6 +258,7 @@ const FmeAppsView = (props) => {
   const handleExecution = async () => {
     const formErrors = validateForm();
     const formIsValid = formErrors.length === 0;
+    setResults({});
 
     // Trigger the form to be re-rendered. We want the error colors etc.
     refreshForm(form);
@@ -265,18 +271,21 @@ const FmeAppsView = (props) => {
     startLoading({ text: "Kör. V.g. vänta." });
 
     // Retrieve the results of the app execution from the FmeFlow API
-    const results = await fmeAppsService.getDataStreamingServiceResults(
+    const currentResults = await fmeAppsService.getDataStreamingServiceResults(
       app,
       form
     );
 
-    if (results.error) {
-      handleResponseError(results);
+    setResults(currentResults);
+
+    if (currentResults.error) {
+      handleResponseError(currentResults);
       return;
     }
 
     try {
-      layerController.applyResultDataToMap(results);
+      layerController.applyResultDataToMap(currentResults);
+      // console.log("results", currentResults);
     } catch (error) {
       console.error(`applyResultDataToMap: ${error.message}`);
     }
@@ -284,7 +293,16 @@ const FmeAppsView = (props) => {
     stopLoading();
   };
 
+  const handleDownload = () => {
+    try {
+      fmeAppsService.downloadResults(app, layerController, results);
+    } catch (error) {
+      console.error(`handleDownload: ${error.message}`);
+    }
+  };
+
   const handleReset = () => {
+    setResults({});
     layerController.clearTiffSource();
     layerController.clearVectorSource();
   };
@@ -328,26 +346,42 @@ const FmeAppsView = (props) => {
         <AppForm app={app} form={form} inputFactory={inputFactory} />
 
         {app && (
-          <Grid item xs={6} sx={{ display: "flex" }}>
+          <Grid item xs={4} sx={{ display: "flex" }}>
             <Button
               variant="text"
               onClick={handleReset}
-              endIcon={<LayersClear />}
+              endIcon={<IconLayersClear />}
+              disabled={isLoading}
             >
               Rensa
             </Button>
           </Grid>
         )}
         {app && (
+          <Grid item xs={4} sx={{ justifyContent: "center", display: "flex" }}>
+            {app.allowResultDownload && (
+              <Button
+                variant="text"
+                onClick={handleDownload}
+                endIcon={<IconDownload />}
+                disabled={isLoading || results.error === true || !results.data}
+              >
+                Ladda ner
+              </Button>
+            )}
+          </Grid>
+        )}
+        {app && (
           <Grid
             item
-            xs={6}
+            xs={4}
             sx={{ justifyContent: "flex-end", display: "flex" }}
           >
             <Button
               variant="contained"
               onClick={handleExecution}
-              endIcon={<ArrowForward />}
+              endIcon={<IconArrowForward />}
+              disabled={isLoading}
             >
               Kör
             </Button>
