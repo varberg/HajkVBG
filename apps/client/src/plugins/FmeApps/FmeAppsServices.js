@@ -15,6 +15,13 @@ class FmeAppsService {
     this.sessionID = new Date().getTime();
   }
 
+  /**
+   * Filters a form item based on its visibility and fmeParameterName.
+   *
+   * @param {Object} form - The form object containing all form items.
+   * @param {Object} formItem - The form item to be filtered.
+   * @return {boolean} True if the form item is visible, false otherwise.
+   */
   formFilter(form, formItem) {
     // If the formItem is hidden or has no fmeParameterName, return false.
     if (formItem.hidden === true || !formItem.fmeParameterName) {
@@ -92,6 +99,13 @@ class FmeAppsService {
     };
   }
 
+  /**
+   * Retrieves and processes the response data from the FME service based on the provided content type.
+   *
+   * @param {Object} response - The response object from the FME service.
+   * @param {string} simpleContentType - The content type of the response, e.g. 'json' or 'tiff'.
+   * @return {Object|Blob} The processed response data, either as a JSON object or a binary blob.
+   */
   async getResponseData(response, simpleContentType) {
     if (simpleContentType === "json") {
       const jsonData = await response.json();
@@ -118,7 +132,14 @@ class FmeAppsService {
     }
   }
 
-  async uploadFile(app, form, file) {
+  /**
+   * Uploads a file to the FME server.
+   *
+   * @param {Object} app - The app object containing repository and workspace information.
+   * @param {File} file - The file to be uploaded.
+   * @return {Object} An object containing the URL of the uploaded file, or an error object if the upload fails.
+   */
+  async uploadFile(app, file) {
     const oUrl = new URL(
       `${this.options.fmeFlowBaseUrl}/fmedataupload/${app.fmeRepository}/${app.fmeWorkspace}/${file.name}`
     );
@@ -160,6 +181,12 @@ class FmeAppsService {
     };
   }
 
+  /**
+   * Retrieves a simplified content type based on the original response header content type.
+   *
+   * @param {Object} response - The response object containing the headers.
+   * @return {string} The simple content type, e.g. 'json', 'tiff', or the full content type if not recognized.
+   */
   getSimpleContentType(response) {
     const contentType = (
       "" + response.headers.get("content-type")
@@ -172,6 +199,12 @@ class FmeAppsService {
     return contentType;
   }
 
+  /**
+   * Retrieves an error message from an FME response when the response is not OK.
+   *
+   * @param {Object} response - The FME response object to extract the error message from.
+   * @return {Object} Decorates the original response object with an added 'fmeErrorMessage' property containing the error message from FME, if available.
+   */
   async getFMEErrorMessage(response) {
     // When we got to this point, the response is not ok.
     // Therefore, we need to check for an error message from the FME response.
@@ -190,14 +223,23 @@ class FmeAppsService {
     return response;
   }
 
+  /**
+   * Downloads the results of an app execution in the format specified by the simpleContentType.
+   *
+   * @param {Object} app - The app object for which to download results.
+   * @param {Object} layerController - The layer controller object.
+   * @param {Object} results - The results object containing the data and simpleContentType.
+   * @return {void}
+   */
   downloadResults(app, layerController, results) {
-    if (results.simpleContentType === "tiff") {
+    const { data, simpleContentType } = results;
+    if (simpleContentType === "tiff") {
       // Here we create a blob url from the data and download it.
       // This way we can download the image without creating a new request to FME.
-      const blobUrl = URL.createObjectURL(results.data);
+      const blobUrl = URL.createObjectURL(data);
       window.location.replace(blobUrl);
       URL.revokeObjectURL(blobUrl);
-    } else if (results.simpleContentType === "json") {
+    } else if (simpleContentType === "json") {
       // Lets create a kml file with default draw model settings.
       const drawModel = new DrawModel({
         layerName: layerController.layerName,
@@ -210,13 +252,13 @@ class FmeAppsService {
       });
       kmlModel.export();
       // Save the results in a json file, in the example below the point of origin is missing.
-      // const blob = new Blob([JSON.stringify(results.data)], {
+      // const blob = new Blob([JSON.stringify(data)], {
       //   type: "application/json",
       // });
       // saveAs(blob, "geojson.json", { type: "application/json" });
     } else {
       console.warn(
-        `FmeAppsService.downloadResults: Content type ${results.simpleContentType} is not supported, cannot download data`
+        `FmeAppsService.downloadResults: Content type ${simpleContentType} is not supported, cannot download data`
       );
     }
   }

@@ -46,25 +46,23 @@ const InputFileUpload = (props) => {
 
     if (inputFileName) {
       props.onProgress({ text: `Laddar upp fil` });
-      props.services
-        .uploadFile(props.app, props.form, file)
-        .then((response) => {
-          // FME returns an incorrectly encoded URL in some cases.
-          // If the filename included spaces and similar characters, we need to encode it.
-          // If we send the original URL from FME back to FME, FME will return an error :).
-          const urlComponents = response.url.split("/");
-          // The last component is the filename, encode it and push it back.
-          const fileName = encodeURIComponent(urlComponents.pop());
-          urlComponents.push(fileName);
-          response.url = urlComponents.join("/");
+      props.services.uploadFile(props.app, file).then((response) => {
+        // FME returns an incorrectly encoded URL in some cases.
+        // If the filename included spaces and similar characters, we need to encode it.
+        // If we send the original URL from FME back to FME, FME will return an error :).
+        const urlComponents = response.url.split("/");
+        // The last component is the filename, encode it and push it back.
+        const fileName = encodeURIComponent(urlComponents.pop());
+        urlComponents.push(fileName);
+        response.url = urlComponents.join("/");
 
-          d.value = response.url;
+        d.value = response.url;
 
-          if (props.onChange) {
-            props.onChange(response.url);
-          }
-          props.onProgressEnd();
-        });
+        if (props.onChange) {
+          props.onChange(response.url);
+        }
+        props.onProgressEnd();
+      });
     }
   };
 
