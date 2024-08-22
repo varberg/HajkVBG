@@ -22,6 +22,7 @@ const InputCoordinatePicker = (props) => {
         );
         localObserver.publish("fmeapps.layercontroller.addpoint", {
           coordinate: e.coordinate,
+          id: props.formItem.id,
         });
       }
     }

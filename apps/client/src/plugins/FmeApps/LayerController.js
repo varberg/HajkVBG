@@ -19,9 +19,9 @@ class LayerController {
 
     // It is possible to add points to the vector layer using the local observer.
     // One example is the InputCoordinatePicker that uses this functionality.
-    this.localObserver.subscribe("fmeapps.layercontroller.addpoint", (data) =>
-      this.addPoint(data.coordinate)
-    );
+    this.localObserver.subscribe("fmeapps.layercontroller.addpoint", (data) => {
+      this.addPoint(data.coordinate, data.id);
+    });
   }
 
   set app(app) {
@@ -216,14 +216,17 @@ class LayerController {
    *
    * @param {Coordinate} coordinate - The coordinate of the point to be added.
    */
-  addPoint(coordinate) {
+  addPoint(coordinate, id) {
     // We could reuse the previously added point, but for now we remove it and add a new one.
     // We might want to be able to add more than one point at a time in the future.
     this.vectorLayer
       .getSource()
       .getFeatures()
       .filter((feature) => {
-        return feature.get("localType") === "MapClickPoint";
+        return (
+          feature.get("localType") === "MapClickPoint" &&
+          feature.get("localId") === id
+        );
       })
       .forEach((feature) => {
         this.vectorLayer.getSource().removeFeature(feature);
@@ -232,6 +235,7 @@ class LayerController {
     this.vectorLayer.getSource().addFeature(
       new Feature({
         localType: "MapClickPoint",
+        localId: id,
         geometry: new Point(coordinate),
       })
     );
