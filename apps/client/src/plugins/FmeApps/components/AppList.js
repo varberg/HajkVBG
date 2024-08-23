@@ -43,7 +43,7 @@ const AppList = (props) => {
           <Grid item xs={6} md={6} key={_app.id + index}>
             <Button
               fullWidth
-              variant="outlined"
+              variant="contained"
               size="small"
               key={_app.id + index}
               sx={{ height: "100%" }}

@@ -217,8 +217,6 @@ class LayerController {
    * @param {Coordinate} coordinate - The coordinate of the point to be added.
    */
   addPoint(coordinate, id) {
-    // We could reuse the previously added point, but for now we remove it and add a new one.
-    // We might want to be able to add more than one point at a time in the future.
     this.vectorLayer
       .getSource()
       .getFeatures()

@@ -122,6 +122,7 @@ class InputFactory {
       d.value = `${coordinate[1].toFixed(3)},${coordinate[0].toFixed(3)}`;
       this.localObserver.publish("fmeapps.layercontroller.addpoint", {
         coordinate: coordinate,
+        id: d.id,
       });
     }
 
