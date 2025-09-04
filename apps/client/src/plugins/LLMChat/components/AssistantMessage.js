@@ -61,6 +61,7 @@ function AssistantMessage({ message, chatModel }) {
       let textToParse = message.text;
 
       // Handle markdown-formatted JSON (```json ... ```)
+      // For some reason, the json is sometimes wrapped in markdown. Depends on model etc.
       if (textToParse.includes("```json")) {
         const jsonMatch = textToParse.match(/```json\s*([\s\S]*?)\s*```/);
         if (jsonMatch) {
