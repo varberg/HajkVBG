@@ -29,6 +29,7 @@ function AssistantMessage({ message, chatModel }) {
   };
 
   const handleItemAction = async (item) => {
+    console.log("handleItemAction", item);
     // Toggle the visibility state
     const isCurrentlyVisible = layerVisibility[item.id] || false;
     const newVisibility = !isCurrentlyVisible;

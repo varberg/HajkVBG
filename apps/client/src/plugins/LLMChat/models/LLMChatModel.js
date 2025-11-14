@@ -236,18 +236,21 @@ class LLMChatModel {
         );
         return;
       }
-
       // Find the layer by ID
-      const layer = this.map
+      let layer = this.map
         .getAllLayers()
         .find((l) => l.get("name") === item.id);
 
       if (!layer) {
-        console.error(`Layer with ID "${item.id}" not found`);
+        console.error(`Layer with ID "${item.id}" not found.`);
+        layer = this.map
+          .getAllLayers()
+          .find((l) => l.get("name") === item.parentid);
+        console.log("found parent layer", layer);
         return;
       }
 
-      // Publish the appropriate layer visibility event
+      // Publish the appropriate layer visibilityy event
       const eventName = show
         ? "layerswitcher.showLayer"
         : "layerswitcher.hideLayer";
@@ -262,8 +265,8 @@ class LLMChatModel {
       } else {
         // For regular layers, just pass the layer
         this.globalObserver.publish(eventName, layer);
-        layer.setVisible(show);
       }
+      layer.setVisible(show);
 
       // Call the callback if provided
       if (this.onShowLayer) {

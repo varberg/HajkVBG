@@ -4,15 +4,13 @@ import ChatIcon from "@mui/icons-material/Chat";
 import LLMChatView from "./LLMChatView";
 
 function LLMChat(props) {
-  console.log("LLMChat constructor", props.options);
-
   return (
     <BaseWindowPlugin
       {...props}
       type="LLMChat"
       custom={{
         icon: <ChatIcon />,
-        title: "LLM-chatt",
+        title: "Lagerchatt (pilottest)",
         description: "",
         height: "dynamic",
         width: 400,

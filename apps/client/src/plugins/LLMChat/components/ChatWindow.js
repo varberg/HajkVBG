@@ -11,6 +11,7 @@ import {
   InputAdornment,
   Stack,
   TextField,
+  Typography,
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import SendIcon from "@mui/icons-material/Send";
@@ -165,6 +166,29 @@ function ChatWindow(props) {
   const RenderedMessages = useMemo(
     () => (
       <Stack spacing={1.5} sx={{ p: 1.5 }}>
+        {messages.length === 0 && (
+          <Box sx={{ display: "flex", justifyContent: "flex-start", p: 0 }}>
+            <Typography sx={{ fontSize: "0.75rem", mt: 0, pt: 0 }}>
+              <p style={{ margin: 0 }}>
+                Detta AI-baserade verktyg är ett <strong>pilottest</strong> för
+                att underlätta sökning efter relevanta kartlager.
+              </p>
+
+              <p>
+                Lagerchatten använder sig av lagerinformation och metadata från
+                KommunGIS som analyseras med hjälp av OpenAI för att identifiera
+                möjliga kartlager. Jämte chattdialog och lager-förslag
+                tillhandahålls direktlänkar till föreslagna lager.
+              </p>
+
+              <p>
+                Obs! <strong>Uppge aldrig känslig information</strong> i
+                lagerchatten! Exempel på sådan information är t.ex.
+                personuppgifter eller annan GDPR-känslig data.
+              </p>
+            </Typography>
+          </Box>
+        )}
         {messages.map((m) => (
           <MessageRenderer key={m.id} message={m} chatModel={model} />
         ))}
