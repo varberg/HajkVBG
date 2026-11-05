@@ -2,6 +2,7 @@
   "mapserviceBase": "/api/v2",
   "defaultMap": "map_1",
   "availableTools": [
+    "AiChat",
     "Anchor",
     "AttributeEditor",
     "Bookmarks",

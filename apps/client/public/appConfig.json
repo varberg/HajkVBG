@@ -2,6 +2,7 @@
   "mapserviceBase": "",
   "defaultMap": "simpleMapAndLayersConfig",
   "availableTools": [
+    "AiChat",
     "Anchor",
     "AttributeEditor",
     "Bookmarks",

@@ -12,6 +12,7 @@ import type {
   CatalogService,
   ConfigSource,
   LayerRole,
+  MapInfo,
   WalkedMap,
 } from "./catalog.service.ts";
 
@@ -45,6 +46,8 @@ export interface GroupTreeNode {
  */
 export interface UserCatalog {
   map: string;
+  /** From the washed config, so it leaves out tools the user can't reach. */
+  mapInfo: MapInfo;
   allowed: AllowedSets;
   records: CatalogRecord[];
   recordsById: Map<string, CatalogRecord>;
@@ -158,6 +161,7 @@ export function buildUserCatalog(
 
   return {
     map: catalog.map,
+    mapInfo: walked.info,
     allowed: {
       layers,
       backgrounds,

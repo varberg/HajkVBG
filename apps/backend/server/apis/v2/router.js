@@ -9,6 +9,7 @@ import firRouter from "./controllers/fir/router.js";
 import ogcRouter from "./controllers/ogc/router.js";
 import feedbackRouter from "./controllers/feedback/router.js";
 import captchaRouter from "./controllers/captcha/router.js";
+import aiRouter from "./controllers/ai/router.ts";
 import { globalLimiter } from "../../common/middlewares/rate.limiter.js";
 
 export default express
@@ -22,4 +23,5 @@ export default express
   .use("/fir", firRouter)
   .use("/ogc", ogcRouter)
   .use("/feedback", feedbackRouter)
-  .use("/captcha", captchaRouter);
+  .use("/captcha", captchaRouter)
+  .use("/ai", aiRouter);

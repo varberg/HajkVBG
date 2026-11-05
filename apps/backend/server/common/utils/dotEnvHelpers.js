@@ -35,6 +35,16 @@ export const grabPositiveInt = (name, defaultValue) => {
 };
 
 /**
+ * @summary Grab an integer of zero or more from .env, with a fallback. For
+ * settings where 0 has a meaning of its own, such as "no limit".
+ * @param {string} name Name of the .env variable
+ * @param {number} defaultValue Value to use if the variable is missing or invalid
+ * @returns {number}
+ */
+export const grabNonNegativeInt = (name, defaultValue) =>
+  process.env[name]?.trim() === "0" ? 0 : grabPositiveInt(name, defaultValue);
+
+/**
  * @summary Split a list from .env on commas and/or whitespace.
  * @param {string} name Name of the .env variable
  * @returns {string[]} Empty if the variable is missing

@@ -1,0 +1,722 @@
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+
+import { buildUserCatalog } from "../../server/apis/v2/services/ai/access.service.ts";
+import type { UserCatalog } from "../../server/apis/v2/services/ai/access.service.ts";
+import {
+  buildCatalog,
+  walkMapConfig,
+} from "../../server/apis/v2/services/ai/catalog.service.ts";
+import type { RawMapConfig } from "../../server/apis/v2/services/ai/catalog.service.ts";
+import {
+  PAGE_SIZE,
+  runTool,
+  tools,
+  validateInput,
+} from "../../server/apis/v2/services/ai/tools.ts";
+import type {
+  JsonSchema,
+  ToolContext,
+  ToolEvent,
+} from "../../server/apis/v2/services/ai/tools.ts";
+import {
+  layersStore,
+  mapConfig,
+  washedMapConfig,
+  wmsLayer,
+} from "./fixtures.ts";
+
+const view = (config: RawMapConfig = mapConfig(), store = layersStore()) =>
+  buildUserCatalog(buildCatalog("demo", config, store), walkMapConfig(config));
+
+const context = (
+  userCatalog: UserCatalog = view(),
+  overrides: Partial<ToolContext> = {}
+): ToolContext => ({
+  userCatalog,
+  maxLayersOn: 25,
+  visibleLayers: new Set(),
+  search: {
+    async search(catalog, _query, limit = 10) {
+      return {
+        mode: "keyword",
+        hits: catalog.records
+          .slice(0, limit)
+          .map((record, i) => ({ record, score: 1 - i / 100 })),
+      };
+    },
+  },
+  ...overrides,
+});
+
+async function call(
+  name: string,
+  input: unknown,
+  ctx: ToolContext = context()
+) {
+  const run = await runTool(name, input, ctx);
+  return { ...run, result: JSON.parse(run.content) };
+}
+
+const noFilters = {
+  owner: null,
+  type: null,
+  role: null,
+  group_id: null,
+  missing: null,
+};
+
+const rejectedIds = (result: { rejected: Array<{ id: string }> }) =>
+  result.rejected.map((r) => r.id);
+
+// A map with one big folder, for paging and the cap
+const bigMap = (count: number) => {
+  const config = mapConfig();
+  const ids = Array.from({ length: count }, (_, i) => `big${i}`);
+  config.tools[0].options!.groups!.push({
+    id: "bigGroup",
+    name: "Stor",
+    layers: ids.map((id) => ({ id })),
+    groups: [],
+  } as never);
+  const store = layersStore();
+  store.wmslayers.push(...(ids.map((id) => wmsLayer(id)) as never[]));
+  return view(config, store);
+};
+
+describe("tool schemas", () => {
+  test("meet the strict mode of both providers", () => {
+    const check = (schema: JsonSchema, path: string) => {
+      const allowed = [
+        "type",
+        "description",
+        "enum",
+        "items",
+        "properties",
+        "required",
+        "additionalProperties",
+      ];
+      for (const key of Object.keys(schema)) {
+        assert.ok(allowed.includes(key), `${path} uses ${key}`);
+      }
+      if (schema.properties !== undefined) {
+        assert.equal(schema.additionalProperties, false, path);
+        assert.deepEqual(
+          [...(schema.required ?? [])].sort(),
+          Object.keys(schema.properties).sort(),
+          path
+        );
+        for (const [key, property] of Object.entries(schema.properties)) {
+          check(property, `${path}.${key}`);
+        }
+      }
+      if (schema.items !== undefined) check(schema.items, `${path}[]`);
+    };
+    tools.forEach((tool) => check(tool.inputSchema, tool.name));
+  });
+
+  test("stay within Claude's limits for strict schemas", () => {
+    const unions = (schema: JsonSchema): number =>
+      (Array.isArray(schema.type) ? 1 : 0) +
+      Object.values(schema.properties ?? {}).reduce(
+        (sum, property) => sum + unions(property),
+        0
+      ) +
+      (schema.items ? unions(schema.items) : 0);
+
+    assert.ok(tools.length <= 20);
+    assert.ok(tools.reduce((n, t) => n + unions(t.inputSchema), 0) <= 16);
+  });
+
+  test("map actions are never read tools", () => {
+    const actions = tools.filter((t) => t.kind === "action").map((t) => t.name);
+    assert.deepEqual(actions.sort(), [
+      "present_layers",
+      "set_background",
+      "set_layer_visibility",
+    ]);
+  });
+});
+
+describe("validateInput", () => {
+  const schema = tools.find((t) => t.name === "filter_layers")!.inputSchema;
+  const valid = { filters: noFilters, count_only: false, offset: null };
+
+  test("accepts valid input", () => {
+    assert.equal(validateInput(schema, valid), null);
+  });
+
+  test("rejects missing, unknown and mistyped properties", () => {
+    assert.match(validateInput(schema, { filters: noFilters })!, /missing/);
+    assert.match(validateInput(schema, { ...valid, x: 1 })!, /not a known/);
+    assert.match(
+      validateInput(schema, { ...valid, offset: 1.5 })!,
+      /offset must be/
+    );
+    assert.match(
+      validateInput(schema, {
+        ...valid,
+        filters: { ...noFilters, role: "admin" },
+      })!,
+      /role must be one of/
+    );
+  });
+
+  test("a failed input never reaches the tool", async () => {
+    const { isError, result } = await call("search_layers", { query: 1 });
+    assert.equal(isError, true);
+    assert.match(result.error, /query/);
+  });
+});
+
+describe("runTool", () => {
+  test("reports an unknown tool", async () => {
+    const { isError } = await call("drop_tables", {});
+    assert.equal(isError, true);
+  });
+
+  test("turns a crash into a result that hides the details", async () => {
+    const { isError, result } = await call(
+      "search_layers",
+      { query: "x", limit: null },
+      context(view(), {
+        search: {
+          search: () => Promise.reject(new Error("secret connection string")),
+        },
+      })
+    );
+    assert.equal(isError, true);
+    assert.equal(JSON.stringify(result).includes("secret"), false);
+  });
+});
+
+describe("search_layers", () => {
+  test("returns compact items and no total", async () => {
+    const { result } = await call("search_layers", { query: "x", limit: 2 });
+    assert.deepEqual(Object.keys(result), ["layers"]);
+    assert.equal(result.layers.length, 2);
+    assert.deepEqual(Object.keys(result.layers[0]).sort(), [
+      "caption",
+      "groupPath",
+      "id",
+      "role",
+    ]);
+  });
+
+  test("caps the limit", async () => {
+    const { result } = await call(
+      "search_layers",
+      { query: "x", limit: 500 },
+      context(bigMap(40))
+    );
+    assert.equal(result.layers.length, 25);
+  });
+
+  test("rejects a limit below 1", async () => {
+    const { isError } = await call("search_layers", { query: "x", limit: 0 });
+    assert.equal(isError, true);
+  });
+});
+
+describe("filter_layers", () => {
+  const filter = (
+    filters: object,
+    ctx?: ToolContext,
+    offset: number | null = null,
+    countOnly = false
+  ) =>
+    call(
+      "filter_layers",
+      {
+        filters: { ...noFilters, ...filters },
+        count_only: countOnly,
+        offset,
+      },
+      ctx
+    );
+
+  test("filters by owner, ignoring case", async () => {
+    const { result } = await filter({ owner: "stadsbyggnad" });
+    assert.deepEqual(
+      result.layers.map((l: { id: string }) => l.id),
+      ["plain"]
+    );
+  });
+
+  test("filters by type and role", async () => {
+    const { result: wfs } = await filter({ type: "wfs" });
+    assert.equal(wfs.total, 1);
+    const { result: backgrounds } = await filter({ role: "background" });
+    assert.deepEqual(
+      backgrounds.layers.map((l: { id: string }) => l.id).sort(),
+      ["-1", "-3", "multiBackground"]
+    );
+  });
+
+  test("a group includes its subgroups", async () => {
+    const { result } = await filter({ group_id: "top" });
+    assert.equal(result.total, 6);
+  });
+
+  test("rejects a group the user can't reach", async () => {
+    const { isError } = await filter(
+      { group_id: "secret" },
+      context(view(hideGroup()))
+    );
+    assert.equal(isError, true);
+  });
+
+  test("filters on missing fields", async () => {
+    const { result } = await filter({ missing: ["owner"], role: "layer" });
+    assert.equal(
+      result.layers.some((l: { id: string }) => l.id === "plain"),
+      false
+    );
+    assert.ok(result.total > 0);
+  });
+
+  test("count_only gives the total alone", async () => {
+    const { result } = await filter({ role: "layer" }, undefined, null, true);
+    assert.deepEqual(Object.keys(result), ["total"]);
+  });
+
+  test("pages neither repeat nor skip a layer", async () => {
+    const ctx = context(bigMap(60));
+    const seen: string[] = [];
+    let offset = 0;
+    let total = 0;
+    for (;;) {
+      const { result } = await filter({ group_id: "bigGroup" }, ctx, offset);
+      total = result.total;
+      assert.ok(result.layers.length <= PAGE_SIZE);
+      seen.push(...result.layers.map((l: { id: string }) => l.id));
+      if (!result.truncated) break;
+      offset += PAGE_SIZE;
+    }
+    assert.equal(total, 60);
+    assert.equal(seen.length, 60);
+    assert.equal(new Set(seen).size, 60);
+  });
+
+  test("marks only unfinished lists as truncated", async () => {
+    const ctx = context(bigMap(30));
+    const first = await filter({ group_id: "bigGroup" }, ctx, 0);
+    const last = await filter({ group_id: "bigGroup" }, ctx, 25);
+    assert.equal(first.result.truncated, true);
+    assert.equal(last.result.truncated, false);
+  });
+
+  test("rejects a negative offset", async () => {
+    const { isError } = await filter({}, undefined, -1);
+    assert.equal(isError, true);
+  });
+
+  test("list items stay compact", async () => {
+    const { result } = await filter({ role: "layer" });
+    assert.deepEqual(Object.keys(result.layers[0]).sort(), [
+      "caption",
+      "groupPath",
+      "id",
+      "role",
+    ]);
+  });
+});
+
+// As washedMapConfig, but without any layer left in the secret group
+function hideGroup() {
+  const config = washedMapConfig();
+  config.tools[0].options!.groups = config.tools[0].options!.groups!.filter(
+    (g) => g.id !== "secret"
+  );
+  return config;
+}
+
+describe("browse_groups", () => {
+  const browse = (groupId: string | null, ctx?: ToolContext, offset = 0) =>
+    call("browse_groups", { group_id: groupId, offset }, ctx);
+
+  test("lists the top level with exclusive flags and leaf counts", async () => {
+    const { result } = await browse(null);
+    const top = result.items.find((i: { id: string }) => i.id === "top");
+    assert.equal(top.leafCount, 6);
+    assert.equal(top.exclusive, false);
+  });
+
+  test("lists subgroups before the group's own layers", async () => {
+    const { result } = await browse("top");
+    assert.equal(result.items[0].id, "nested");
+    assert.equal(result.items[0].exclusive, true);
+    assert.deepEqual(
+      result.items
+        .slice(1)
+        .map((i: { id: string }) => i.id)
+        .sort(),
+      ["arcgis1", "plain", "wmts1"]
+    );
+  });
+
+  test("pages through a large group", async () => {
+    const ctx = context(bigMap(30));
+    const { result } = await browse("bigGroup", ctx);
+    assert.equal(result.total, 30);
+    assert.equal(result.truncated, true);
+    assert.equal(result.items.length, PAGE_SIZE);
+  });
+
+  test("a pruned group is unknown", async () => {
+    const { isError } = await browse("broken");
+    assert.equal(isError, true);
+  });
+});
+
+describe("get_layer_details", () => {
+  test("returns the record, without connection details", async () => {
+    const { result, content } = await call("get_layer_details", {
+      id: "plain",
+    });
+    assert.equal(result.owner, "Stadsbyggnad");
+    assert.equal(content.includes("secret.example.com"), false);
+    assert.equal("url" in result, false);
+  });
+
+  test("a restricted layer looks like one that doesn't exist", async () => {
+    const ctx = context(view(washedMapConfig()));
+    const restricted = await call(
+      "get_layer_details",
+      { id: "restricted" },
+      ctx
+    );
+    const missing = await call("get_layer_details", { id: "nope" }, ctx);
+    assert.equal(restricted.isError, true);
+    assert.equal(
+      restricted.result.error.replace("restricted", ""),
+      missing.result.error.replace("nope", "")
+    );
+  });
+});
+
+describe("get_map_info", () => {
+  const withInfo = () => ({
+    ...mapConfig(),
+    map: { title: "Demo", projection: "EPSG:3007" },
+  });
+
+  test("gives the title, projection and tools", async () => {
+    const { result } = await call(
+      "get_map_info",
+      {},
+      context(view(withInfo()))
+    );
+    assert.equal(result.title, "Demo");
+    assert.equal(result.projection, "EPSG:3007");
+    assert.deepEqual(
+      result.tools.find((t: { type: string }) => t.type === "fir"),
+      { type: "fir", title: "fir" }
+    );
+  });
+
+  test("never includes other tool options", async () => {
+    const { content } = await call("get_map_info", {});
+    assert.equal(content.includes("do not expose"), false);
+    assert.equal(content.includes("secretSetting"), false);
+  });
+
+  test("leaves out a tool the user has no access to", async () => {
+    const config = withInfo();
+    config.tools = config.tools.filter((t) => t.type !== "fir");
+    const { result } = await call("get_map_info", {}, context(view(config)));
+    assert.equal(
+      result.tools.some((t: { type: string }) => t.type === "fir"),
+      false
+    );
+  });
+});
+
+describe("no tool leaks connection details", () => {
+  test("in any read result", async () => {
+    const outputs = await Promise.all([
+      call("search_layers", { query: "x", limit: 25 }),
+      call("filter_layers", {
+        filters: noFilters,
+        count_only: false,
+        offset: null,
+      }),
+      call("browse_groups", { group_id: "top", offset: null }),
+      call("get_layer_details", { id: "wfs1" }),
+      call("get_map_info", {}),
+    ]);
+    for (const { content } of outputs) {
+      assert.equal(content.includes("secret.example"), false);
+      assert.equal(content.includes("https://secret"), false);
+    }
+  });
+});
+
+describe("present_layers", () => {
+  const present = (ids: string[], ctx?: ToolContext) =>
+    call("present_layers", { ids }, ctx);
+  const items = (events: ToolEvent[]) =>
+    (events[0] as Extract<ToolEvent, { type: "layers" }>).items;
+
+  test("gives each kind of id the right control", async () => {
+    const { events, result } = await present([
+      "plain",
+      "group:sub_a",
+      "top",
+      "-1",
+      "wfs1",
+    ]);
+    assert.equal(result.shown, 5);
+    assert.deepEqual(items(events), [
+      {
+        id: "plain",
+        caption: "Plangräns",
+        groupPath: ["Planering"],
+        control: "toggle",
+      },
+      {
+        id: "group:sub_a",
+        caption: "Sublager A",
+        groupPath: ["Planering", "Detaljer", "Layer group"],
+        control: "toggle",
+      },
+      { id: "top", caption: "Planering", groupPath: [], control: "toggle" },
+      { id: "-1", caption: "Vit", groupPath: [], control: "background" },
+      { id: null, caption: "WFS", groupPath: [], control: "none" },
+    ]);
+  });
+
+  test("rejects what the user can't reach, and sends no empty event", async () => {
+    const { events, result } = await present(
+      ["restricted"],
+      context(view(washedMapConfig()))
+    );
+    assert.deepEqual(rejectedIds(result), ["restricted"]);
+    assert.deepEqual(events, []);
+  });
+
+  test("limits how many are shown", async () => {
+    const ids = Array.from({ length: 30 }, (_, i) => `big${i}`);
+    const { events, result } = await present(ids, context(bigMap(30)));
+    assert.equal(items(events).length, 25);
+    assert.equal(result.rejected.length, 5);
+  });
+});
+
+describe("set_layer_visibility", () => {
+  const set = (ids: string[], visible: boolean, ctx?: ToolContext) =>
+    call("set_layer_visibility", { ids, visible }, ctx);
+
+  test("accepts layers, folders and sublayer addresses", async () => {
+    const { result, events } = await set(
+      ["plain", "secret", "group:sub_a"],
+      true
+    );
+    assert.deepEqual(result.accepted, ["plain", "secret", "group:sub_a"]);
+    assert.deepEqual(result.rejected, []);
+    assert.deepEqual(events, [
+      {
+        type: "action",
+        action: "set_layer_visibility",
+        ids: ["plain", "secret", "group:sub_a"],
+        visible: true,
+      },
+    ]);
+  });
+
+  test("rejects backgrounds and search-only layers, with reasons", async () => {
+    const { result, events } = await set(
+      ["-1", "multiBackground", "wfs1"],
+      false
+    );
+    assert.deepEqual(rejectedIds(result), ["-1", "multiBackground", "wfs1"]);
+    assert.match(result.rejected[0].reason, /set_background/);
+    assert.match(result.rejected[2].reason, /Search/);
+    assert.deepEqual(events, []);
+  });
+
+  test("a layer in Search but not the user's tree can't be toggled", async () => {
+    const { result } = await set(
+      ["both"],
+      true,
+      context(view(washedMapConfig()))
+    );
+    assert.deepEqual(rejectedIds(result), ["both"]);
+  });
+
+  test("rejects a pruned folder as unknown", async () => {
+    const { result } = await set(["broken"], true);
+    assert.deepEqual(rejectedIds(result), ["broken"]);
+    assert.equal(result.rejected[0].reason, "Unknown id.");
+  });
+
+  test("rejects sublayers of a disallowed parent", async () => {
+    const config = hideGroup();
+    config.tools[0].options!.groups![0].groups![0].layers =
+      config.tools[0].options!.groups![0].groups![0].layers.filter(
+        (l) => l.id !== "group"
+      );
+    const { result } = await set(["group:sub_a"], true, context(view(config)));
+    assert.equal(result.rejected[0].reason, "Unknown id.");
+  });
+
+  test("rejects sublayers of a hideExpandArrow layer", async () => {
+    const { result } = await set(["hiddenSubs:sub_c"], true);
+    assert.match(result.rejected[0].reason, /one by one/);
+  });
+
+  test("rejects sublayers of a layer that isn't a group layer", async () => {
+    const { result } = await set(["plain:plain_name"], true);
+    assert.deepEqual(rejectedIds(result), ["plain:plain_name"]);
+  });
+
+  test("rejects a sublayer that doesn't exist", async () => {
+    const { result } = await set(["group:nope"], true);
+    assert.deepEqual(rejectedIds(result), ["group:nope"]);
+  });
+
+  describe("cap", () => {
+    const capped = (maxLayersOn: number, count = 30) =>
+      context(bigMap(count), { maxLayersOn });
+
+    test("counts the leaves of a folder", async () => {
+      const { result, events } = await set(["bigGroup"], true, capped(25));
+      assert.deepEqual(rejectedIds(result), ["bigGroup"]);
+      assert.match(result.rejected[0].reason, /30 layers/);
+      assert.deepEqual(events, []);
+    });
+
+    test("doesn't apply when turning off", async () => {
+      const { result } = await set(["bigGroup"], false, capped(2));
+      assert.deepEqual(result.accepted, ["bigGroup"]);
+    });
+
+    test("is reached by several ids together", async () => {
+      const { result } = await set(["big0", "big1", "big2"], true, capped(2));
+      assert.deepEqual(result.accepted, ["big0", "big1"]);
+      assert.deepEqual(rejectedIds(result), ["big2"]);
+    });
+
+    test("counts a layer in a folder only once", async () => {
+      const { result } = await set(["secret", "plain", "both"], true, {
+        ...context(),
+        maxLayersOn: 4,
+      });
+      assert.deepEqual(result.accepted, ["secret", "plain", "both"]);
+    });
+
+    test("counts an exclusive folder and a sublayer as one each", async () => {
+      const { result } = await set(["nested", "plain"], true, {
+        ...context(),
+        maxLayersOn: 2,
+      });
+      assert.deepEqual(result.accepted, ["nested", "plain"]);
+    });
+
+    test("lets a later small id through after a big one", async () => {
+      const { result } = await set(["bigGroup", "plain"], true, capped(25));
+      assert.deepEqual(result.accepted, ["plain"]);
+    });
+  });
+
+  describe("exclusive groups", () => {
+    test("keeps only the last of several siblings", async () => {
+      const { result, events } = await set(["sameCaption", "group"], true);
+      assert.deepEqual(result.accepted, ["group"]);
+      assert.deepEqual(rejectedIds(result), ["sameCaption"]);
+      assert.match(result.rejected[0].reason, /exclusive group "Detaljer"/);
+      assert.deepEqual((events[0] as { ids: string[] }).ids, ["group"]);
+    });
+
+    test("reports visible siblings that get hidden", async () => {
+      const ctx = context(view(), { visibleLayers: new Set(["hiddenSubs"]) });
+      const { result } = await set(["group"], true, ctx);
+      assert.deepEqual(result.hiddenSiblings, [
+        { id: "hiddenSubs", caption: "Layer hiddenSubs", group: "Detaljer" },
+      ]);
+      assert.deepEqual([...ctx.visibleLayers], ["group"]);
+    });
+
+    test("reports nothing as hidden when the cap rejects the winner", async () => {
+      const ctx = context(view(), {
+        maxLayersOn: 1,
+        visibleLayers: new Set(["hiddenSubs"]),
+      });
+      const { result } = await set(["plain", "group"], true, ctx);
+      assert.deepEqual(result.accepted, ["plain"]);
+      assert.deepEqual(result.hiddenSiblings, []);
+      assert.equal(ctx.visibleLayers.has("hiddenSubs"), true);
+    });
+
+    test("a sublayer counts as its parent", async () => {
+      const ctx = context(view(), { visibleLayers: new Set(["sameCaption"]) });
+      const { result } = await set(["group:sub_a"], true, ctx);
+      assert.deepEqual(
+        result.hiddenSiblings.map((s: { id: string }) => s.id),
+        ["sameCaption"]
+      );
+    });
+
+    test("two sublayers of one parent aren't siblings", async () => {
+      const { result } = await set(["group:sub_a", "group:sub_b"], true);
+      assert.deepEqual(result.accepted, ["group:sub_a", "group:sub_b"]);
+    });
+
+    test("a folder says which layer it shows", async () => {
+      const { result } = await set(["nested"], true);
+      assert.deepEqual(result.shownInExclusiveFolders, [
+        { folderId: "nested", shownLayerId: "sameCaption" },
+      ]);
+    });
+
+    test("a later call in the turn sees the earlier one", async () => {
+      const ctx = context();
+      await set(["sameCaption"], true, ctx);
+      const { result } = await set(["group"], true, ctx);
+      assert.deepEqual(
+        result.hiddenSiblings.map((s: { id: string }) => s.id),
+        ["sameCaption"]
+      );
+    });
+
+    test("turning off doesn't touch siblings", async () => {
+      const ctx = context(view(), {
+        visibleLayers: new Set(["group", "sameCaption"]),
+      });
+      const { result } = await set(["group"], false, ctx);
+      assert.deepEqual(result.accepted, ["group"]);
+      assert.deepEqual([...ctx.visibleLayers], ["sameCaption"]);
+    });
+
+    test("rejects an exclusive folder with no layers of its own", async () => {
+      const config = mapConfig();
+      const nested = config.tools[0].options!.groups![0].groups![0];
+      (nested as { groups: unknown[] }).groups = [
+        { id: "leaf", name: "Under", layers: nested.layers, groups: [] },
+      ];
+      nested.layers = [];
+      const { result } = await set(["nested"], true, context(view(config)));
+      assert.match(result.rejected[0].reason, /subgroups/);
+    });
+  });
+});
+
+describe("set_background", () => {
+  test("accepts configured and built-in backgrounds", async () => {
+    for (const id of ["multiBackground", "-1"]) {
+      const { events, result } = await call("set_background", { id });
+      assert.deepEqual(result.accepted, [id]);
+      assert.deepEqual(events, [
+        { type: "action", action: "set_background", id },
+      ]);
+    }
+  });
+
+  test("rejects anything else, and sends no action", async () => {
+    for (const id of ["plain", "wfs1", "nope", "-2"]) {
+      const { events, result } = await call("set_background", { id });
+      assert.deepEqual(rejectedIds(result), [id]);
+      assert.deepEqual(events, []);
+    }
+  });
+});

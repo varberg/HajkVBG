@@ -73,7 +73,18 @@ interface WalkedBuiltIn {
   caption: string;
 }
 
+/**
+ * What the chat may tell about a map. Tool options are left out on purpose, as
+ * some tools carry restricted configuration.
+ */
+export interface MapInfo {
+  title: string | null;
+  projection: string | null;
+  tools: Array<{ type: string; title: string }>;
+}
+
 export interface WalkedMap {
+  info: MapInfo;
   tree: WalkedLayer[];
   backgrounds: string[];
   builtInBackgrounds: WalkedBuiltIn[];
@@ -96,6 +107,7 @@ interface RawTool {
 }
 
 export interface RawMapConfig {
+  map?: { title?: unknown; projection?: unknown };
   tools?: unknown;
   error?: Error;
 }
@@ -259,6 +271,17 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
   const search = tools.find((t) => t.type === "search")?.options;
 
   const out: WalkedMap = {
+    info: {
+      title: cleanInline(mapConfig.map?.title),
+      projection: cleanInline(mapConfig.map?.projection),
+      // Most tools have no title of their own, so the type is the fallback
+      tools: tools
+        .filter((t) => typeof t.type === "string")
+        .map((t) => ({
+          type: t.type as string,
+          title: cleanInline(t.options?.title) ?? (t.type as string),
+        })),
+    },
     tree: [],
     backgrounds: entryIds(switcher?.baselayers),
     builtInBackgrounds: BUILT_IN_BACKGROUNDS.filter(

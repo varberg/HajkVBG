@@ -112,6 +112,8 @@ const arraysEqual = (a = [], b = []) => {
  *
  * // Lookup
  * lc.getLayer("id");                               // -> ol layer | undefined
+ * lc.getVisibleLayerIds();                         // -> ids of visible normal and group layers
+ * lc.getActiveBackgroundId();                      // -> id of the visible background | null
  *
  * // Single layer (normal, WMS group, or base/background).
  * // show/hide/toggle/set/...IsVisible accept a layer id, a tree-group folder
@@ -257,6 +259,38 @@ class LayerControlModel {
    */
   getLayer(id) {
     return this.#layerIndex.get(id);
+  }
+
+  /**
+   * Ids of the layers that are toggled on, i.e. normal layers and WMS group
+   * layers. Background and system layers are left out, so that a caller that
+   * hides everything in this list can't remove the background or touch layers
+   * that are managed by a plugin. Like `isLayerVisible`, this is the toggled
+   * state and not the zoom/extent-aware visibility.
+   * @returns {string[]}
+   */
+  getVisibleLayerIds() {
+    return [...this.#layerIndex.entries()]
+      .filter(
+        ([, layer]) =>
+          layer.get("visible") === true &&
+          ["layer", "group"].includes(layer.get("layerType"))
+      )
+      .map(([id]) => id);
+  }
+
+  /**
+   * Id of the background that is on, whether it's a configured one or one of
+   * the built-in ones in `BACKGROUND_LAYER_IDS`.
+   * @returns {string | null} `null` if no background is visible.
+   */
+  getActiveBackgroundId() {
+    for (const [id, layer] of this.#layerIndex) {
+      if (layer.get("layerType") === "base" && layer.get("visible") === true) {
+        return id;
+      }
+    }
+    return null;
   }
 
   /**

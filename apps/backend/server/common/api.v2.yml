@@ -18,6 +18,8 @@ tags:
     description: Feedback from users to admins. Posting is public (behind a captcha), reading and deleting is admin-only.
   - name: Captcha
     description: Captcha (ALTCHA proof-of-work) for public endpoints, such as posting feedback.
+  - name: AI
+    description: AI chat that finds layers and turns them on and off. Off by default, see AI_CHAT_ENABLED in .env.
   - name: Sokigo FB Proxy
     description: Proxy specified in working with Sokigo's FB API
   - name: FME-server Proxy
@@ -872,6 +874,64 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /ai/chat:
+    post:
+      tags: [AI]
+      summary: Ask the AI chat a question
+      description: >-
+        Answers as a stream of server-sent events: `start` (holds the
+        conversationId to send with later messages), `text`, `tool_status`,
+        `layers`, `action`, and finally `done` or `error`. Requires the aichat
+        tool in the map. Rate limited per user (or IP), see RATE_LIMIT_AI_* in
+        .env, and by a daily cap for the whole site, see AI_DAILY_MAX_TURNS.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiChatRequest"
+      responses:
+        200:
+          description: A stream of server-sent events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        400:
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        403:
+          description: The user lacks access to the map or the aichat tool
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        404:
+          description: >-
+            The chat isn't enabled, the map doesn't exist, or the conversation
+            is lost (details.code is conversation_lost), in which case the
+            client starts a new one
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        409:
+          description: The conversation is still answering the previous message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        429:
+          description: Too many requests, or the daily cap of the site is reached
+        503:
+          description: The chat is enabled, but its model provider isn't configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /feedback:
     post:
       tags: [Feedback]
@@ -1022,6 +1082,50 @@ paths:
               $ref: "#/components/schemas/ExampleBody"
 components:
   schemas:
+    AiChatRequest:
+      type: object
+      additionalProperties: false
+      required: [map, conversationId, message, mapState]
+      properties:
+        map:
+          type: string
+          maxLength: 255
+        conversationId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null on the first message. The server creates the id.
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        mapState:
+          type: object
+          additionalProperties: false
+          required: [layers, background]
+          description: What is on the map right now. Treated as data, and limited to what the user may reach.
+          properties:
+            layers:
+              type: array
+              maxItems: 2000
+              items:
+                type: object
+                additionalProperties: false
+                required: [id, visibleSubLayers]
+                properties:
+                  id:
+                    type: string
+                    maxLength: 255
+                  visibleSubLayers:
+                    type: array
+                    maxItems: 500
+                    items:
+                      type: string
+                      maxLength: 255
+            background:
+              type: string
+              maxLength: 255
+              nullable: true
     FeedbackSubmission:
       type: object
       required: [map, message, captcha]

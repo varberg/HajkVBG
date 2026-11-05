@@ -1,0 +1,979 @@
+{
+  "description": "Draft of the retrieval evaluation questions, written from the layer config without running them through search. A question passes if any of its expected layers is in the top 5. heldOut questions must not be used for tuning. The ids are from the production config in App_Data.",
+  "map": "map_1",
+  "questions": [
+    {
+      "id": "q01",
+      "kind": "exakt",
+      "question": "Visa naturreservat",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1352",
+          "caption": "Naturreservat",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Natur"
+        }
+      ]
+    },
+    {
+      "id": "q02",
+      "kind": "exakt",
+      "question": "Var ligger vårdcentralerna?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "410",
+          "caption": "Vårdcentral",
+          "place": "Omsorg & stöd"
+        },
+        {
+          "id": "420",
+          "caption": "Vårdcentral, privat",
+          "place": "Omsorg & stöd"
+        },
+        {
+          "id": "2006",
+          "caption": "Vårdcentraler",
+          "place": "KrisGIS > Räddningstjänst & sjukvård"
+        }
+      ]
+    },
+    {
+      "id": "q03",
+      "kind": "exakt",
+      "question": "Hjärtstartare",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1961",
+          "caption": "Hjärtstartare",
+          "place": "Omsorg & stöd"
+        },
+        {
+          "id": "2016",
+          "caption": "Hjärtstartare",
+          "place": "KrisGIS > Krisfunktioner"
+        }
+      ]
+    },
+    {
+      "id": "q04",
+      "kind": "exakt",
+      "question": "Kan du visa ortofoto 1963?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1315",
+          "caption": "Ortofoto 1963, LM",
+          "place": "Flygfoton > Ortofoton"
+        }
+      ]
+    },
+    {
+      "id": "q05",
+      "kind": "exakt",
+      "question": "Var finns skatepark?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "2021",
+          "caption": "Skatepark",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "q06",
+      "kind": "böjning",
+      "question": "Finns det några fornlämningar i närheten av Varberg?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1354",
+          "caption": "Fornlämning",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Kultur"
+        }
+      ]
+    },
+    {
+      "id": "q07",
+      "kind": "böjning",
+      "question": "Var finns det hundbad?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1504",
+          "caption": "Hundbadplatser",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "q08",
+      "kind": "böjning",
+      "question": "Var har det byggts attefallshus?",
+      "heldOut": true,
+      "review": "Lagret uppdateras inte längre och saknar ärenden efter 2019. Är det rätt svar ändå?",
+      "expected": [
+        {
+          "id": "1273",
+          "caption": "Attefallsåtgärder",
+          "place": "Bygga, bo & miljö > SBK: arbetslager"
+        }
+      ]
+    },
+    {
+      "id": "q09",
+      "kind": "böjning",
+      "question": "Var går cykellederna?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1507",
+          "caption": "Kattegattleden",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Cykelleder"
+        },
+        {
+          "id": "6m4v51",
+          "caption": "Monarkleden",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Cykelleder"
+        },
+        {
+          "id": "p3krd7",
+          "caption": "Getterörundan",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Cykelleder"
+        },
+        {
+          "id": "lm6vta",
+          "caption": "Åkullaleden",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Cykelleder"
+        },
+        {
+          "id": "5y5lei",
+          "caption": "Åkulla, mountainbike",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Cykelleder"
+        },
+        {
+          "id": "uzkwj2",
+          "caption": "Visit Varberg",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Cykelleder"
+        }
+      ]
+    },
+    {
+      "id": "q10",
+      "kind": "böjning",
+      "question": "Natura 2000-områden",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1444",
+          "caption": "Natura2000, art-&habitat (4kap 1&8§ MB)",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Riksintressen"
+        },
+        {
+          "id": "1356",
+          "caption": "Natura2000, fågeldirektiv (4kap 1o8§ MB)",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Riksintressen"
+        }
+      ]
+    },
+    {
+      "id": "q11",
+      "kind": "böjning",
+      "question": "Var låg de gamla järnvägsstationerna?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1651",
+          "caption": "Järnvägsstation",
+          "place": "Historiska lager > Äldre järnvägar"
+        },
+        {
+          "id": "1650",
+          "caption": "Äldre järnväg och stickspår",
+          "place": "Historiska lager > Äldre järnvägar"
+        }
+      ]
+    },
+    {
+      "id": "q12",
+      "kind": "stavfel",
+      "question": "fornlämnigar",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1354",
+          "caption": "Fornlämning",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Kultur"
+        }
+      ]
+    },
+    {
+      "id": "q13",
+      "kind": "stavfel",
+      "question": "översvämmning vid skyfall",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "2002",
+          "caption": "Skyfallsöversvämning",
+          "place": "KrisGIS > Särskilda riskområden"
+        },
+        {
+          "id": "u0guc2",
+          "caption": "Riskområden, vattendjup",
+          "place": "Bygga, bo & miljö > Land och vatten > Skyfallsmodell"
+        },
+        {
+          "id": "11laav",
+          "caption": "Riskområden, varaktighet",
+          "place": "Bygga, bo & miljö > Land och vatten > Skyfallsmodell"
+        },
+        {
+          "id": "40qx55",
+          "caption": "Flödesmodell, intensitet",
+          "place": "Bygga, bo & miljö > Land och vatten > Skyfallsmodell"
+        },
+        {
+          "id": "1578",
+          "caption": "Skyfall, lågpunkter",
+          "place": "(endast sök)"
+        },
+        {
+          "id": "1579",
+          "caption": "Skyfallsmodell (gammal)",
+          "place": "(endast sök)"
+        }
+      ]
+    },
+    {
+      "id": "q14",
+      "kind": "stavfel",
+      "question": "vandrings leder",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1479",
+          "caption": "Hallandsleden",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Vandringsleder"
+        },
+        {
+          "id": "1476",
+          "caption": "Åkulla bokskogar",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Vandringsleder"
+        },
+        {
+          "id": "nzoycs",
+          "caption": "Bua",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Vandringsleder"
+        },
+        {
+          "id": "1477",
+          "caption": "Kungsäterbygden",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Vandringsleder"
+        },
+        {
+          "id": "7731gc",
+          "caption": "Kvarnadalen",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Vandringsleder"
+        },
+        {
+          "id": "bmqtxv",
+          "caption": "Kustleden, arbetsmtrl",
+          "place": "Uppleva & göra > Vandrings- och cykelleder > Vandringsleder"
+        }
+      ]
+    },
+    {
+      "id": "q15",
+      "kind": "stavfel",
+      "question": "cyckelparkering",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "3gaf3p",
+          "caption": "Cykelparkering",
+          "place": "Trafik & infrastruktur > Väg och trafik"
+        }
+      ]
+    },
+    {
+      "id": "q16",
+      "kind": "vardagligt",
+      "question": "Var kan jag släppa hunden lös?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1401",
+          "caption": "Hundrastgårdar",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "q17",
+      "kind": "vardagligt",
+      "question": "Var kan jag lämna grovsopor?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1412",
+          "caption": "Återvinningscentraler",
+          "place": "Trafik & infrastruktur > Infrastruktur"
+        }
+      ]
+    },
+    {
+      "id": "q18",
+      "kind": "vardagligt",
+      "question": "Var kan jag gå på toa på stan?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1406",
+          "caption": "Toaletter, offentliga",
+          "place": "Trafik & infrastruktur > Infrastruktur"
+        }
+      ]
+    },
+    {
+      "id": "q19",
+      "kind": "vardagligt",
+      "question": "Var finns det gupp i gatan?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "b110a08b",
+          "caption": "Farthinder",
+          "place": "Trafik & infrastruktur > Nationell vägdatabas (NVDB)"
+        }
+      ]
+    },
+    {
+      "id": "q20",
+      "kind": "vardagligt",
+      "question": "Var får man köra i 30?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "af3363d3",
+          "caption": "Hastighetsgräns",
+          "place": "Trafik & infrastruktur > Nationell vägdatabas (NVDB)"
+        },
+        {
+          "id": "2023",
+          "caption": "Hastighetsgräns",
+          "place": "Trafik & infrastruktur > Väg och trafik"
+        }
+      ]
+    },
+    {
+      "id": "q21",
+      "kind": "vardagligt",
+      "question": "Vilken skola hör mitt barn till?",
+      "heldOut": false,
+      "review": "20 lager räknas som rätt, båda läsåren. Ska bara det aktuella läsåret räknas?",
+      "expected": [
+        {
+          "id": "1920",
+          "caption": "Årskurs F",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1921",
+          "caption": "Årskurs 1",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1922",
+          "caption": "Årskurs 2",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1923",
+          "caption": "Årskurs 3",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1924",
+          "caption": "Årskurs 4",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1925",
+          "caption": "Årskurs 5",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1926",
+          "caption": "Årskurs 6",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1927",
+          "caption": "Årskurs 7",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1928",
+          "caption": "Årskurs 8",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "1929",
+          "caption": "Årskurs 9",
+          "place": "Barn & utbildning > Upptagningsområden 2025/26"
+        },
+        {
+          "id": "02596d24",
+          "caption": "Årskurs F",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "653a1a1f",
+          "caption": "Årskurs 1",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "4610d817",
+          "caption": "Årskurs 2",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "f1c356b5",
+          "caption": "Årskurs 3",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "cf1c19bc",
+          "caption": "Årskurs 4",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "09f7da15",
+          "caption": "Årskurs 5",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "49342c18",
+          "caption": "Årskurs 6",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "7fac55e6",
+          "caption": "Årskurs 7",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "60d1ec5c",
+          "caption": "Årskurs 8",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        },
+        {
+          "id": "fcec0ad3",
+          "caption": "Årskurs 9",
+          "place": "Barn & utbildning > Upptagningsområden 2026/27"
+        }
+      ]
+    },
+    {
+      "id": "q22",
+      "kind": "vardagligt",
+      "question": "Hur lång tid tar det för brandkåren att komma hit?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1799",
+          "caption": "Körtid, basförmåga",
+          "place": "Omsorg & stöd > Räddningstjänsten Väst"
+        },
+        {
+          "id": "1800",
+          "caption": "Körtid, inledande förmåga",
+          "place": "Omsorg & stöd > Räddningstjänsten Väst"
+        }
+      ]
+    },
+    {
+      "id": "q23",
+      "kind": "vardagligt",
+      "question": "Var får jag flyga drönare?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "2eqbsx",
+          "caption": "Flygzoner, restriktioner",
+          "place": "Trafik & infrastruktur > Varbergs flygplats"
+        }
+      ]
+    },
+    {
+      "id": "q24",
+      "kind": "vardagligt",
+      "question": "Lönar det sig att sätta solceller på mitt tak?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "lsrarl",
+          "caption": "Solpotential, bostäder",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Energi > Solkraft"
+        },
+        {
+          "id": "3tv5lp",
+          "caption": "Solpotential, verksamhet",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Energi > Solkraft"
+        }
+      ]
+    },
+    {
+      "id": "q25",
+      "kind": "vardagligt",
+      "question": "Var hörs Hesa Fredrik?",
+      "heldOut": false,
+      "review": "\"Hesa Fredrik\" står inte i lagrets text, så bara betydelsen kan hitta det.",
+      "expected": [
+        {
+          "id": "1969",
+          "caption": "Utomhuslarm, VMA",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Säkerhet"
+        },
+        {
+          "id": "2013",
+          "caption": "Utomhuslarm, VMA",
+          "place": "KrisGIS > Krisfunktioner"
+        }
+      ]
+    },
+    {
+      "id": "q26",
+      "kind": "vardagligt",
+      "question": "Var fanns de gamla soptipparna?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1363",
+          "caption": "Gamla deponier (Lst inventering)",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa"
+        }
+      ]
+    },
+    {
+      "id": "q27",
+      "kind": "vardagligt",
+      "question": "Var blir det varmast i stan på sommaren?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "32s61e",
+          "caption": "Maxmedeltemp (alla år)",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa > Värmekartor"
+        },
+        {
+          "id": "iglr35",
+          "caption": "Medeltemp 2021-2023",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa > Värmekartor"
+        },
+        {
+          "id": "29imxc",
+          "caption": "Medeltemp 2020-2022",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa > Värmekartor"
+        },
+        {
+          "id": "iw4d89",
+          "caption": "Medeltemp 2019-2021",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa > Värmekartor"
+        },
+        {
+          "id": "b2mwo0",
+          "caption": "Medeltemp 2018-2020",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa > Värmekartor"
+        },
+        {
+          "id": "o1ken1",
+          "caption": "Medeltemp 2017-2019",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa > Värmekartor"
+        },
+        {
+          "id": "kdbdba",
+          "caption": "Medeltemp, förändring",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa > Värmekartor"
+        }
+      ]
+    },
+    {
+      "id": "q28",
+      "kind": "vardagligt",
+      "question": "Var bor det flest människor?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1775",
+          "caption": "Befolkningsmängd, rutnät",
+          "place": "Kommun & politik > Befolkningsdata"
+        },
+        {
+          "id": "1773",
+          "caption": "Befolkningstäthet, dynamisk",
+          "place": "Kommun & politik > Befolkningsdata"
+        },
+        {
+          "id": "1953",
+          "caption": "Befolkningstäthet, rutnät",
+          "place": "Kommun & politik > Befolkningsdata"
+        }
+      ]
+    },
+    {
+      "id": "q29",
+      "kind": "vardagligt",
+      "question": "Var kan man spela frisbeegolf?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "2022",
+          "caption": "Discgolfbana",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "q30",
+      "kind": "vardagligt",
+      "question": "Var kan man sova ute i naturen?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1678",
+          "caption": "Vindskydd",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "q31",
+      "kind": "vardagligt",
+      "question": "Kan det finnas radon i marken här?",
+      "heldOut": false,
+      "review": "Lagren visar uran, inte radon, och texterna nämner inte radon. Är det ett rimligt svar?",
+      "expected": [
+        {
+          "id": "1480",
+          "caption": "Gammastrålning, uran (ppm)",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa"
+        },
+        {
+          "id": "2050",
+          "caption": "Gammastrålning, uran",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa"
+        }
+      ]
+    },
+    {
+      "id": "q32",
+      "kind": "vardagligt",
+      "question": "Vad händer om havet stiger?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1610",
+          "caption": "Havsnivåmodell",
+          "place": "Bygga, bo & miljö > Land och vatten"
+        },
+        {
+          "id": "2003",
+          "caption": "Havsnivåförändring",
+          "place": "KrisGIS > Särskilda riskområden"
+        }
+      ]
+    },
+    {
+      "id": "q33",
+      "kind": "vardagligt",
+      "question": "Var kan jag parkera med handikapptillstånd?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1987",
+          "caption": "Parkering, rörelsehindrade",
+          "place": "Trafik & infrastruktur > Väg och trafik"
+        }
+      ]
+    },
+    {
+      "id": "q34",
+      "kind": "vardagligt",
+      "question": "Vilka bostäder byggs i Varberg just nu?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1886",
+          "caption": "Bostadsområden",
+          "place": "Varberg växer > Byggprojekt"
+        }
+      ]
+    },
+    {
+      "id": "q35",
+      "kind": "metadata",
+      "question": "Vilka områden har kommunalt vatten och avlopp?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1465",
+          "caption": "VIVAB Verksamhetsområde",
+          "place": "Trafik & infrastruktur > Infrastruktur"
+        },
+        {
+          "id": "1779",
+          "caption": "VA-planområden",
+          "place": "Trafik & infrastruktur > Infrastruktur"
+        }
+      ]
+    },
+    {
+      "id": "q36",
+      "kind": "metadata",
+      "question": "Hur mycket trafik går det på vägarna en vanlig dag?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "45d79586",
+          "caption": "ÅDT - Samtliga fordon",
+          "place": "Trafik & infrastruktur > Nationell vägdatabas (NVDB) > Trafikmätning, regional"
+        },
+        {
+          "id": "2028",
+          "caption": "Fordonstrafik",
+          "place": "Trafik & infrastruktur > Väg och trafik > Trafikmätningar"
+        }
+      ]
+    },
+    {
+      "id": "q37",
+      "kind": "metadata",
+      "question": "Vilka detaljplaner håller på att tas fram?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1317",
+          "caption": "Planer och program, pågående",
+          "place": "Bygga, bo & miljö > Detaljplanering"
+        }
+      ]
+    },
+    {
+      "id": "q38",
+      "kind": "metadata",
+      "question": "Hur gamla är husen här?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "2039",
+          "caption": "Nybyggnadsår",
+          "place": "Bygga, bo & miljö > Bebyggelse"
+        },
+        {
+          "id": "1694",
+          "caption": "Bebyggelse, århundrad",
+          "place": "Kommun & politik > Styrdokument och strategier > Varbergs stadskärna"
+        },
+        {
+          "id": "1695",
+          "caption": "Bebyggelse, årsringar",
+          "place": "Kommun & politik > Styrdokument och strategier > Varbergs stadskärna"
+        }
+      ]
+    },
+    {
+      "id": "q39",
+      "kind": "historia",
+      "question": "Hur såg Varberg ut på 1700-talet?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1639",
+          "caption": "Varberg, 1700-tal",
+          "place": "Historiska lager > Tätortsutveckling > Varbergs stadskärna"
+        },
+        {
+          "id": "1670",
+          "caption": "1733: Warbergs fästning",
+          "place": "Historiska lager > Skannade kartor > Äldre områdeskartor"
+        },
+        {
+          "id": "1654",
+          "caption": "1724: Warberg tract charta",
+          "place": "Historiska lager > Skannade kartor > Äldre områdeskartor"
+        },
+        {
+          "id": "1671",
+          "caption": "1770: Warberg situation",
+          "place": "Historiska lager > Skannade kartor > Äldre områdeskartor"
+        },
+        {
+          "id": "1672",
+          "caption": "1778: Warberg inägor",
+          "place": "Historiska lager > Skannade kartor > Äldre områdeskartor"
+        },
+        {
+          "id": "1807",
+          "caption": "1750: Geometrisk avmätning",
+          "place": "Historiska lager > Skannade kartor > Äldre stadskartor"
+        },
+        {
+          "id": "1808",
+          "caption": "1796: Warberg bebyggelse",
+          "place": "Historiska lager > Skannade kartor > Äldre stadskartor"
+        }
+      ]
+    },
+    {
+      "id": "q40",
+      "kind": "historia",
+      "question": "Var gick kustlinjen under bronsåldern?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "1633",
+          "caption": "Bronsåldern: +4m (-3.000 år)",
+          "place": "Historiska lager > Äldre kustlinjer"
+        }
+      ]
+    },
+    {
+      "id": "q41",
+      "kind": "historia",
+      "question": "Var låg vallokalerna vid valet 2022?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1877",
+          "caption": "Vallokaler, 2022",
+          "place": "Kommun & politik > Valinformation > Valet 2022"
+        }
+      ]
+    },
+    {
+      "id": "q42",
+      "kind": "bakgrund",
+      "question": "Kan jag få en mörk bakgrundskarta?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "oobiqd",
+          "caption": "Varbergs Bakgrundskarta, mörk",
+          "place": "(bakgrund)"
+        }
+      ]
+    },
+    {
+      "id": "q43",
+      "kind": "bakgrund",
+      "question": "Byt till OpenStreetMap",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "-3",
+          "caption": "OpenStreetMap",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "-4",
+          "caption": "OpenStreetMap (vektor)",
+          "place": "(bakgrund)"
+        }
+      ]
+    },
+    {
+      "id": "q44",
+      "kind": "bakgrund",
+      "question": "Flygfoto som bakgrund",
+      "heldOut": true,
+      "review": "Bara bakgrunderna räknas, inte ortofotona i lagerträdet. Stämmer det?",
+      "expected": [
+        {
+          "id": "6inij1",
+          "caption": "Ortofoto 2025 juni, Lantmäteriet",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "2djfd7",
+          "caption": "Ortofoto 2024 maj, Kommunen",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "2025",
+          "caption": "Ortofoto 2023 april, Lantmäteriet",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "1917",
+          "caption": "Ortofoto 2022 juli, Kommunen",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "1778",
+          "caption": "Ortofoto 2021 våren, Lantmäteriet",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "1519",
+          "caption": "Ortofoto 2020 april, Kommunen",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "2026",
+          "caption": "Ortofoto 2024 maj, gråtonad",
+          "place": "(bakgrund)"
+        },
+        {
+          "id": "yd12zb",
+          "caption": "Ortofoto 2024 maj, infraröd",
+          "place": "(bakgrund)"
+        }
+      ]
+    },
+    {
+      "id": "q45",
+      "kind": "söklager",
+      "question": "Rondeller",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "6c66e5d1-df13-24bf-d1ea-f242eb036162",
+          "caption": "Rondell",
+          "place": "(endast sök)"
+        },
+        {
+          "id": "1880",
+          "caption": "Cirkulationsplatser",
+          "place": "Trafik & infrastruktur > Väg och trafik"
+        }
+      ]
+    },
+    {
+      "id": "q46",
+      "kind": "söklager",
+      "question": "Vilka stadsdelar finns det?",
+      "heldOut": false,
+      "expected": [
+        {
+          "id": "b4ae90e2-f23c-0328-d46b-b8500a52a074",
+          "caption": "Stadsdel",
+          "place": "(endast sök)"
+        },
+        {
+          "id": "1858",
+          "caption": "Stadsdelskarta",
+          "place": "Kommun & politik > Kommunindelning"
+        },
+        {
+          "id": "2042",
+          "caption": "Stadsdelsområde",
+          "place": "Kommun & politik > Kommunindelning"
+        }
+      ]
+    }
+  ]
+}

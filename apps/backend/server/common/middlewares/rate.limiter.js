@@ -85,6 +85,9 @@ export const proxyLimiter = createLimiter(
   3000
 );
 
+const userOrIpKey = (req, res) =>
+  res.locals.authUser ? `user:${res.locals.authUser}` : ipKeyGenerator(req.ip);
+
 // Applies to submissions of user feedback. Much stricter than the others, and counted
 // per authenticated user if there is one (else per IP).
 export const feedbackLimiter = createLimiter(
@@ -94,9 +97,14 @@ export const feedbackLimiter = createLimiter(
   {
     windowEnvName: "RATE_LIMIT_FEEDBACK_WINDOW_MS",
     defaultWindowMs: 3_600_000,
-    keyGenerator: (req, res) =>
-      res.locals.authUser
-        ? `user:${res.locals.authUser}`
-        : ipKeyGenerator(req.ip),
+    keyGenerator: userOrIpKey,
   }
 );
+
+// Applies to questions to the AI chat, where every request costs money. Counted per
+// authenticated user if there is one (else per IP). See also AI_DAILY_MAX_TURNS.
+export const aiLimiter = createLimiter("ai", "RATE_LIMIT_AI_MAX", 20, {
+  windowEnvName: "RATE_LIMIT_AI_WINDOW_MS",
+  defaultWindowMs: 60_000,
+  keyGenerator: userOrIpKey,
+});

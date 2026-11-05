@@ -1,0 +1,511 @@
+{
+  "description": "Draft of the held-out questions for the retrieval evaluation through the chat, written from the layer config without running them through search or the chat. A question passes if any of its expected layers is in the top 5 of any search in the turn. They must not be used for tuning, and can only be run once. The ids are from the production config in App_Data.",
+  "map": "map_1",
+  "questions": [
+    {
+      "id": "c01",
+      "kind": "exakt",
+      "question": "Finns det skyddsrum i kommunen?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1359",
+          "caption": "Skyddsrum",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Säkerhet"
+        },
+        {
+          "id": "2015",
+          "caption": "Skyddsrum",
+          "place": "KrisGIS > Samlingsplatser"
+        }
+      ]
+    },
+    {
+      "id": "c02",
+      "kind": "exakt",
+      "question": "Visa fjärrvärmenätet",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "6juwis",
+          "caption": "Befintligt fjärrvärmenät",
+          "place": "Trafik & infrastruktur > Infrastruktur > VEAB Utbyggnadsplan"
+        },
+        {
+          "id": "ogubae",
+          "caption": "Utbyggnadsstrategi fjärrvärme",
+          "place": "Trafik & infrastruktur > Infrastruktur > VEAB Utbyggnadsplan"
+        }
+      ]
+    },
+    {
+      "id": "c03",
+      "kind": "böjning",
+      "question": "Var kan man snorkla?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1505",
+          "caption": "Snorkelled",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "c04",
+      "kind": "böjning",
+      "question": "Finns det några solcellsparker?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "qtejvj",
+          "caption": "Solparker",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Energi > Solkraft"
+        }
+      ]
+    },
+    {
+      "id": "c05",
+      "kind": "böjning",
+      "question": "Var ligger gästhamnen?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "vab6m6",
+          "caption": "Gästhamnar",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "c06",
+      "kind": "stavfel",
+      "question": "biblotek",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1417",
+          "caption": "Bibliotek",
+          "place": "Uppleva & göra > Kultur, fritid och turism"
+        },
+        {
+          "id": "2008",
+          "caption": "Bibliotek",
+          "place": "KrisGIS > Samlingsplatser"
+        },
+        {
+          "id": "1574",
+          "caption": "Bibliotek",
+          "place": "(search)"
+        }
+      ]
+    },
+    {
+      "id": "c07",
+      "kind": "stavfel",
+      "question": "lekplattser",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1404",
+          "caption": "Lekplatser, kommunala",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "c08",
+      "kind": "stavfel",
+      "question": "parkerings hus",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1847",
+          "caption": "Parkeringshus",
+          "place": "Bygga, bo & miljö > Varbergs Fastighets AB"
+        },
+        {
+          "id": "mnes7z",
+          "caption": "Parkeringshus",
+          "place": "Trafik & infrastruktur > Väg och trafik"
+        }
+      ]
+    },
+    {
+      "id": "c09",
+      "kind": "vardagligt",
+      "question": "Var kan jag ladda bilen?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1403",
+          "caption": "Laddplatser för elbil",
+          "place": "Trafik & infrastruktur > Väg och trafik"
+        }
+      ]
+    },
+    {
+      "id": "c10",
+      "kind": "vardagligt",
+      "question": "Var kan vi grilla korv?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1400",
+          "caption": "Grillplatser, kommunala",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "c11",
+      "kind": "vardagligt",
+      "question": "Var kan jag träna utomhus utan att betala?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1508",
+          "caption": "Utegym",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        },
+        {
+          "id": "1405",
+          "caption": "Motionsspår",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "c12",
+      "kind": "vardagligt",
+      "question": "Var kan jag slänga glas och tidningar?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1411",
+          "caption": "Återvinningsstationer",
+          "place": "Trafik & infrastruktur > Infrastruktur"
+        }
+      ]
+    },
+    {
+      "id": "c13",
+      "kind": "vardagligt",
+      "question": "Var hittar jag en tandläkare?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "440",
+          "caption": "Folktandvård",
+          "place": "Omsorg & stöd"
+        }
+      ]
+    },
+    {
+      "id": "c14",
+      "kind": "vardagligt",
+      "question": "Vad gäller om det händer något på kärnkraftverket?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1970",
+          "caption": "Ringhals, beredskapszoner",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Säkerhet"
+        },
+        {
+          "id": "1971",
+          "caption": "Ringhals, uppsamlingsplatser",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Säkerhet"
+        },
+        {
+          "id": "2011",
+          "caption": "Beredskapszoner",
+          "place": "KrisGIS > Ringhals, zoner & platser"
+        },
+        {
+          "id": "2012",
+          "caption": "Uppsamlingsplats",
+          "place": "KrisGIS > Ringhals, zoner & platser"
+        },
+        {
+          "id": "1341",
+          "caption": "Ringhals, förordnandeområde",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Säkerhet"
+        }
+      ]
+    },
+    {
+      "id": "c15",
+      "kind": "vardagligt",
+      "question": "Var kan jag ställa husbilen?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1988",
+          "caption": "Parkering, husbilar",
+          "place": "Trafik & infrastruktur > Väg och trafik"
+        }
+      ]
+    },
+    {
+      "id": "c16",
+      "kind": "vardagligt",
+      "question": "Var kan tonåringar hänga efter skolan?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1421",
+          "caption": "Ungdomsgårdar",
+          "place": "Barn & utbildning"
+        },
+        {
+          "id": "1996",
+          "caption": "Ungdomshäng",
+          "place": "Uppleva & göra > Idrott, motion och friluftsliv"
+        }
+      ]
+    },
+    {
+      "id": "c17",
+      "kind": "vardagligt",
+      "question": "Var går bussarna?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1851",
+          "caption": "Huvudlinje (hög turtäthet)",
+          "place": "Trafik & infrastruktur > Kollektivtrafik > Busslinjer > Regiontrafik"
+        },
+        {
+          "id": "1852",
+          "caption": "Huvudlinje (hög turtäthet)",
+          "place": "Trafik & infrastruktur > Kollektivtrafik > Busslinjer > Stadstrafik"
+        },
+        {
+          "id": "1854",
+          "caption": "Övrig trafik (låg turtäthet)",
+          "place": "Trafik & infrastruktur > Kollektivtrafik > Busslinjer > Regiontrafik"
+        },
+        {
+          "id": "1855",
+          "caption": "Övrig trafik (låg turtäthet)",
+          "place": "Trafik & infrastruktur > Kollektivtrafik > Busslinjer > Stadstrafik"
+        }
+      ]
+    },
+    {
+      "id": "c18",
+      "kind": "vardagligt",
+      "question": "Hur brant är backen här?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "yp259i",
+          "caption": "Marklutning",
+          "place": "Bygga, bo & miljö > Topografi"
+        },
+        {
+          "id": "1692",
+          "caption": "Lutningsrelief",
+          "place": "Historiska lager > Landskapsformer"
+        }
+      ]
+    },
+    {
+      "id": "c19",
+      "kind": "vardagligt",
+      "question": "Var står vindsnurrorna?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1997",
+          "caption": "Vindkraftverk",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Energi > Vindkraft"
+        }
+      ]
+    },
+    {
+      "id": "c20",
+      "kind": "metadata",
+      "question": "Får jag bygga nära vattnet?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1503",
+          "caption": "Kust och större sjöar",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Strandskydd"
+        },
+        {
+          "id": "1376",
+          "caption": "Övrig vattenförekomst",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Strandskydd"
+        },
+        {
+          "id": "1345",
+          "caption": "Upphävt strandskydd, via länsstyrelsebeslut",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Strandskydd"
+        },
+        {
+          "id": "1564",
+          "caption": "Upphävt strandskydd, via detaljplan",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Strandskydd"
+        }
+      ]
+    },
+    {
+      "id": "c21",
+      "kind": "metadata",
+      "question": "Har marken här blivit förgiftad av gammal industri?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1866",
+          "caption": "Förorenad mark (EBH)",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa"
+        },
+        {
+          "id": "1333",
+          "caption": "Förorenad mark, riskområde",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Miljö och hälsa"
+        }
+      ]
+    },
+    {
+      "id": "c22",
+      "kind": "metadata",
+      "question": "Var skyddas dricksvattnet?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1349",
+          "caption": "Vattenskyddsområde",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Natur"
+        }
+      ]
+    },
+    {
+      "id": "c23",
+      "kind": "metadata",
+      "question": "Var kommer en hög lastbil inte fram?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "3bef2c8c",
+          "caption": "Höjdhinder",
+          "place": "Trafik & infrastruktur > Nationell vägdatabas (NVDB)"
+        }
+      ]
+    },
+    {
+      "id": "c24",
+      "kind": "metadata",
+      "question": "Finns det hotade djur och växter här?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "ntgyge",
+          "caption": "Rödlistade arter",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Artportalen"
+        },
+        {
+          "id": "sqytmv",
+          "caption": "Skyddade arter",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Artportalen"
+        },
+        {
+          "id": "1350",
+          "caption": "Djur- och växtskyddsområde",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Natur"
+        }
+      ]
+    },
+    {
+      "id": "c25",
+      "kind": "metadata",
+      "question": "Vilken mark äger kommunen?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1472",
+          "caption": "Fastighet, kommunägd",
+          "place": "Bygga, bo & miljö > Planeringsförutsättning > Mark"
+        }
+      ]
+    },
+    {
+      "id": "c26",
+      "kind": "historia",
+      "question": "Vilka vägar fanns här på medeltiden?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1642",
+          "caption": "1200-tal: Via Regia",
+          "place": "Historiska lager > Äldre färdvägar"
+        },
+        {
+          "id": "1638",
+          "caption": "900-tal: Järnbärarvägen",
+          "place": "Historiska lager > Äldre färdvägar"
+        }
+      ]
+    },
+    {
+      "id": "c27",
+      "kind": "historia",
+      "question": "Hur såg stan ut på 60-talet?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1659",
+          "caption": "Varberg, 1960",
+          "place": "Historiska lager > Tätortsutveckling > Varbergs stadskärna"
+        },
+        {
+          "id": "1625",
+          "caption": "1959-66: Ekonomisk karta",
+          "place": "Historiska lager > Skannade kartor > Äldre kartverk"
+        }
+      ]
+    },
+    {
+      "id": "c28",
+      "kind": "bakgrund",
+      "question": "Jag vill ha en grå karta i bakgrunden",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "znd9b4",
+          "caption": "Varbergs Bakgrundskarta, grå",
+          "place": "(background)"
+        }
+      ]
+    },
+    {
+      "id": "c29",
+      "kind": "bakgrund",
+      "question": "Gör bakgrunden helt vit",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "-1",
+          "caption": "Vit",
+          "place": "(background)"
+        }
+      ]
+    },
+    {
+      "id": "c30",
+      "kind": "söklager",
+      "question": "Vilka öar finns det?",
+      "heldOut": true,
+      "expected": [
+        {
+          "id": "1884",
+          "caption": "Ö",
+          "place": "(search)"
+        }
+      ]
+    }
+  ]
+}
