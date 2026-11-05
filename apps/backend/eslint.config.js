@@ -3,6 +3,7 @@ import globals from "globals";
 import nodePlugin from "eslint-plugin-n";
 import prettierConfig from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
+import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 // Flat config for ESLint 9, following the same pattern as the client config.
@@ -27,6 +28,30 @@ export default defineConfig([
     rules: {
       "prettier/prettier": "error", // run Prettier as an ESLint rule
       "no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  {
+    files: ["server/**/*.ts"],
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.recommended,
+      nodePlugin.configs["flat/recommended"],
+    ],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: globals.node,
+    },
+    plugins: {
+      prettier: prettierPlugin,
+    },
+    rules: {
+      "prettier/prettier": "error",
+      "no-unused-vars": "off", // Replaced by the TypeScript aware rule below
+      "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],

@@ -1,4 +1,4 @@
 {
   "watch": ["server/**/*.*", ".env"],
-  "ext": "js,json,mjs,yaml,yml"
+  "ext": "js,json,mjs,ts,yaml,yml"
 }

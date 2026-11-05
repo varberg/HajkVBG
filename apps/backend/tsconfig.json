@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "noEmit": true, // Node runs the .ts files directly through type stripping, tsc only type checks.
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "erasableSyntaxOnly": true, // Type stripping can't handle enums, parameter properties and so on.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true, // A type imported without `import type` could survive stripping and crash at runtime.
+    "allowJs": true,
+    "checkJs": false // The existing JS services stay unchecked, same as in the client.
+  },
+  "include": ["server/**/*.ts", "test/**/*.ts"]
+}
