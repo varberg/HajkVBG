@@ -1,4 +1,11 @@
-import { after, before, describe, test } from "node:test";
+import {
+  after,
+  afterEach,
+  before,
+  beforeEach,
+  describe,
+  test,
+} from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "child_process";
 import fs from "fs";
@@ -11,10 +18,20 @@ import {
   buildCatalog,
   cleanHtml,
   cleanInline,
+  infoboxFields,
   walkMapConfig,
 } from "../../server/apis/v2/services/ai/catalog.service.ts";
-import type { ConfigSource } from "../../server/apis/v2/services/ai/catalog.service.ts";
-import { layersStore, mapConfig } from "./fixtures.ts";
+import type {
+  ConfigSource,
+  RawMapConfig,
+} from "../../server/apis/v2/services/ai/catalog.service.ts";
+import {
+  featureMapConfig,
+  featureStore,
+  layersStore,
+  mapConfig,
+  wfsSource,
+} from "./fixtures.ts";
 
 // Run with: npm test (loads .env.example, so the logger has what it needs)
 
@@ -434,5 +451,147 @@ describe("CatalogService", () => {
       ["--input-type=module", "--eval", script],
       { timeout: 15000 }
     );
+  });
+});
+
+describe("infoboxFields", () => {
+  test("finds plain placeholders", () => {
+    assert.deepEqual(infoboxFields("<b>{namn}</b>, { typ }"), ["namn", "typ"]);
+  });
+
+  test("cuts a placeholder at a format or a plugin", () => {
+    assert.deepEqual(
+      infoboxFields(
+        '{adat|date} {url@@documenthandler} {x|hasValue("a", "b")}'
+      ),
+      ["adat", "url", "x"]
+    );
+  });
+
+  test("leaves out conditions and what isn't a field", () => {
+    assert.deepEqual(
+      infoboxFields("<style>td{color:red}</style>{{if a}}{b}{{/if}}{{else}}{}"),
+      ["b"]
+    );
+  });
+
+  test("keeps Swedish field names", () => {
+    assert.deepEqual(infoboxFields("{ägare}"), ["ägare"]);
+  });
+
+  test("handles a missing infobox", () => {
+    assert.deepEqual(infoboxFields(null), []);
+  });
+});
+
+describe("feature sources", () => {
+  const withSources = (featureSources: unknown) =>
+    walkMapConfig({
+      tools: [{ type: "aichat", options: { featureSources } }],
+    }).featureSources;
+
+  const connections = (config: RawMapConfig = featureMapConfig()) =>
+    buildCatalog("demo", config, featureStore()).featureConnections;
+
+  // One source with its own store entry, to try what can be wrong with it
+  const connectionOf = (overrides: object, projection = "EPSG:3007") =>
+    buildCatalog(
+      "demo",
+      {
+        map: { projection },
+        tools: [
+          { type: "search", options: { layers: [{ id: "a" }] } },
+          { type: "aichat", options: { featureSources: [{ id: "a" }] } },
+        ],
+      },
+      { wfslayers: [wfsSource("a", overrides)] }
+    ).featureConnections.get("a");
+
+  test("reads the list from the aichat tool", () => {
+    assert.deepEqual(
+      withSources([
+        {
+          id: 1251,
+          description: "<p>Alla  adresser</p>",
+          extraFields: ["a", "b c", 5],
+        },
+      ]),
+      [
+        {
+          id: "1251",
+          description: "Alla adresser",
+          extraFields: ["a"],
+        },
+      ]
+    );
+  });
+
+  test("gives no sources without a list", () => {
+    assert.deepEqual(withSources(undefined), []);
+    assert.deepEqual(walkMapConfig({ tools: [] }).featureSources, []);
+  });
+
+  test("skips entries without an id", () => {
+    assert.deepEqual(withSources([{ description: "Ingen" }, null]), []);
+  });
+
+  test("keeps the list out of what the chat may tell about the map", () => {
+    const { info } = walkMapConfig(featureMapConfig());
+    assert.equal(JSON.stringify(info).includes("adress"), false);
+  });
+
+  test("holds what it takes to reach a source", () => {
+    assert.deepEqual(connections().get("adress"), {
+      url: "https://secret.example.com/wfs",
+      typeName: "ws:adress",
+      geometryField: "the_geom",
+      srsName: "EPSG:3007",
+      searchFields: ["sok"],
+      displayFields: ["sok", '"Adress"', "postort"],
+      infobox:
+        "<style>td{color:red}</style>{gata} {adat|date} {kod@@documenthandler} {{if villkor}}{the_geom}{{/if}}",
+    });
+  });
+
+  test("needs a source to be listed, in Search and a WFS layer", () => {
+    assert.deepEqual([...connections().keys()].sort(), [
+      "adress",
+      "begransad",
+      "sjo",
+    ]);
+  });
+
+  test("keeps URLs out of the records", () => {
+    const { records } = buildCatalog(
+      "demo",
+      featureMapConfig(),
+      featureStore()
+    );
+    assert.equal(JSON.stringify(records).includes("secret.example.com"), false);
+  });
+
+  test("defaults the geometry field like Search", () => {
+    assert.equal(connectionOf({ geometryField: "" })?.geometryField, "geom");
+  });
+
+  test("reads field lists written as text", () => {
+    const connection = connectionOf({
+      searchFields: "namn, beteckning",
+      displayFields: "namn,",
+    });
+    assert.deepEqual(connection?.searchFields, ["namn", "beteckning"]);
+    assert.deepEqual(connection?.displayFields, ["namn"]);
+  });
+
+  test("leaves out a source that can't be queried", () => {
+    assert.equal(connectionOf({ searchFields: [""] }), undefined);
+    assert.equal(connectionOf({ url: undefined }), undefined);
+    assert.equal(connectionOf({ layers: [] }), undefined);
+    assert.equal(connectionOf({ layers: ["ws:a", "ws:b"] }), undefined);
+  });
+
+  test("needs the projection of the map", () => {
+    const config = { ...featureMapConfig(), map: {} };
+    assert.equal(connections(config).size, 0);
   });
 });

@@ -22,6 +22,8 @@ export const UI_STRINGS = {
   truncated: "Svaret blev för långt och är avkortat.",
   pluginUnavailable: "Verktyget kunde inte öppnas.",
   placeUnavailable: "Platsen kunde inte visas.",
+  featuresUnavailable: "Alla träffar kunde inte visas på kartan.",
+  searchUnavailable: "Sökningen är inte tillgänglig i den här kartan.",
 };
 
 export const TOOL_STATUS: Record<string, string> = {
@@ -36,6 +38,9 @@ export const TOOL_STATUS: Record<string, string> = {
   open_plugin: "Öppnar verktyget…",
   close_plugin: "Stänger verktyget…",
   go_to_place: "Går till platsen…",
+  search_features: "Söker i kartans data…",
+  show_features: "Visar träffarna på kartan…",
+  clear_features: "Rensar sökresultaten…",
 };
 
 const GENERIC_ERROR = "Det gick inte att få ett svar. Försök igen senare.";

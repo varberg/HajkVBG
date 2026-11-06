@@ -23,7 +23,11 @@ import type {
   ToolResult,
 } from "../../server/apis/v2/services/ai/providers/types.ts";
 import { registry } from "../../server/apis/v2/services/ai/tools.ts";
-import type { ToolDefinition } from "../../server/apis/v2/services/ai/tools.ts";
+import type {
+  ToolContext,
+  ToolDefinition,
+} from "../../server/apis/v2/services/ai/tools.ts";
+import type { WfsAccess } from "../../server/apis/v2/services/ai/features/wfsAccess.ts";
 import { AccessError } from "../../server/apis/v2/utils/AccessError.js";
 import { layersStore, mapConfig } from "./fixtures.ts";
 
@@ -125,7 +129,13 @@ interface Setup {
     user?: string
   ) => Promise<ReturnType<typeof userCatalog>>;
   now?: () => number;
+  wfs?: WfsAccess;
 }
+
+const noWfs: WfsAccess = {
+  connectionOf: async () => undefined,
+  query: () => Promise.reject(new Error("No source in this test.")),
+};
 
 const orchestrator = (setup: Setup) =>
   new Orchestrator({
@@ -133,6 +143,7 @@ const orchestrator = (setup: Setup) =>
     registry: setup.registry ?? registry,
     limits: { ...limits, ...setup.limits },
     search: { search: async () => ({ hits: [], mode: "keyword" }) },
+    wfs: setup.wfs ?? noWfs,
     access: {
       getUserCatalog:
         setup.access ?? (async (map) => ({ ...userCatalog(), map })),
@@ -827,5 +838,49 @@ describe("access", () => {
     const { conversationId } = await ask(chat);
     allowed = false;
     await assert.rejects(ask(chat, { conversationId }), AccessError);
+  });
+});
+
+describe("feature searches across turns", () => {
+  const seen: ToolContext[] = [];
+  const spying = fakeRegistry(async (_name, _input, context) => {
+    seen.push(context);
+    context.wfsRequests += 1;
+    return okRun;
+  });
+
+  const runTwoTurns = async () => {
+    seen.length = 0;
+    const { provider } = fakeProvider([
+      callTools(call("read_a")),
+      answer(),
+      callTools(call("read_a")),
+      answer(),
+    ]);
+    const chat = orchestrator({ provider, registry: spying });
+    const first = await chat.beginTurn(request());
+    await chat.runTurn(first, () => {}, new AbortController().signal);
+    const second = await chat.beginTurn(
+      request({ conversationId: first.conversation.id })
+    );
+    await chat.runTurn(second, () => {}, new AbortController().signal);
+  };
+
+  test("what was found stays for the next turn", async () => {
+    await runTwoTurns();
+    assert.equal(seen[0].featureResults, seen[1].featureResults);
+  });
+
+  test("the request cap starts over with each turn", async () => {
+    await runTwoTurns();
+    assert.notEqual(seen[0], seen[1]);
+    assert.equal(seen[1].wfsRequests, 1);
+  });
+
+  test("conversations don't share what they found", async () => {
+    await runTwoTurns();
+    const results = seen[0].featureResults;
+    await runTwoTurns();
+    assert.notEqual(seen[0].featureResults, results);
   });
 });

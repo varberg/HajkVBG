@@ -47,6 +47,7 @@ class Search extends React.PureComponent {
     ),
     failedWFSFetchMessage: "",
     resultPanelCollapsed: false,
+    searchResultsKey: 0,
   };
 
   // Used for setTimeout/clearTimeout, in order to delay update of autocomplete when user is typing
@@ -165,6 +166,16 @@ class Search extends React.PureComponent {
       });
     });
 
+    // Make it possible for other components to show results they already have,
+    // as { source, origin, value: { features } }, the same way as a search does.
+    this.globalObserver.subscribe(
+      "search.showFeatureCollections",
+      this.handleShowFeatureCollections
+    );
+
+    // The same as clearing the search by hand, without moving the focus here.
+    this.globalObserver.subscribe("search.clearResults", this.handleOnClear);
+
     // Command palette needs access to focus the input.
     this.globalObserver.subscribe("search.focusInput", () => {
       const input = document.getElementById("searchInputField");
@@ -233,6 +244,17 @@ class Search extends React.PureComponent {
         }
       );
     });
+  };
+
+  handleShowFeatureCollections = (featureCollections) => {
+    // These results can arrive while earlier ones are open. They replace them,
+    // and whatever was drawn, as the map would otherwise fit to that instead.
+    this.resetFeaturesToFilter();
+    this.localObserver.publish("clearMapView");
+    this.setState({ searchActive: "" });
+
+    this.addFeatureLabels(featureCollections);
+    this.showResults({ featureCollections, errors: [] });
   };
 
   doFeaturesSearch = (features) => {
@@ -714,16 +736,7 @@ class Search extends React.PureComponent {
         searchResults.errors.length > 0 &&
           console.error("Autocomplete error: ", searchResults.errors);
 
-        // Prepare all features so that they do have titles/short titles
-        searchResults.featureCollections.forEach((fc) => {
-          fc.value.features.forEach((f) => {
-            const { featureTitle, shortFeatureTitle, secondaryLabelFields } =
-              this.getFeatureLabels(f, fc.source);
-            f.featureTitle = featureTitle;
-            f.shortFeatureTitle = shortFeatureTitle;
-            f.secondaryLabelFields = secondaryLabelFields;
-          });
-        });
+        this.addFeatureLabels(searchResults.featureCollections);
 
         return searchResults;
       })
@@ -770,17 +783,23 @@ class Search extends React.PureComponent {
     this.setState({ loading: true });
     const fetchOptions = this.getSearchResultsFetchSettings();
     const searchResults = await this.fetchResultFromSearchModel(fetchOptions);
+    this.showResults(searchResults);
+  }
+
+  showResults(searchResults) {
     const failedWFSFetchMessage =
       this.getPotentialWFSErrorMessage(searchResults);
 
-    this.setState({
+    this.setState((state) => ({
       searchResults,
       showSearchResults: true,
       loading: false,
       autoCompleteOpen: false,
       failedWFSFetchMessage,
       resultPanelCollapsed: false,
-    });
+      // The results panel only reads its results when it mounts
+      searchResultsKey: state.searchResultsKey + 1,
+    }));
 
     let features = this.extractFeaturesFromFeatureCollections(
       searchResults.featureCollections
@@ -805,6 +824,19 @@ class Search extends React.PureComponent {
       );
     }
   }
+
+  // Prepare all features so that they do have titles/short titles
+  addFeatureLabels = (featureCollections) => {
+    featureCollections.forEach((fc) => {
+      fc.value.features.forEach((f) => {
+        const { featureTitle, shortFeatureTitle, secondaryLabelFields } =
+          this.getFeatureLabels(f, fc.source);
+        f.featureTitle = featureTitle;
+        f.shortFeatureTitle = shortFeatureTitle;
+        f.secondaryLabelFields = secondaryLabelFields;
+      });
+    });
+  };
 
   getFeatureLabels = (feature, source) => {
     if (
@@ -1069,6 +1101,7 @@ class Search extends React.PureComponent {
       searchTools,
       failedWFSFetchMessage,
       resultPanelCollapsed,
+      searchResultsKey,
     } = this.state;
 
     return (
@@ -1087,6 +1120,7 @@ class Search extends React.PureComponent {
           autoCompleteOpen={autoCompleteOpen}
           showSearchResults={showSearchResults}
           resultPanelCollapsed={resultPanelCollapsed}
+          searchResultsKey={searchResultsKey}
           toggleCollapseSearchResults={this.toggleCollapseSearchResults}
           handleOnAutocompleteInputChange={this.handleOnAutocompleteInputChange}
           handleOnClear={this.handleOnClear}

@@ -12,18 +12,22 @@ import type {
   LayerType,
   SubLayer,
 } from "./catalog.service.ts";
+import { searchFeatures, showFeatures } from "./features/featureSearch.ts";
+import type { SearchInput, ShowInput } from "./features/featureSearch.ts";
+import type { FeatureResultStore } from "./features/featureResults.ts";
+import type { Feature } from "./features/geojson.ts";
+import type { WfsAccess } from "./features/wfsAccess.ts";
 import type { SearchService } from "./search/search.service.ts";
+import { NOT_FOUND, PAGE_SIZE, ToolError, readOffset } from "./toolSupport.ts";
+
+export { PAGE_SIZE };
 
 const logger = log4js.getLogger("service.ai.tools");
 
-export const PAGE_SIZE = 25;
 const DEFAULT_SEARCH_LIMIT = 10;
 const MAX_SEARCH_LIMIT = 25;
 const MAX_PRESENTED = 25;
 
-// The same answer for a layer that doesn't exist and one the user can't reach,
-// so that a rejection never confirms that a restricted layer is there.
-const NOT_FOUND = "Unknown id.";
 const NO_SUCH_PLUGIN = "There is no such tool.";
 
 /**
@@ -68,6 +72,12 @@ export interface PresentedLayer {
 
 type PluginAction = "open_plugin" | "close_plugin";
 
+/** Features for the Search panel, with all properties so that the infobox works. */
+export interface FeatureSet {
+  sourceId: string;
+  featureCollection: { type: "FeatureCollection"; features: Feature[] };
+}
+
 export type ToolEvent =
   | { type: "layers"; items: PresentedLayer[] }
   | {
@@ -78,7 +88,9 @@ export type ToolEvent =
     }
   | { type: "action"; action: "set_background"; id: string }
   | { type: "action"; action: PluginAction; plugin: string }
-  | { type: "action"; action: "go_to_place"; place: string };
+  | { type: "action"; action: "go_to_place"; place: string }
+  | { type: "action"; action: "show_features"; collections: FeatureSet[] }
+  | { type: "action"; action: "clear_features" };
 
 export interface ToolContext {
   userCatalog: UserCatalog;
@@ -86,6 +98,13 @@ export interface ToolContext {
   maxLayersOn: number;
   /** The layers on the map, kept up to date by the actions of the turn. */
   visibleLayers: Set<string>;
+  wfs: WfsAccess;
+  /** Lives as long as the conversation. */
+  featureResults: FeatureResultStore;
+  /** Aborts with the turn. */
+  signal: AbortSignal;
+  /** WFS requests so far in this turn. */
+  wfsRequests: number;
 }
 
 interface ToolOutput {
@@ -103,9 +122,6 @@ export interface ToolRun {
   isError: boolean;
   events: ToolEvent[];
 }
-
-/** An error meant for the model, which can correct itself and try again. */
-class ToolError extends Error {}
 
 const typeOf = (value: unknown): string => {
   if (value === null) return "null";
@@ -172,6 +188,11 @@ const idList = (description: string): JsonSchema => ({
   description,
 });
 
+const nullable = (schema: JsonSchema): JsonSchema => ({
+  ...schema,
+  type: [schema.type as string, "null"],
+});
+
 const offsetSchema: JsonSchema = {
   type: ["integer", "null"],
   description: "How many items to skip, to fetch a later page. Null means 0.",
@@ -193,13 +214,6 @@ const byPlace = (a: CatalogRecord, b: CatalogRecord): number =>
   collator.compare(pathText(a.groupPath), pathText(b.groupPath)) ||
   collator.compare(a.caption, b.caption) ||
   collator.compare(a.id, b.id);
-
-function readOffset(offset: number | null): number {
-  if (offset !== null && offset < 0) {
-    throw new ToolError("offset can't be negative.");
-  }
-  return offset ?? 0;
-}
 
 function page<T>(items: T[], offset: number) {
   const slice = items.slice(offset, offset + PAGE_SIZE);
@@ -834,6 +848,96 @@ export const tools: Tool[] = [
         ],
       };
     },
+  }),
+
+  define<SearchInput>({
+    name: "search_features",
+    kind: "read",
+    description: `Query the live data of one feature source, such as its addresses, schools or lakes. The sources and their fields are listed in your instructions. All criteria must match, and null means no criterion. Returns ${PAGE_SIZE} features per page, with \`total\` (all matches), \`reachable\` (how many can be paged through), \`truncated\` and a \`resultId\` for show_features. A feature's \`id\` can be used in \`near\`, and its \`title\` can be empty. Geometry is never returned.`,
+    inputSchema: object({
+      source_id: { type: "string", description: "The id of a source." },
+      text: {
+        type: ["string", "null"],
+        description:
+          "Found anywhere in the search fields of the source, ignoring case, and matched as one phrase.",
+      },
+      filters: nullable({
+        type: "array",
+        items: object({
+          field: { type: "string", description: "A field of the source." },
+          op: {
+            type: "string",
+            enum: ["eq", "ne", "lt", "lte", "gt", "gte", "like"],
+            description:
+              "`like` means that the field contains the value. `ne` also matches features with no value.",
+          },
+          value: {
+            type: "string",
+            description: "The value, also for numeric fields.",
+          },
+        }),
+        description: "Conditions on the fields of the source.",
+      }),
+      near: nullable({
+        ...object({
+          feature_id: {
+            type: "string",
+            description: "The id of a feature from an earlier search.",
+          },
+          distance_m: {
+            type: "integer",
+            description: "In metres. 0 means intersecting the feature.",
+          },
+        }),
+        description:
+          "Only features near another feature, nearest first and with `distanceM`, unless `sort` is set. If there are too many to sort by distance, the result has `tooMany` and no features.",
+      }),
+      sort: nullable({
+        ...object({
+          field: { type: "string", description: "A field of the source." },
+          descending: {
+            type: "boolean",
+            description: "True gives the highest value first.",
+          },
+        }),
+        description:
+          "The order. Features with no value in the field are left out, also from `total`.",
+      }),
+      count_only: {
+        type: "boolean",
+        description: "True returns only `total`, and ignores `sort`.",
+      },
+      offset: offsetSchema,
+    }),
+    run: async (input, context) => ({
+      result: await searchFeatures(input, context),
+    }),
+  }),
+
+  define<ShowInput>({
+    name: "show_features",
+    kind: "action",
+    description:
+      "Show features from earlier searches in the Search panel and on the map, which also zooms there. Replaces what the panel showed before. Always check `shown`, `truncated` and `rejected` before telling the user what happened.",
+    inputSchema: object({
+      result_ids: idList("The `resultId` of the searches to show."),
+      feature_ids: nullable(
+        idList("Only these features of the results. Null means all of them.")
+      ),
+    }),
+    run: showFeatures,
+  }),
+
+  define<Record<string, never>>({
+    name: "clear_features",
+    kind: "action",
+    description:
+      "Clear the Search panel and remove all search results from the map, the same way as the user clearing the search. It always clears everything, also what the user searched for themselves, and can't remove only some of the features.",
+    inputSchema: object({}),
+    run: () => ({
+      result: { cleared: true },
+      events: [{ type: "action", action: "clear_features" }],
+    }),
   }),
 ];
 

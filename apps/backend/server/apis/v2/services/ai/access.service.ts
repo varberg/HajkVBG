@@ -3,6 +3,8 @@ import { AccessError } from "../../utils/AccessError.js";
 import { validateMapName } from "../../utils/safePath.js";
 import defaultCatalogService, {
   groupsWithLeaves,
+  infoboxFields,
+  isDisplayLabel,
   walkMapConfig,
 } from "./catalog.service.ts";
 import type {
@@ -11,6 +13,7 @@ import type {
   CatalogRecord,
   CatalogService,
   ConfigSource,
+  FeatureConnection,
   LayerRole,
   MapInfo,
   WalkedMap,
@@ -41,6 +44,15 @@ export interface GroupTreeNode {
   children: GroupTreeNode[];
 }
 
+/** A WFS source as one user may see it. How to reach it is in the catalog. */
+export interface FeatureSource {
+  id: string;
+  caption: string;
+  description: string | null;
+  /** The fields the model may read and filter on. */
+  fields: string[];
+}
+
 /**
  * The catalog as one user may see it. Everything downstream works on this, so
  * the access rules are applied before any search or listing has started.
@@ -55,6 +67,7 @@ export interface UserCatalog {
   groups: CatalogGroup[];
   groupsById: Map<string, CatalogGroup>;
   groupTree: GroupTreeNode[];
+  featureSources: FeatureSource[];
 }
 
 /**
@@ -122,6 +135,45 @@ export function renderGroupTree(nodes: GroupTreeNode[], depth = 0): string {
     .join("\n");
 }
 
+/** @summary What users already see of a source, and the extras listed for it. */
+function allowedFields(
+  { searchFields, displayFields, infobox, geometryField }: FeatureConnection,
+  extraFields: string[]
+): string[] {
+  const fields = new Set([
+    ...searchFields,
+    ...displayFields.filter((field) => !isDisplayLabel(field)),
+    ...infoboxFields(infobox),
+    ...extraFields,
+  ]);
+  fields.delete(geometryField);
+  return [...fields];
+}
+
+/**
+ * @summary The sources a user may query: listed in the washed config, allowed in
+ * Search, and a WFS layer, which is what `featureConnections` was built from.
+ */
+function buildFeatureSources(
+  catalog: Catalog,
+  walked: WalkedMap,
+  search: ReadonlySet<string>
+): FeatureSource[] {
+  return walked.featureSources.flatMap(({ id, description, extraFields }) => {
+    const record = catalog.recordsById.get(id);
+    const connection = catalog.featureConnections.get(id);
+    if (record?.type !== "wfs" || !search.has(id) || connection === undefined) {
+      return [];
+    }
+    return {
+      id,
+      caption: record.caption,
+      description,
+      fields: allowedFields(connection, extraFields),
+    };
+  });
+}
+
 /**
  * @summary Limit a raw catalog to what a walked, washed map config allows.
  */
@@ -178,6 +230,7 @@ export function buildUserCatalog(
     groups,
     groupsById: new Map(groups.map((g) => [g.id, g])),
     groupTree: buildGroupTree(groups),
+    featureSources: buildFeatureSources(catalog, walked, search),
   };
 }
 

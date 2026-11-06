@@ -269,12 +269,14 @@ class SearchBar extends React.PureComponent {
       map,
       localObserver,
       resultPanelCollapsed,
+      searchResultsKey,
       toggleCollapseSearchResults,
       options,
     } = this.props;
 
     return (
       <SearchResultsContainer
+        key={searchResultsKey}
         searchResults={searchResults}
         localObserver={localObserver}
         app={app}

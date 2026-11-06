@@ -144,3 +144,76 @@ export const washedMapConfig = (): MapConfig => {
   secret.layers = [];
   return config;
 };
+
+export const wfsSource = (id: string, overrides: object = {}) => ({
+  id,
+  caption: `Källa ${id}`,
+  url: "https://secret.example.com/wfs",
+  layers: [`ws:${id}`],
+  geometryField: "the_geom",
+  searchFields: ["namn"],
+  displayFields: ["namn"],
+  infobox: "",
+  ...overrides,
+});
+
+/** The store with WFS sources that have search config, unlike `wfs1`. */
+export const featureStore = () => {
+  const store = layersStore();
+  return {
+    ...store,
+    wfslayers: [
+      ...store.wfslayers,
+      wfsSource("adress", {
+        searchFields: ["sok"],
+        displayFields: ["sok", '"Adress"', "postort"],
+        infobox:
+          "<style>td{color:red}</style>{gata} {adat|date} {kod@@documenthandler} {{if villkor}}{the_geom}{{/if}}",
+      }),
+      wfsSource("sjo"),
+      wfsSource("begransad"),
+      wfsSource("ejlistad"),
+      wfsSource("ejisok"),
+    ],
+  };
+};
+
+/** A map where every way a source can fail to be usable has an example. */
+export const featureMapConfig = () => {
+  const config = mapConfig();
+  return {
+    ...config,
+    map: { projection: "EPSG:3007" },
+    tools: config.tools.map((tool) => {
+      if (tool.type === "search") {
+        const ids = ["adress", "sjo", "begransad", "ejlistad"];
+        const layers = [...tool.options.layers!, ...ids.map((id) => ({ id }))];
+        return { ...tool, options: { ...tool.options, layers } };
+      }
+      if (tool.type === "aichat") {
+        const featureSources = [
+          { id: "adress", description: "Alla <b>adresser</b> i kommunen" },
+          { id: "sjo", extraFields: ["maxdjup", "", "ej giltigt"] },
+          { id: "begransad" },
+          { id: "ejisok" },
+          { id: "searchWms" },
+          { id: "okand" },
+        ];
+        return { ...tool, options: { featureSources } };
+      }
+      return tool;
+    }),
+  };
+};
+
+/** The same map, washed for a user who lacks access to the source `begransad`. */
+export const washedFeatureMapConfig = () => {
+  const config = featureMapConfig();
+  const search = config.tools.find((tool) => tool.type === "search")!;
+  const layers = (search.options as { layers: Array<{ id: string }> }).layers;
+  layers.splice(
+    layers.findIndex(({ id }) => id === "begransad"),
+    1
+  );
+  return config;
+};

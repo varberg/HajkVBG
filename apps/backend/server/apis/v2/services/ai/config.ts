@@ -24,6 +24,9 @@ export interface ChatLimits {
 export const isChatEnabled = (): boolean =>
   grabBoolean("AI_CHAT_ENABLED", false);
 
+export const readWfsTimeoutMs = (): number =>
+  grabPositiveInt("AI_WFS_TIMEOUT_MS", 10_000);
+
 /** For development: index from the vector cache alone, see search.service.ts */
 export const isIndexBuildSkipped = (): boolean =>
   grabBoolean("AI_DEBUG_SKIP_INDEX_BUILD", false);

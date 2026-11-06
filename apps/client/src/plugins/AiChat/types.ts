@@ -1,6 +1,8 @@
+import type Feature from "ol/Feature";
 import type OlMap from "ol/Map";
 
 import type LayerControlModel from "../../models/LayerControlModel";
+import type SearchModel from "../../models/SearchModel";
 import type ToolControlModel from "../../models/ToolControlModel";
 import type { HajkApp } from "../../types/hajk";
 import type AiChatModel from "./AiChatModel";
@@ -22,6 +24,9 @@ export interface AiChatOptions {
 export type AiChatApp = HajkApp & {
   layerControl: LayerControlModel;
   toolControl: ToolControlModel;
+  /** Set if Search is in the map config, even if it isn't rendered */
+  searchModel?: SearchModel;
+  plugins: { search?: { options: { renderElsewhere?: boolean } } };
 };
 
 // ---- Component props ----
@@ -71,7 +76,18 @@ export type PluginAction =
 
 export type PlaceAction = { action: "go_to_place"; place: string };
 
-export type ChatAction = LayerAction | PluginAction | PlaceAction;
+/** GeoJSON in the map's projection, with all the properties of the features */
+export interface FeatureSet {
+  sourceId: string;
+  featureCollection: object;
+}
+
+export type FeatureAction =
+  | { action: "show_features"; collections: FeatureSet[] }
+  | { action: "clear_features" };
+
+export type ChatAction =
+  LayerAction | PluginAction | PlaceAction | FeatureAction;
 
 export type ChatEvent =
   | { type: "start"; conversationId: string }
@@ -87,6 +103,19 @@ export type ChatEvent =
 export interface Preset {
   name: string;
   presetUrl: string;
+}
+
+// ---- What Search shows, see components/Search/Search.jsx ----
+
+export interface SearchSource {
+  id: string;
+  [key: string]: unknown;
+}
+
+export interface SearchResult {
+  source: SearchSource;
+  origin: "WFS";
+  value: { features: Feature[] };
 }
 
 // ---- The state of the chat ----

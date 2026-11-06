@@ -19,7 +19,11 @@ import fs from "fs";
 import { parseArgs } from "util";
 
 import accessService from "../../server/apis/v2/services/ai/access.service.ts";
-import { readChatLimits } from "../../server/apis/v2/services/ai/config.ts";
+import {
+  readChatLimits,
+  readWfsTimeoutMs,
+} from "../../server/apis/v2/services/ai/config.ts";
+import { createWfsAccess } from "../../server/apis/v2/services/ai/features/wfsAccess.ts";
 import { Orchestrator } from "../../server/apis/v2/services/ai/orchestrator.ts";
 import type { ChatEvent } from "../../server/apis/v2/services/ai/orchestrator.ts";
 import { createProvider } from "../../server/apis/v2/services/ai/providers/index.ts";
@@ -73,6 +77,7 @@ const searchService = args.keyword
   : defaultSearchService;
 
 const provider = await createProvider();
+const wfs = createWfsAccess(readWfsTimeoutMs());
 await searchService.buildVectors(map);
 
 async function run(q: Question): Promise<Outcome> {
@@ -90,6 +95,7 @@ async function run(q: Question): Promise<Outcome> {
     provider,
     access: accessService,
     limits: { ...readChatLimits(), dailyMaxTurns: 0, maxConversations: 0 },
+    wfs,
     search: {
       async search(userCatalog, query, limit) {
         const result = await searchService.search(userCatalog, query, limit);
@@ -130,7 +136,11 @@ async function run(q: Question): Promise<Outcome> {
       const ids =
         event.type === "layers"
           ? event.items.map((item) => item.id)
-          : event.type !== "action" || "plugin" in event || "place" in event
+          : event.type !== "action" ||
+              "plugin" in event ||
+              "place" in event ||
+              "collections" in event ||
+              event.action === "clear_features"
             ? []
             : event.action === "set_background"
               ? [event.id]

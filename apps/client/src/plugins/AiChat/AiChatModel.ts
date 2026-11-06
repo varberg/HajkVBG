@@ -1,4 +1,8 @@
+import type Feature from "ol/Feature";
+import GeoJSON from "ol/format/GeoJSON";
+
 import type LayerControlModel from "../../models/LayerControlModel";
+import type SearchModel from "../../models/SearchModel";
 import type ToolControlModel from "../../models/ToolControlModel";
 import { hfetch } from "../../utils/FetchWrapper";
 
@@ -10,9 +14,11 @@ import type {
   ChatEvent,
   ChatMessage,
   ChatState,
+  FeatureSet,
   LayerSnapshot,
   Preset,
   PresentedLayer,
+  SearchSource,
 } from "./types";
 
 const EMPTY_STATE: ChatState = {
@@ -51,6 +57,7 @@ function requestErrorText(status: number, code: string | null): string {
  * survives closing the window, and a running answer can finish meanwhile.
  */
 export default class AiChatModel {
+  #app: AiChatApp;
   #url: string;
   #map: string;
   #layerControl: LayerControlModel;
@@ -64,6 +71,7 @@ export default class AiChatModel {
   #nextMessageId = 1;
 
   constructor(app: AiChatApp) {
+    this.#app = app;
     const appConfig = app.config.appConfig as { mapserviceBase: string };
     this.#url = `${appConfig.mapserviceBase}/ai/chat`;
     this.#map = app.config.activeMap as string;
@@ -277,7 +285,7 @@ export default class AiChatModel {
 
   #addNotice(answerId: number, notice: string): void {
     this.#updateMessage(answerId, ({ notices }) => ({
-      notices: [...notices, notice],
+      notices: notices.includes(notice) ? notices : [...notices, notice],
     }));
   }
 
@@ -291,6 +299,40 @@ export default class AiChatModel {
         ],
       };
     });
+  }
+
+  /** The search model exists even if Search isn't there, see App.jsx */
+  #getSearchModel(): SearchModel | null {
+    const search = this.#app.plugins.search;
+    return search && search.options.renderElsewhere !== true
+      ? (this.#app.searchModel ?? null)
+      : null;
+  }
+
+  #showFeatures(sets: FeatureSet[], answerId: number): void {
+    const searchModel = this.#getSearchModel();
+    if (searchModel === null) {
+      this.#addNotice(answerId, UI_STRINGS.searchUnavailable);
+      return;
+    }
+
+    const sources: SearchSource[] = searchModel.getSources();
+    const format = new GeoJSON();
+    const results = sets.flatMap(({ sourceId, featureCollection }) => {
+      const source = sources.find(({ id }) => id === sourceId);
+      if (source === undefined) {
+        return [];
+      }
+      const features = format.readFeatures(featureCollection) as Feature[];
+      return [{ source, origin: "WFS" as const, value: { features } }];
+    });
+
+    if (results.length < sets.length) {
+      this.#addNotice(answerId, UI_STRINGS.featuresUnavailable);
+    }
+    if (results.length > 0) {
+      this.#globalObserver.publish("search.showFeatureCollections", results);
+    }
   }
 
   /** Backend has already checked that the user may do this */
@@ -314,6 +356,18 @@ export default class AiChatModel {
     }
     if (action.action === "set_background") {
       this.#layerControl.showLayer(action.id);
+      return;
+    }
+    if (action.action === "show_features") {
+      this.#showFeatures(action.collections, answerId);
+      return;
+    }
+    if (action.action === "clear_features") {
+      if (this.#getSearchModel() === null) {
+        this.#addNotice(answerId, UI_STRINGS.searchUnavailable);
+      } else {
+        this.#globalObserver.publish("search.clearResults");
+      }
       return;
     }
     action.ids.forEach((id) =>

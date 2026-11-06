@@ -57,6 +57,7 @@ interface OrchestratorOptions {
   provider: ChatProvider;
   access: { getUserCatalog(map: string, user?: string): Promise<UserCatalog> };
   search: ToolContext["search"];
+  wfs: ToolContext["wfs"];
   registry: ToolRegistry;
   limits: ChatLimits;
   now?: () => number;
@@ -124,6 +125,7 @@ export class Orchestrator {
   #provider: ChatProvider;
   #access: OrchestratorOptions["access"];
   #search: ToolContext["search"];
+  #wfs: ToolContext["wfs"];
   #registry: ToolRegistry;
   #limits: ChatLimits;
   #conversations: ConversationStore;
@@ -133,6 +135,7 @@ export class Orchestrator {
     provider,
     access,
     search,
+    wfs,
     registry,
     limits,
     now,
@@ -140,6 +143,7 @@ export class Orchestrator {
     this.#provider = provider;
     this.#access = access;
     this.#search = search;
+    this.#wfs = wfs;
     this.#registry = registry;
     this.#limits = limits;
     this.#conversations = new ConversationStore({
@@ -242,6 +246,10 @@ export class Orchestrator {
         search: this.#search,
         maxLayersOn: this.#limits.maxLayersOn,
         visibleLayers: new Set(state.layers.map((layer) => layer.id)),
+        wfs: this.#wfs,
+        featureResults: conversation.featureResults,
+        signal: turnSignal,
+        wfsRequests: 0,
       };
       const truncated = await this.#loop(
         conversation,

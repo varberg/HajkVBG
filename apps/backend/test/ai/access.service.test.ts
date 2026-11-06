@@ -18,7 +18,14 @@ import type {
   RawMapConfig,
 } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import { AccessError } from "../../server/apis/v2/utils/AccessError.js";
-import { layersStore, mapConfig, washedMapConfig } from "./fixtures.ts";
+import {
+  featureMapConfig,
+  featureStore,
+  layersStore,
+  mapConfig,
+  washedFeatureMapConfig,
+  washedMapConfig,
+} from "./fixtures.ts";
 
 // Run with: npm test (loads .env.example, so the logger has what it needs)
 
@@ -386,5 +393,58 @@ describe("AccessService", () => {
     assert.equal(state.calls, 201);
     await service.getUserCatalog("demo", "user0");
     assert.equal(state.calls, 202);
+  });
+});
+
+describe("feature sources", () => {
+  const view = (config: RawMapConfig = featureMapConfig()) =>
+    buildUserCatalog(
+      buildCatalog("demo", featureMapConfig(), featureStore()),
+      walkMapConfig(config)
+    );
+  const source = (id: string, config?: RawMapConfig) =>
+    view(config).featureSources.find((s) => s.id === id);
+
+  test("needs a source to be listed, in Search and a WFS layer", () => {
+    assert.deepEqual(
+      view().featureSources.map((s) => s.id),
+      ["adress", "sjo", "begransad"]
+    );
+  });
+
+  test("gives the caption and the description", () => {
+    const { caption, description } = source("adress")!;
+    assert.equal(caption, "Källa adress");
+    assert.equal(description, "Alla adresser i kommunen");
+  });
+
+  test("allows the fields users see, without labels and geometry", () => {
+    assert.deepEqual(source("adress")!.fields, [
+      "sok",
+      "postort",
+      "gata",
+      "adat",
+      "kod",
+    ]);
+  });
+
+  test("adds the extra fields of a source", () => {
+    assert.deepEqual(source("sjo")!.fields, ["namn", "maxdjup"]);
+  });
+
+  test("leaves out a source the user can't reach in Search", () => {
+    assert.equal(source("begransad", washedFeatureMapConfig()), undefined);
+  });
+
+  test("leaves out a source the washed config doesn't list", () => {
+    const config = featureMapConfig();
+    const tools = config.tools.filter((tool) => tool.type !== "aichat");
+    assert.deepEqual(view({ ...config, tools }).featureSources, []);
+  });
+
+  test("never holds a URL", () => {
+    const { featureSources, records, mapInfo } = view();
+    const json = JSON.stringify({ featureSources, records, mapInfo });
+    assert.equal(json.includes("secret.example.com"), false);
   });
 });

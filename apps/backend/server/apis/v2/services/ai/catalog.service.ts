@@ -5,6 +5,7 @@ import log4js from "log4js";
 
 import configService from "../config.service.js";
 import { validateMapName } from "../../utils/safePath.js";
+import type { WfsTarget } from "./features/wfsClient.ts";
 
 const logger = log4js.getLogger("service.ai.catalog");
 
@@ -103,6 +104,17 @@ export interface Catalog {
    * a user can't see the layer in the tree, and so must not get the group info.
    */
   ownTextById: Map<string, string | null>;
+  /**
+   * How to reach the feature sources. This holds URLs, so it's kept apart from
+   * the records, and from UserCatalog, and only the WFS tools may read it.
+   */
+  featureConnections: Map<string, FeatureConnection>;
+}
+
+export interface FeatureConnection extends WfsTarget {
+  /** May hold labels, see isDisplayLabel. */
+  displayFields: string[];
+  infobox: string | null;
 }
 
 interface WalkedLayer {
@@ -124,10 +136,17 @@ interface WalkedPlace {
   changesLayers: boolean;
 }
 
+export interface WalkedFeatureSource {
+  id: string;
+  description: string | null;
+  extraFields: string[];
+}
+
 /**
  * What the chat may tell about a map. Tool options are left out on purpose, as
- * some tools carry restricted configuration. The only exception is the names of
- * the `preset` tool's places, which become records, see walkPlaces.
+ * some tools carry restricted configuration. The exceptions are the names of the
+ * `preset` tool's places, which become records, see walkPlaces, and the feature
+ * sources of the `aichat` tool, see walkFeatureSources.
  */
 export interface MapInfo {
   title: string | null;
@@ -149,6 +168,7 @@ export interface WalkedMap {
   builtInBackgrounds: WalkedBuiltIn[];
   places: WalkedPlace[];
   search: string[];
+  featureSources: WalkedFeatureSource[];
   groups: CatalogGroup[];
 }
 
@@ -169,6 +189,12 @@ interface RawTool {
 interface RawPlace {
   name?: unknown;
   presetUrl?: unknown;
+}
+
+interface RawFeatureSource {
+  id?: unknown;
+  description?: unknown;
+  extraFields?: unknown;
 }
 
 export interface RawMapConfig {
@@ -374,6 +400,56 @@ function walkPlaces(options: RawTool["options"]): WalkedPlace[] {
   return [...places.values()];
 }
 
+// Also what keeps other things in curly brackets, such as CSS, out of the fields
+const isFieldName = (name: string): boolean => /^[\p{L}\p{N}_.-]+$/u.test(name);
+
+/** @summary Field names from config, as an array or a comma separated string. */
+function fieldList(value: unknown): string[] {
+  const names = typeof value === "string" ? value.split(",") : asArray(value);
+  return names
+    .filter((name) => typeof name === "string")
+    .map((name) => name.trim())
+    .filter((name) => name !== "");
+}
+
+/** @summary A display field in double quotes is text to show, not a field. */
+export const isDisplayLabel = (displayField: string): boolean =>
+  /^".*"$/.test(displayField);
+
+/**
+ * @summary The fields an infobox shows. A placeholder can go on with a format or
+ * a plugin, as in `{adat|date}` and `{url@@documenthandler}`, and double curly
+ * brackets are conditions, not placeholders.
+ */
+export function infoboxFields(infobox: string | null): string[] {
+  return [...(infobox ?? "").matchAll(/(?<!{){([^{}]*)}(?!})/g)]
+    .map(([, placeholder]) => placeholder.split(/\||@@/)[0].trim())
+    .filter(isFieldName);
+}
+
+/**
+ * @summary The sources the chat may query. The list is opt-in, and being on it
+ * gives no access: that still comes from `allowed.search`, as the config wash
+ * only reaches one level into tool options, and so never into this list.
+ */
+function walkFeatureSources(
+  options: RawTool["options"]
+): WalkedFeatureSource[] {
+  const sources = new Map<string, WalkedFeatureSource>();
+
+  for (const raw of asArray(options?.featureSources) as RawFeatureSource[]) {
+    const id = entryId(raw);
+    if (id !== null) {
+      sources.set(id, {
+        id,
+        description: cleanInline(raw.description),
+        extraFields: fieldList(raw.extraFields).filter(isFieldName),
+      });
+    }
+  }
+  return [...sources.values()];
+}
+
 /**
  * @summary The one tree walker. Runs both on the raw map config, to build the
  * catalog, and on a user's washed map config, to find out what they may access.
@@ -383,6 +459,7 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
   const switcher = tools.find((t) => t.type === "layerswitcher")?.options;
   const search = tools.find((t) => t.type === "search")?.options;
   const preset = tools.find((t) => t.type === "preset")?.options;
+  const aichat = tools.find((t) => t.type === "aichat")?.options;
 
   const out: WalkedMap = {
     info: {
@@ -397,6 +474,7 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
     ).map(({ id, caption }) => ({ id, caption })),
     places: walkPlaces(preset),
     search: entryIds(search?.layers),
+    featureSources: walkFeatureSources(aichat),
     groups: [],
   };
   walkGroups(switcher?.groups, null, [], out);
@@ -457,6 +535,69 @@ const EMPTY_RECORD = {
   infoUrl: null,
   date: null,
 };
+
+/**
+ * @summary How to reach a source, or null if it can't be queried. A source needs
+ * search fields, as in Search, and a single feature type: Search can query
+ * several, and using only one of them would quietly give part of the answer.
+ */
+function toConnection(
+  layer: RawStoreLayer,
+  srsName: string | null
+): FeatureConnection | null {
+  const typeNames = asArray(layer.layers);
+  const searchFields = fieldList(layer.searchFields);
+  if (
+    typeof layer.url !== "string" ||
+    typeNames.length !== 1 ||
+    typeof typeNames[0] !== "string" ||
+    searchFields.length === 0 ||
+    srsName === null
+  ) {
+    return null;
+  }
+  return {
+    url: layer.url,
+    typeName: typeNames[0],
+    // Same default as SearchModel.js in the client
+    geometryField:
+      typeof layer.geometryField === "string" && layer.geometryField !== ""
+        ? layer.geometryField
+        : "geom",
+    srsName,
+    searchFields,
+    displayFields: fieldList(layer.displayFields),
+    infobox: typeof layer.infobox === "string" ? layer.infobox : null,
+  };
+}
+
+/**
+ * @summary The connections of a map. Listing a source isn't enough: it must also
+ * be a WFS layer and be in Search, as other layers in Search have no search
+ * config, and what admins left out of Search must stay out of the chat.
+ */
+function buildFeatureConnections(
+  map: string,
+  walked: WalkedMap,
+  storeIndex: ReturnType<typeof indexStore>
+): Map<string, FeatureConnection> {
+  const connections = new Map<string, FeatureConnection>();
+
+  for (const { id } of walked.featureSources) {
+    const stored = storeIndex.get(id);
+    const usable = stored?.type === "wfs" && walked.search.includes(id);
+    const connection = usable
+      ? toConnection(stored.layer, walked.info.projection)
+      : null;
+
+    if (connection === null) {
+      logger.warn(`Feature source "${id}" can't be used in map "${map}".`);
+    } else {
+      connections.set(id, connection);
+    }
+  }
+  return connections;
+}
 
 /**
  * @summary Merge a map config and the layers store by id. Only layers used by
@@ -571,6 +712,7 @@ export function buildCatalog(
     recordsById,
     groups: groupsWithLeaves(walked.groups, recordsById),
     ownTextById,
+    featureConnections: buildFeatureConnections(map, walked, storeIndex),
   };
 }
 

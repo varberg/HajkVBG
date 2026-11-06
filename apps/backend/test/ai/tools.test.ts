@@ -8,6 +8,7 @@ import {
   walkMapConfig,
 } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import type { RawMapConfig } from "../../server/apis/v2/services/ai/catalog.service.ts";
+import { FeatureResultStore } from "../../server/apis/v2/services/ai/features/featureResults.ts";
 import { buildSystemPrompt } from "../../server/apis/v2/services/ai/prompt.ts";
 import {
   PAGE_SIZE,
@@ -37,6 +38,13 @@ const context = (
   userCatalog,
   maxLayersOn: 25,
   visibleLayers: new Set(),
+  wfs: {
+    connectionOf: async () => undefined,
+    query: () => Promise.reject(new Error("No source in this test.")),
+  },
+  featureResults: new FeatureResultStore(),
+  signal: new AbortController().signal,
+  wfsRequests: 0,
   search: {
     async search(catalog, _query, limit = 10) {
       return {
@@ -132,12 +140,14 @@ describe("tool schemas", () => {
   test("map actions are never read tools", () => {
     const actions = tools.filter((t) => t.kind === "action").map((t) => t.name);
     assert.deepEqual(actions.sort(), [
+      "clear_features",
       "close_plugin",
       "go_to_place",
       "open_plugin",
       "present_layers",
       "set_background",
       "set_layer_visibility",
+      "show_features",
     ]);
   });
 });
