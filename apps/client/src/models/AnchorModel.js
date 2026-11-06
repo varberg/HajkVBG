@@ -94,7 +94,8 @@ class AnchorModel {
         });
 
         // Update anchor each time an underlying Source changes in some way (could be new CQL params, for example).
-        layer.getSource().on("change", async ({ target }) => {
+        // The OSM vector background gets its source later, when its style has loaded.
+        layer.getSource()?.on("change", async ({ target }) => {
           if (typeof target.getParams !== "function") return;
 
           // Update CQL filters only if a real value exists and layer is visible

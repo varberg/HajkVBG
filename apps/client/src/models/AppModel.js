@@ -2,6 +2,7 @@ import AnchorModel from "./AnchorModel";
 import SearchModel from "./SearchModel";
 import WindowZModel from "./WindowZModel";
 import LayerControlModel from "./LayerControlModel";
+import ToolControlModel from "./ToolControlModel";
 import { decorateConfig } from "./appModel/configTranslator";
 import { createMap } from "./appModel/mapFactory";
 import { addLayers, highlight, clear } from "./appModel/layerLoader";
@@ -38,6 +39,7 @@ class AppModel {
   constructor(_settings) {
     this.map = undefined;
     this.layerControl = undefined;
+    this.toolControl = undefined;
     this.activeTool = undefined;
     this.layersFromParams = [];
     this.groupLayersFromParams = [];
@@ -90,6 +92,10 @@ class AppModel {
 
   registerWindowPlugin(windowComponent) {
     this.pluginManager.registerWindowPlugin(windowComponent);
+  }
+
+  registerDialogPlugin(dialogComponent) {
+    this.pluginManager.registerDialogPlugin(dialogComponent);
   }
 
   onWindowOpen(currentWindow) {
@@ -216,6 +222,14 @@ class AppModel {
       map: this.map,
       globalObserver: this.globalObserver,
       layerSwitcherConfig,
+    });
+    return this;
+  }
+
+  addToolControl() {
+    this.toolControl = new ToolControlModel({
+      globalObserver: this.globalObserver,
+      pluginManager: this.pluginManager,
     });
     return this;
   }

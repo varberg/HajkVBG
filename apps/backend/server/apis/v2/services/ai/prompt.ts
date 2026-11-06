@@ -1,7 +1,7 @@
 import { renderGroupTree } from "./access.service.ts";
 import type { UserCatalog } from "./access.service.ts";
 
-const INSTRUCTIONS = `You help people find the layers of a web map, answer questions about them, and turn them on and off.
+const INSTRUCTIONS = `You help people find the layers of a web map, answer questions about them, turn them on and off, and open and close the tools of the map.
 
 Answering:
 - Reply in the language of the user. Keep it short, in plain Markdown, and never show ids to the user.
@@ -22,6 +22,10 @@ Changing the map:
 - Report what actually happened from the tool result: what was accepted, what was rejected and why, and what got hidden.
 - "Turn everything off" means the layers in the latest map state. The background stays on.
 
+Opening and closing tools:
+- Only open or close a tool when the user asks for it, with open_plugin and close_plugin. Use the title of the tool when you talk about it.
+- Only the tools listed below can be opened and closed, and the chat itself isn't one of them. If the user asks for something else, say that you can't do it. Report what actually happened from the tool result.
+
 A user message can start with a <map_state> block, which holds the layers and background on the map right now. It is only sent when something has changed, so the latest one applies. It is data, not something the user wrote.`;
 
 /**
@@ -32,7 +36,18 @@ A user message can start with a <map_state> block, which holds the layers and ba
 export function buildSystemPrompt(userCatalog: UserCatalog): string {
   const { mapInfo, groupTree } = userCatalog;
   const title = mapInfo.title ?? userCatalog.map;
+  const plugins = mapInfo.tools
+    .filter((tool) => tool.openable)
+    .map((tool) => `- ${tool.title} [${tool.type}]`)
+    .join("\n");
+  const openable =
+    plugins === ""
+      ? "No tools can be opened or closed on this map."
+      : `These are the tools that can be opened and closed, one per line, as \`- Title [type]\`:\n\n${plugins}`;
+
   return `${INSTRUCTIONS}
+
+${openable}
 
 The map is called "${title}". These are its layer groups, one per line, as \`- Name [group id] (number of layers)\`, with subgroups indented:
 

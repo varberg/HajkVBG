@@ -31,6 +31,9 @@ const AiChat: React.FC<AiChatProps> = (props) => {
         description: options.description || DEFAULT_DESCRIPTION,
         height: 600,
         width: 400,
+        // Plugins are on the left by default, and a plugin that opens closes
+        // the windows on its own side, which would hide the answer.
+        position: "right",
         // The messages scroll on their own, so that the input stays in place
         scrollable: false,
         disablePadding: true,

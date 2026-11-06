@@ -10,6 +10,7 @@ import type {
   ConfigSource,
 } from "../catalog.service.ts";
 import type { UserCatalog } from "../access.service.ts";
+import { isIndexBuildSkipped } from "../config.ts";
 import { batchTexts, createEmbedder } from "./embedder.ts";
 import type { Embedder } from "./embedder.ts";
 import { buildKeywordIndex } from "./keywordIndex.ts";
@@ -79,6 +80,8 @@ interface SearchServiceOptions {
   cacheDir?: string;
   debounceMs?: number;
   now?: () => number;
+  /** Index from the vector cache alone, if it has anything for the map. */
+  skipIndexBuild?: boolean;
 }
 
 /**
@@ -95,6 +98,7 @@ export class SearchService {
   #cacheDir: string;
   #debounceMs: number;
   #now: () => number;
+  #skipIndexBuild: boolean;
 
   #keyword = new Map<string, { catalog: Catalog; index: KeywordIndex }>();
   #vectors = new Map<string, { catalog: Catalog; index: VectorIndex }>();
@@ -113,6 +117,7 @@ export class SearchService {
     cacheDir,
     debounceMs,
     now,
+    skipIndexBuild,
   }: SearchServiceOptions = {}) {
     this.#catalogs = catalogs ?? defaultCatalogService;
     this.#config = config ?? (configService as unknown as MapSource);
@@ -121,6 +126,7 @@ export class SearchService {
       cacheDir ?? path.join(process.cwd(), "App_Data", "ai-cache");
     this.#debounceMs = debounceMs ?? REBUILD_DEBOUNCE_MS;
     this.#now = now ?? Date.now;
+    this.#skipIndexBuild = skipIndexBuild ?? isIndexBuildSkipped();
   }
 
   /**
@@ -284,6 +290,22 @@ export class SearchService {
         .filter(({ key }) => cache.get(key) === undefined)
         .map(({ key, text }) => [text, key])
     );
+
+    // The file stays as it is, as the vectors of a layer being edited would
+    // otherwise be dropped. With nothing to reuse, the build runs as usual.
+    const cached = documents.filter(({ key }) => cache.get(key) !== undefined);
+    if (this.#skipIndexBuild && cached.length > 0) {
+      this.#vectors.set(map, {
+        catalog,
+        index: new VectorIndex(
+          cached.map(({ id, key }) => ({ id, vector: cache.get(key)! }))
+        ),
+      });
+      logger.warn(
+        `AI_DEBUG_SKIP_INDEX_BUILD: vector index of map "${map}" uses the cache alone. ${cached.length} of ${documents.length} layers have vectors, the rest are only found by keywords.`
+      );
+      return;
+    }
 
     try {
       for (const batch of batchTexts(

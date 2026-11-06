@@ -1,6 +1,7 @@
 import type OlMap from "ol/Map";
 
 import type LayerControlModel from "../../models/LayerControlModel";
+import type ToolControlModel from "../../models/ToolControlModel";
 import type { HajkApp } from "../../types/hajk";
 import type AiChatModel from "./AiChatModel";
 
@@ -18,7 +19,10 @@ export interface AiChatOptions {
   height?: number | string;
 }
 
-export type AiChatApp = HajkApp & { layerControl: LayerControlModel };
+export type AiChatApp = HajkApp & {
+  layerControl: LayerControlModel;
+  toolControl: ToolControlModel;
+};
 
 // ---- Component props ----
 
@@ -59,12 +63,18 @@ export type LayerAction =
   | { action: "set_layer_visibility"; ids: string[]; visible: boolean }
   | { action: "set_background"; id: string };
 
+export type PluginAction =
+  | { action: "open_plugin"; plugin: string }
+  | { action: "close_plugin"; plugin: string };
+
+export type ChatAction = LayerAction | PluginAction;
+
 export type ChatEvent =
   | { type: "start"; conversationId: string }
   | { type: "text"; delta: string }
   | { type: "tool_status"; tool: string; status: "running" | "done" | "failed" }
   | { type: "layers"; items: PresentedLayer[] }
-  | ({ type: "action" } & LayerAction)
+  | ({ type: "action" } & ChatAction)
   | { type: "done"; truncated: boolean }
   | { type: "error"; code: string; message: string };
 

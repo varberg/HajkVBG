@@ -4,12 +4,17 @@ import { isMobile } from "../../utils/IsMobile";
 class PluginManager {
   constructor() {
     this.windows = [];
+    this.dialogs = [];
     this.plugins = {};
     this.pluginHistory = new Map();
   }
 
   registerWindowPlugin(windowComponent) {
     this.windows.push(windowComponent);
+  }
+
+  registerDialogPlugin(dialogComponent) {
+    this.dialogs.push(dialogComponent);
   }
 
   invokeCloseOnAllWindowPlugins() {

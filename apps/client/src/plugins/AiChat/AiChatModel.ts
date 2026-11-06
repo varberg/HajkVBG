@@ -1,14 +1,15 @@
 import type LayerControlModel from "../../models/LayerControlModel";
+import type ToolControlModel from "../../models/ToolControlModel";
 import { hfetch } from "../../utils/FetchWrapper";
 
 import { ERRORS, REQUEST_ERRORS, TURN_ERRORS, UI_STRINGS } from "./constants";
 import { readEvents } from "./sse";
 import type {
   AiChatApp,
+  ChatAction,
   ChatEvent,
   ChatMessage,
   ChatState,
-  LayerAction,
   LayerSnapshot,
   PresentedLayer,
 } from "./types";
@@ -52,6 +53,7 @@ export default class AiChatModel {
   #url: string;
   #map: string;
   #layerControl: LayerControlModel;
+  #toolControl: ToolControlModel;
   #state: ChatState = EMPTY_STATE;
   #listeners = new Set<() => void>();
   #conversationId: string | null = null;
@@ -63,6 +65,7 @@ export default class AiChatModel {
     this.#url = `${appConfig.mapserviceBase}/ai/chat`;
     this.#map = app.config.activeMap as string;
     this.#layerControl = app.layerControl;
+    this.#toolControl = app.toolControl;
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -233,7 +236,7 @@ export default class AiChatModel {
         this.#addLayers(answerId, event.items);
         break;
       case "action":
-        this.#runAction(event);
+        this.#runAction(event, answerId);
         break;
       case "done":
         if (event.truncated) {
@@ -267,7 +270,18 @@ export default class AiChatModel {
   }
 
   /** Backend has already checked that the user may do this */
-  #runAction(action: LayerAction): void {
+  #runAction(action: ChatAction, answerId: number): void {
+    if (action.action === "open_plugin") {
+      // A tool in the map config isn't loaded unless it's in `availableTools` too
+      if (!this.#toolControl.showTool(action.plugin)) {
+        this.#addNotice(answerId, UI_STRINGS.pluginUnavailable);
+      }
+      return;
+    }
+    if (action.action === "close_plugin") {
+      this.#toolControl.hideTool(action.plugin);
+      return;
+    }
     if (action.action === "set_background") {
       this.#layerControl.showLayer(action.id);
       return;

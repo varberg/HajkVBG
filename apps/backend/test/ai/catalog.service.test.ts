@@ -1,8 +1,10 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "child_process";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { promisify } from "util";
 
 import {
   CatalogService,
@@ -16,6 +18,10 @@ import { layersStore, mapConfig } from "./fixtures.ts";
 
 // Run with: npm test (loads .env.example, so the logger has what it needs)
 
+const serviceUrl = new URL(
+  "../../server/apis/v2/services/ai/catalog.service.ts",
+  import.meta.url
+).href;
 const catalog = () => buildCatalog("demo", mapConfig(), layersStore());
 const record = (id: string) => catalog().recordsById.get(id)!;
 
@@ -66,6 +72,28 @@ describe("walkMapConfig", () => {
     assert.deepEqual(walked.tree, []);
     assert.deepEqual(walked.groups, []);
     assert.deepEqual(walkMapConfig({}).search, []);
+  });
+
+  test("marks the tools the chat can open, without any other options", () => {
+    const { info } = walkMapConfig({
+      tools: [
+        { type: "Sketch", options: { target: "toolbar", secret: "x" } },
+        { type: "print", options: { target: "left", title: "Utskrift" } },
+        { type: "measurer", options: { target: "hidden" } },
+        { type: "bookmarks", options: {} },
+        { type: "search", options: { target: "toolbar" } },
+        { type: "custom", options: { target: "toolbar" } },
+      ],
+    });
+
+    assert.deepEqual(info.tools, [
+      { type: "sketch", title: "Rita", openable: true },
+      { type: "print", title: "Utskrift", openable: true },
+      { type: "measurer", title: "Mät", openable: false },
+      { type: "bookmarks", title: "Bokmärken", openable: false },
+      { type: "search", title: "search", openable: false },
+      { type: "custom", title: "custom", openable: false },
+    ]);
   });
 
   test("accepts plain ids as well as objects", () => {
@@ -345,5 +373,19 @@ describe("CatalogService", () => {
     } finally {
       await service.stopWatching();
     }
+  });
+
+  test("the watcher doesn't keep the process alive", async () => {
+    // Shutdown only closes the server, so an active handle stops the process
+    // from exiting on SIGTERM
+    const script = `
+      const { CatalogService } = await import(${JSON.stringify(serviceUrl)});
+      await new CatalogService({ appDataDir: ${JSON.stringify(dir)} }).startWatching();
+    `;
+    await promisify(execFile)(
+      process.execPath,
+      ["--input-type=module", "--eval", script],
+      { timeout: 15000 }
+    );
   });
 });

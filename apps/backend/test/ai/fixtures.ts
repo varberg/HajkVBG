@@ -108,7 +108,14 @@ export const mapConfig = () => ({
       },
     },
     { type: "aichat", options: {} },
-    { type: "fir", options: { secretSetting: "do not expose" } },
+    {
+      type: "fir",
+      options: { target: "toolbar", secretSetting: "do not expose" },
+    },
+    { type: "sketch", options: { target: "toolbar" } },
+    { type: "print", options: { target: "left", title: "Skriv ut kartan" } },
+    { type: "measurer", options: { target: "hidden" } },
+    { type: "location", options: { target: "control" } },
   ],
 });
 

@@ -24,6 +24,10 @@ export interface ChatLimits {
 export const isChatEnabled = (): boolean =>
   grabBoolean("AI_CHAT_ENABLED", false);
 
+/** For development: index from the vector cache alone, see search.service.ts */
+export const isIndexBuildSkipped = (): boolean =>
+  grabBoolean("AI_DEBUG_SKIP_INDEX_BUILD", false);
+
 export const readChatLimits = (): ChatLimits => ({
   maxIterations: grabPositiveInt("AI_MAX_ITERATIONS", 8),
   turnTimeoutMs: grabPositiveInt("AI_TURN_TIMEOUT_MS", 120_000),

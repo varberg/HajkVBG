@@ -24,6 +24,7 @@ const MAX_PRESENTED = 25;
 // The same answer for a layer that doesn't exist and one the user can't reach,
 // so that a rejection never confirms that a restricted layer is there.
 const NOT_FOUND = "Unknown id.";
+const NO_SUCH_PLUGIN = "There is no such tool.";
 
 /**
  * The subset of JSON Schema that both providers' strict modes accept. Claude
@@ -65,6 +66,8 @@ export interface PresentedLayer {
   control: LayerControl;
 }
 
+type PluginAction = "open_plugin" | "close_plugin";
+
 export type ToolEvent =
   | { type: "layers"; items: PresentedLayer[] }
   | {
@@ -73,7 +76,8 @@ export type ToolEvent =
       ids: string[];
       visible: boolean;
     }
-  | { type: "action"; action: "set_background"; id: string };
+  | { type: "action"; action: "set_background"; id: string }
+  | { type: "action"; action: PluginAction; plugin: string };
 
 export interface ToolContext {
   userCatalog: UserCatalog;
@@ -472,6 +476,30 @@ function presentedItem(
   }
 }
 
+/**
+ * @summary Open or close a plugin. It's the same answer for a plugin that can't
+ * be opened as for one the user can't reach, which must not be confirmed.
+ */
+function runPluginAction(
+  action: PluginAction,
+  plugin: string,
+  { mapInfo }: UserCatalog
+): ToolOutput {
+  const type = plugin.toLowerCase();
+  if (!mapInfo.tools.some((tool) => tool.type === type && tool.openable)) {
+    return {
+      result: {
+        accepted: [],
+        rejected: [{ id: plugin, reason: NO_SUCH_PLUGIN }],
+      },
+    };
+  }
+  return {
+    result: { accepted: [type], rejected: [] },
+    events: [{ type: "action", action, plugin: type }],
+  };
+}
+
 function define<Input>(
   tool: ToolDefinition & {
     run(input: Input, context: ToolContext): Promise<ToolOutput> | ToolOutput;
@@ -737,6 +765,30 @@ export const tools: Tool[] = [
         events: [{ type: "action", action: "set_background", id }],
       };
     },
+  }),
+
+  define<{ plugin: string }>({
+    name: "open_plugin",
+    kind: "action",
+    description:
+      "Open one of the map's tools for the user, such as the drawing or printing tool. Takes a type from the list of tools that can be opened. Always check `accepted` and `rejected` before telling the user what happened.",
+    inputSchema: object({
+      plugin: { type: "string", description: "The type of the tool to open." },
+    }),
+    run: ({ plugin }, { userCatalog }) =>
+      runPluginAction("open_plugin", plugin, userCatalog),
+  }),
+
+  define<{ plugin: string }>({
+    name: "close_plugin",
+    kind: "action",
+    description:
+      "Close one of the map's tools for the user. Takes a type from the list of tools that can be opened. Closing a tool that isn't open changes nothing. Always check `accepted` and `rejected` before telling the user what happened.",
+    inputSchema: object({
+      plugin: { type: "string", description: "The type of the tool to close." },
+    }),
+    run: ({ plugin }, { userCatalog }) =>
+      runPluginAction("close_plugin", plugin, userCatalog),
   }),
 ];
 

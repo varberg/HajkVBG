@@ -46,6 +46,10 @@ class DialogWindowPlugin extends React.PureComponent {
   }
 
   componentDidMount() {
+    // Dialogs have their own list, as the code that goes through
+    // app.windows expects windows
+    this.props.app.registerDialogPlugin(this);
+
     let dialogOpen = this.opts.visibleAtStart;
     const clean = this.props.app.config.mapConfig.map.clean;
 
@@ -126,11 +130,17 @@ class DialogWindowPlugin extends React.PureComponent {
     });
   }
 
+  componentDidUpdate(_prevProps, prevState) {
+    if (prevState.dialogOpen !== this.state.dialogOpen) {
+      this.props.app.globalObserver.publish("core.pluginVisibilityChanged");
+    }
+  }
+
   #pluginIsWidget = (target) => {
     return ["left", "right"].includes(target);
   };
 
-  #handleButtonClick = (_e) => {
+  handleButtonClick = (_e) => {
     this.setState({
       dialogOpen: true,
     });
@@ -153,6 +163,11 @@ class DialogWindowPlugin extends React.PureComponent {
       title: this.title,
       description: this.description,
     });
+  };
+
+  // Does nothing for a closed dialog, as `onClose` can have effects of its own
+  closeWindow = () => {
+    this.state.dialogOpen && this.#onClose();
   };
 
   #onClose = () => {
@@ -206,7 +221,7 @@ class DialogWindowPlugin extends React.PureComponent {
         <ListItemButton
           divider={true}
           selected={this.state.dialogOpen}
-          onClick={this.#handleButtonClick}
+          onClick={this.handleButtonClick}
           alignItems="flex-start"
         >
           <ListItemIcon sx={{ mt: 0, alignSelf: "center" }}>
@@ -229,7 +244,7 @@ class DialogWindowPlugin extends React.PureComponent {
       >
         <Card
           icon={this.icon}
-          onClick={this.#handleButtonClick}
+          onClick={this.handleButtonClick}
           title={this.title}
           abstract={this.description}
         />
@@ -247,7 +262,7 @@ class DialogWindowPlugin extends React.PureComponent {
       >
         <PluginControlButton
           icon={this.icon}
-          onClick={this.#handleButtonClick}
+          onClick={this.handleButtonClick}
           title={this.title}
           abstract={this.description}
         />

@@ -8,6 +8,48 @@ import { validateMapName } from "../../utils/safePath.js";
 
 const logger = log4js.getLogger("service.ai.catalog");
 
+/**
+ * The plugins the chat can open, with the title each shows when the map config
+ * has none, as the real defaults live in the client. A new plugin needs a line
+ * here, once `<type>.showWindow` is known to show something.
+ *
+ * Left out on purpose, because the client would do nothing and the model would
+ * still report success: `search` and `commandpalette` don't listen to the event,
+ * `location` has no window as a control button, `documenthandler` listens as
+ * `documentviewer` and `infodialog` as `infodialog.<name>`. Tools such as
+ * `infoclick` and `preset` aren't plugins at all.
+ */
+const OPENABLE_PLUGINS: Readonly<Record<string, string>> = {
+  anchor: "Dela",
+  attributeeditor: "Attributredigerare",
+  bookmarks: "Bokmärken",
+  buffer: "Buffra",
+  collector: "Tyck till",
+  coordinates: "Visa koordinat",
+  edit: "Redigera",
+  export: "Exportera",
+  feedback: "Tyck till",
+  fir: "FIR",
+  floodsimulator: "Översvämning",
+  fmeserver: "FME-server",
+  geosuiteexport: "Hämta data",
+  informative: "Översiktsplan",
+  kir: "KIR",
+  layercomparer: "Lagerjämförare",
+  layerswitcher: "Visa",
+  measurer: "Mät",
+  print: "Skriv ut",
+  propertychecker: "Fastighetskontroll",
+  routing: "Navigation",
+  sketch: "Rita",
+  streetview: "Gatuvy",
+  timeslider: "Tidslinje",
+};
+
+// The client doesn't mount a plugin without one of these, and `hidden` means
+// that the button was hidden on purpose.
+const VISIBLE_TARGETS: unknown[] = ["toolbar", "left", "right", "control"];
+
 export type LayerRole = "layer" | "background" | "search";
 
 export type LayerType =
@@ -80,7 +122,14 @@ interface WalkedBuiltIn {
 export interface MapInfo {
   title: string | null;
   projection: string | null;
-  tools: Array<{ type: string; title: string }>;
+  tools: MapTool[];
+}
+
+export interface MapTool {
+  type: string;
+  title: string;
+  /** Whether the chat can open it, see OPENABLE_PLUGINS. */
+  openable: boolean;
 }
 
 export interface WalkedMap {
@@ -261,6 +310,21 @@ function walkGroups(
   return leaves;
 }
 
+/** @summary What the chat may tell about a tool. Most have no title of their own. */
+function toMapTool({ type, options }: RawTool): MapTool {
+  // The client matches tools by lowercase type, and listens for that too
+  const name = (type as string).toLowerCase();
+  const fallback = Object.hasOwn(OPENABLE_PLUGINS, name)
+    ? OPENABLE_PLUGINS[name]
+    : undefined;
+  return {
+    type: name,
+    title: cleanInline(options?.title) ?? fallback ?? name,
+    openable:
+      fallback !== undefined && VISIBLE_TARGETS.includes(options?.target),
+  };
+}
+
 /**
  * @summary The one tree walker. Runs both on the raw map config, to build the
  * catalog, and on a user's washed map config, to find out what they may access.
@@ -274,13 +338,7 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
     info: {
       title: cleanInline(mapConfig.map?.title),
       projection: cleanInline(mapConfig.map?.projection),
-      // Most tools have no title of their own, so the type is the fallback
-      tools: tools
-        .filter((t) => typeof t.type === "string")
-        .map((t) => ({
-          type: t.type as string,
-          title: cleanInline(t.options?.title) ?? (t.type as string),
-        })),
+      tools: tools.filter((t) => typeof t.type === "string").map(toMapTool),
     },
     tree: [],
     backgrounds: entryIds(switcher?.baselayers),
@@ -576,6 +634,8 @@ export class CatalogService {
       try {
         this.#watcher = chokidar
           .watch(this.#appDataDir, {
+            // Otherwise the process doesn't exit on SIGTERM, see Server's shutdown
+            persistent: false,
             ignoreInitial: true,
             depth: 0,
             usePolling: process.env.INFORMATIVE_CACHE_POLLING === "true",

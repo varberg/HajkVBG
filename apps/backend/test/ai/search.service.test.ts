@@ -116,9 +116,11 @@ describe("SearchService", () => {
 
   const serviceWith = (
     embedder: Embedder | null,
-    maps: Record<string, object> = { demo: mapConfig() }
+    maps: Record<string, object> = { demo: mapConfig() },
+    options: { skipIndexBuild?: boolean } = {}
   ) => {
     const service = new SearchService({
+      ...options,
       embedder,
       cacheDir,
       debounceMs: 1,
@@ -386,6 +388,81 @@ describe("SearchService", () => {
       const texts = documentTexts(embedder);
       assert.equal(texts.length, 1);
       assert.ok(texts[0].includes("Efter"));
+    });
+
+    describe("with AI_DEBUG_SKIP_INDEX_BUILD", () => {
+      const skipping = (embedder: Embedder) =>
+        serviceWith(embedder, undefined, { skipIndexBuild: true });
+
+      test("a changed layer isn't embedded, and the file isn't touched", async () => {
+        current = catalogWith(wmsLayer("edited", { infoText: "Före" }));
+        await serviceWith(fakeEmbedder()).buildVectors("demo");
+        const before = fs.readFileSync(cacheFile(), "utf-8");
+
+        current = catalogWith(wmsLayer("edited", { infoText: "Efter" }));
+        const embedder = fakeEmbedder();
+        await skipping(embedder).buildVectors("demo");
+
+        assert.deepEqual(documentTexts(embedder), []);
+        assert.equal(fs.readFileSync(cacheFile(), "utf-8"), before);
+      });
+
+      test("a layer without a vector is still found by keywords", async () => {
+        await serviceWith(fakeEmbedder()).buildVectors("demo");
+
+        current = catalogWith(wmsLayer("added", { caption: "Snorkelplatser" }));
+        const service = skipping(fakeEmbedder());
+        await service.buildVectors("demo");
+
+        const result = await service.search(userOf(current), "Snorkelplatser");
+        assert.equal(result.mode, "hybrid");
+        assert.ok(ids(result).includes("added"));
+      });
+
+      test("builds as usual when there is no cache", async () => {
+        const embedder = fakeEmbedder();
+        await skipping(embedder).buildVectors("demo");
+
+        assert.ok(documentTexts(embedder).length > 0);
+        assert.ok(fs.existsSync(cacheFile()));
+      });
+
+      test("builds as usual when the cache is from another model", async () => {
+        await serviceWith(fakeEmbedder("fake:model-a")).buildVectors("demo");
+
+        const embedder = fakeEmbedder("fake:model-b");
+        await skipping(embedder).buildVectors("demo");
+
+        assert.ok(documentTexts(embedder).length > 0);
+      });
+
+      test("is read from .env, and is off by default", async () => {
+        const build = async () => {
+          current = catalogWith(wmsLayer("edited", { infoText: `${time++}` }));
+          const embedder = fakeEmbedder();
+          const service = new SearchService({
+            embedder,
+            cacheDir,
+            catalogs: {
+              getCatalog: async () => current,
+              onChange: () => () => {},
+              startWatching: async () => {},
+              stopWatching: async () => {},
+            },
+          });
+          await service.buildVectors("demo");
+          return documentTexts(embedder).length;
+        };
+        await serviceWith(fakeEmbedder()).buildVectors("demo");
+
+        assert.equal(await build(), 1);
+        process.env.AI_DEBUG_SKIP_INDEX_BUILD = "true";
+        try {
+          assert.equal(await build(), 0);
+        } finally {
+          delete process.env.AI_DEBUG_SKIP_INDEX_BUILD;
+        }
+      });
     });
 
     test("a new embedding model embeds everything again", async () => {

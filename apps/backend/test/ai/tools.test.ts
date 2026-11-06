@@ -8,6 +8,7 @@ import {
   walkMapConfig,
 } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import type { RawMapConfig } from "../../server/apis/v2/services/ai/catalog.service.ts";
+import { buildSystemPrompt } from "../../server/apis/v2/services/ai/prompt.ts";
 import {
   PAGE_SIZE,
   runTool,
@@ -131,6 +132,8 @@ describe("tool schemas", () => {
   test("map actions are never read tools", () => {
     const actions = tools.filter((t) => t.kind === "action").map((t) => t.name);
     assert.deepEqual(actions.sort(), [
+      "close_plugin",
+      "open_plugin",
       "present_layers",
       "set_background",
       "set_layer_visibility",
@@ -411,7 +414,7 @@ describe("get_map_info", () => {
     assert.equal(result.projection, "EPSG:3007");
     assert.deepEqual(
       result.tools.find((t: { type: string }) => t.type === "fir"),
-      { type: "fir", title: "fir" }
+      { type: "fir", title: "FIR", openable: true }
     );
   });
 
@@ -718,5 +721,110 @@ describe("set_background", () => {
       assert.deepEqual(rejectedIds(result), [id]);
       assert.deepEqual(events, []);
     }
+  });
+});
+
+describe("open_plugin", () => {
+  test("accepts a plugin on the map, and sends it in lowercase", async () => {
+    for (const plugin of ["sketch", "Sketch"]) {
+      const { events, result } = await call("open_plugin", { plugin });
+      assert.deepEqual(result, { accepted: ["sketch"], rejected: [] });
+      assert.deepEqual(events, [
+        { type: "action", action: "open_plugin", plugin: "sketch" },
+      ]);
+    }
+  });
+
+  test("rejects what wouldn't open, and sends no action", async () => {
+    // A tool with nothing to show, the chat itself, a hidden one, and one that
+    // is only a control button
+    for (const plugin of ["search", "aichat", "measurer", "location"]) {
+      const { events, result } = await call("open_plugin", { plugin });
+      assert.deepEqual(result.accepted, []);
+      assert.deepEqual(rejectedIds(result), [plugin]);
+      assert.deepEqual(events, []);
+    }
+  });
+
+  test("answers the same for a restricted plugin as for an unknown one", async () => {
+    const config = mapConfig();
+    config.tools = config.tools.filter((t) => t.type !== "fir");
+    const ctx = context(view(config));
+
+    const restricted = await call("open_plugin", { plugin: "fir" }, ctx);
+    const unknown = await call("open_plugin", { plugin: "nope" }, ctx);
+
+    assert.deepEqual(restricted.events, []);
+    assert.equal(
+      restricted.result.rejected[0].reason,
+      unknown.result.rejected[0].reason
+    );
+  });
+
+  test("doesn't take names from the prototype of the allowlist", async () => {
+    const config = mapConfig();
+    config.tools.push({ type: "constructor", options: { target: "toolbar" } });
+    const { events } = await call(
+      "open_plugin",
+      { plugin: "constructor" },
+      context(view(config))
+    );
+    assert.deepEqual(events, []);
+  });
+});
+
+describe("close_plugin", () => {
+  test("accepts a plugin on the map", async () => {
+    const { events, result } = await call("close_plugin", { plugin: "Sketch" });
+    assert.deepEqual(result, { accepted: ["sketch"], rejected: [] });
+    assert.deepEqual(events, [
+      { type: "action", action: "close_plugin", plugin: "sketch" },
+    ]);
+  });
+
+  test("can't close the chat itself", async () => {
+    const { events, result } = await call("close_plugin", { plugin: "aichat" });
+    assert.deepEqual(rejectedIds(result), ["aichat"]);
+    assert.deepEqual(events, []);
+  });
+
+  test("answers the same for a restricted plugin as for an unknown one", async () => {
+    const config = mapConfig();
+    config.tools = config.tools.filter((t) => t.type !== "fir");
+    const ctx = context(view(config));
+
+    const restricted = await call("close_plugin", { plugin: "fir" }, ctx);
+    const unknown = await call("close_plugin", { plugin: "nope" }, ctx);
+
+    assert.deepEqual(restricted.events, []);
+    assert.equal(
+      restricted.result.rejected[0].reason,
+      unknown.result.rejected[0].reason
+    );
+  });
+});
+
+describe("buildSystemPrompt", () => {
+  test("lists the plugins that can be opened, and only those", () => {
+    const prompt = buildSystemPrompt(view());
+    assert.ok(prompt.includes("- Rita [sketch]"));
+    assert.ok(prompt.includes("- Skriv ut kartan [print]"));
+    assert.equal(prompt.includes("[measurer]"), false);
+    assert.equal(prompt.includes("[location]"), false);
+    assert.equal(prompt.includes("[aichat]"), false);
+  });
+
+  test("leaves out a plugin the user has no access to", () => {
+    const config = mapConfig();
+    config.tools = config.tools.filter((t) => t.type !== "fir");
+    assert.equal(buildSystemPrompt(view(config)).includes("[fir]"), false);
+  });
+
+  test("says so when nothing can be opened", () => {
+    const config = mapConfig();
+    config.tools = config.tools.filter((t) => t.type === "layerswitcher");
+    assert.ok(
+      buildSystemPrompt(view(config)).includes("No tools can be opened")
+    );
   });
 });

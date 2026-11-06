@@ -1,7 +1,7 @@
 export const DEFAULT_TITLE = "AI-chatt";
 export const DEFAULT_DESCRIPTION = "Hitta och tänd kartlager genom att fråga";
 export const DEFAULT_INTRO_TEXT =
-  "Fråga om kartans lager, till exempel vilka lager som finns om ett ämne. Du kan också be mig tända och släcka lager eller byta bakgrund.";
+  "Fråga om kartans lager, till exempel vilka lager som finns om ett ämne. Du kan också be mig tända och släcka lager, byta bakgrund eller öppna och stänga kartans verktyg.";
 
 // Also enforced by Backend, see controllers/ai/controller.ts
 export const MAX_MESSAGE_LENGTH = 4000;
@@ -19,6 +19,7 @@ export const UI_STRINGS = {
   conversationRestarted:
     "Den förra konversationen hade upphört, så frågan skickades som en ny konversation.",
   truncated: "Svaret blev för långt och är avkortat.",
+  pluginUnavailable: "Verktyget kunde inte öppnas.",
 };
 
 export const TOOL_STATUS: Record<string, string> = {
@@ -30,6 +31,8 @@ export const TOOL_STATUS: Record<string, string> = {
   present_layers: "Förbereder lagerlistan…",
   set_layer_visibility: "Ändrar lagren på kartan…",
   set_background: "Byter bakgrund…",
+  open_plugin: "Öppnar verktyget…",
+  close_plugin: "Stänger verktyget…",
 };
 
 const GENERIC_ERROR = "Det gick inte att få ett svar. Försök igen senare.";

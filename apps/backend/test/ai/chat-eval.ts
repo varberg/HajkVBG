@@ -130,7 +130,7 @@ async function run(q: Question): Promise<Outcome> {
       const ids =
         event.type === "layers"
           ? event.items.map((item) => item.id)
-          : event.type !== "action"
+          : event.type !== "action" || "plugin" in event
             ? []
             : event.action === "set_background"
               ? [event.id]
