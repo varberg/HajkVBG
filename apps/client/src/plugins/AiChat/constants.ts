@@ -29,9 +29,7 @@ export const UI_STRINGS = {
 export const TOOL_STATUS: Record<string, string> = {
   search_layers: "Söker bland lagren…",
   filter_layers: "Filtrerar lagren…",
-  browse_groups: "Bläddrar bland grupperna…",
   get_layer_details: "Läser om lagret…",
-  get_map_info: "Läser om kartan…",
   present_layers: "Förbereder lagerlistan…",
   set_layer_visibility: "Ändrar lagren på kartan…",
   set_background: "Byter bakgrund…",

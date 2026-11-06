@@ -34,7 +34,7 @@ export interface SearchInput {
   near: { feature_id: string; distance_m: number } | null;
   sort: FeatureSort | null;
   count_only: boolean;
-  offset: number | null;
+  offset: number;
 }
 
 export interface ShowInput {

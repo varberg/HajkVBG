@@ -69,10 +69,8 @@ async function call(
 
 const noFilters = {
   owner: null,
-  type: null,
   role: null,
   group_id: null,
-  missing: null,
 };
 
 const rejectedIds = (result: { rejected: Array<{ id: string }> }) =>
@@ -154,7 +152,7 @@ describe("tool schemas", () => {
 
 describe("validateInput", () => {
   const schema = tools.find((t) => t.name === "filter_layers")!.inputSchema;
-  const valid = { filters: noFilters, count_only: false, offset: null };
+  const valid = { filters: noFilters, count_only: false, offset: 0 };
 
   test("accepts valid input", () => {
     assert.equal(validateInput(schema, valid), null);
@@ -165,6 +163,10 @@ describe("validateInput", () => {
     assert.match(validateInput(schema, { ...valid, x: 1 })!, /not a known/);
     assert.match(
       validateInput(schema, { ...valid, offset: 1.5 })!,
+      /offset must be/
+    );
+    assert.match(
+      validateInput(schema, { ...valid, offset: null })!,
       /offset must be/
     );
     assert.match(
@@ -192,7 +194,7 @@ describe("runTool", () => {
   test("turns a crash into a result that hides the details", async () => {
     const { isError, result } = await call(
       "search_layers",
-      { query: "x", limit: null },
+      { query: "x", limit: 10 },
       context(view(), {
         search: {
           search: () => Promise.reject(new Error("secret connection string")),
@@ -236,7 +238,7 @@ describe("filter_layers", () => {
   const filter = (
     filters: object,
     ctx?: ToolContext,
-    offset: number | null = null,
+    offset = 0,
     countOnly = false
   ) =>
     call(
@@ -257,14 +259,17 @@ describe("filter_layers", () => {
     );
   });
 
-  test("filters by type and role", async () => {
-    const { result: wfs } = await filter({ type: "wfs" });
-    assert.equal(wfs.total, 1);
+  test("filters by role", async () => {
     const { result: backgrounds } = await filter({ role: "background" });
     assert.deepEqual(
       backgrounds.layers.map((l: { id: string }) => l.id).sort(),
       ["-1", "-3", "multiBackground"]
     );
+  });
+
+  test("a pruned group is unknown", async () => {
+    const { isError } = await filter({ group_id: "broken" });
+    assert.equal(isError, true);
   });
 
   test("a group includes its subgroups", async () => {
@@ -280,17 +285,8 @@ describe("filter_layers", () => {
     assert.equal(isError, true);
   });
 
-  test("filters on missing fields", async () => {
-    const { result } = await filter({ missing: ["owner"], role: "layer" });
-    assert.equal(
-      result.layers.some((l: { id: string }) => l.id === "plain"),
-      false
-    );
-    assert.ok(result.total > 0);
-  });
-
   test("count_only gives the total alone", async () => {
-    const { result } = await filter({ role: "layer" }, undefined, null, true);
+    const { result } = await filter({ role: "layer" }, undefined, 0, true);
     assert.deepEqual(Object.keys(result), ["total"]);
   });
 
@@ -345,44 +341,6 @@ function hideGroup() {
   return config;
 }
 
-describe("browse_groups", () => {
-  const browse = (groupId: string | null, ctx?: ToolContext, offset = 0) =>
-    call("browse_groups", { group_id: groupId, offset }, ctx);
-
-  test("lists the top level with exclusive flags and leaf counts", async () => {
-    const { result } = await browse(null);
-    const top = result.items.find((i: { id: string }) => i.id === "top");
-    assert.equal(top.leafCount, 6);
-    assert.equal(top.exclusive, false);
-  });
-
-  test("lists subgroups before the group's own layers", async () => {
-    const { result } = await browse("top");
-    assert.equal(result.items[0].id, "nested");
-    assert.equal(result.items[0].exclusive, true);
-    assert.deepEqual(
-      result.items
-        .slice(1)
-        .map((i: { id: string }) => i.id)
-        .sort(),
-      ["arcgis1", "plain", "wmts1"]
-    );
-  });
-
-  test("pages through a large group", async () => {
-    const ctx = context(bigMap(30));
-    const { result } = await browse("bigGroup", ctx);
-    assert.equal(result.total, 30);
-    assert.equal(result.truncated, true);
-    assert.equal(result.items.length, PAGE_SIZE);
-  });
-
-  test("a pruned group is unknown", async () => {
-    const { isError } = await browse("broken");
-    assert.equal(isError, true);
-  });
-});
-
 describe("get_layer_details", () => {
   test("returns the record, without connection details", async () => {
     const { result, content } = await call("get_layer_details", {
@@ -409,43 +367,6 @@ describe("get_layer_details", () => {
   });
 });
 
-describe("get_map_info", () => {
-  const withInfo = () => ({
-    ...mapConfig(),
-    map: { title: "Demo", projection: "EPSG:3007" },
-  });
-
-  test("gives the title, projection and tools", async () => {
-    const { result } = await call(
-      "get_map_info",
-      {},
-      context(view(withInfo()))
-    );
-    assert.equal(result.title, "Demo");
-    assert.equal(result.projection, "EPSG:3007");
-    assert.deepEqual(
-      result.tools.find((t: { type: string }) => t.type === "fir"),
-      { type: "fir", title: "FIR", openable: true }
-    );
-  });
-
-  test("never includes other tool options", async () => {
-    const { content } = await call("get_map_info", {});
-    assert.equal(content.includes("do not expose"), false);
-    assert.equal(content.includes("secretSetting"), false);
-  });
-
-  test("leaves out a tool the user has no access to", async () => {
-    const config = withInfo();
-    config.tools = config.tools.filter((t) => t.type !== "fir");
-    const { result } = await call("get_map_info", {}, context(view(config)));
-    assert.equal(
-      result.tools.some((t: { type: string }) => t.type === "fir"),
-      false
-    );
-  });
-});
-
 describe("no tool leaks connection details", () => {
   test("in any read result", async () => {
     const outputs = await Promise.all([
@@ -453,11 +374,9 @@ describe("no tool leaks connection details", () => {
       call("filter_layers", {
         filters: noFilters,
         count_only: false,
-        offset: null,
+        offset: 0,
       }),
-      call("browse_groups", { group_id: "top", offset: null }),
       call("get_layer_details", { id: "wfs1" }),
-      call("get_map_info", {}),
     ]);
     for (const { content } of outputs) {
       assert.equal(content.includes("secret.example"), false);
@@ -820,7 +739,7 @@ describe("places", () => {
     call("filter_layers", {
       filters: { ...noFilters, ...filters },
       count_only: false,
-      offset: null,
+      offset: 0,
     });
 
   const withoutPreset = () => {
@@ -833,12 +752,6 @@ describe("places", () => {
     const { result } = await filter({});
     assert.equal(
       result.layers.some((l: { role: string }) => l.role === "place"),
-      false
-    );
-
-    const missing = await filter({ missing: ["owner", "text"] });
-    assert.equal(
-      missing.result.layers.some((l: { role: string }) => l.role === "place"),
       false
     );
   });
@@ -924,10 +837,9 @@ describe("places", () => {
       call("filter_layers", {
         filters: { ...noFilters, role: "place" },
         count_only: false,
-        offset: null,
+        offset: 0,
       }),
       call("get_layer_details", { id: "place:Bryggan" }),
-      call("get_map_info", {}),
       call("go_to_place", { id: "place:Bryggan" }),
     ]);
     for (const { content } of outputs) {
@@ -951,6 +863,25 @@ describe("buildSystemPrompt", () => {
     const config = mapConfig();
     config.tools = config.tools.filter((t) => t.type !== "fir");
     assert.equal(buildSystemPrompt(view(config)).includes("[fir]"), false);
+  });
+
+  test("gives the title and projection", () => {
+    const prompt = buildSystemPrompt(
+      view({ ...mapConfig(), map: { title: "Demo", projection: "EPSG:3007" } })
+    );
+    assert.ok(prompt.includes('The map is called "Demo".'));
+    assert.ok(prompt.includes("Its projection is EPSG:3007."));
+  });
+
+  test("names the tools that can't be opened", () => {
+    const prompt = buildSystemPrompt(view());
+    assert.match(prompt, /can't be opened or closed: .*Mät/);
+  });
+
+  test("never includes other tool options", () => {
+    const prompt = buildSystemPrompt(view());
+    assert.equal(prompt.includes("do not expose"), false);
+    assert.equal(prompt.includes("secretSetting"), false);
   });
 
   test("says so when nothing can be opened", () => {

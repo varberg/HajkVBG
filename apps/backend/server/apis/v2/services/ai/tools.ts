@@ -9,7 +9,6 @@ import type {
   CatalogGroup,
   CatalogRecord,
   LayerRole,
-  LayerType,
   SubLayer,
 } from "./catalog.service.ts";
 import { searchFeatures, showFeatures } from "./features/featureSearch.ts";
@@ -193,9 +192,10 @@ const nullable = (schema: JsonSchema): JsonSchema => ({
   type: [schema.type as string, "null"],
 });
 
+// Required and not nullable, as nullable inputs count against Claude's limit
 const offsetSchema: JsonSchema = {
-  type: ["integer", "null"],
-  description: "How many items to skip, to fetch a later page. Null means 0.",
+  type: "integer",
+  description: "How many items to skip, to fetch a later page. 0 is the first.",
 };
 
 const pathText = (groupPath: string[]) => groupPath.join(" > ");
@@ -536,17 +536,15 @@ function define<Input>(
 
 interface LayerFilters {
   owner: string | null;
-  type: LayerType | null;
   role: LayerRole | null;
   group_id: string | null;
-  missing: Array<"owner" | "text" | "contentTag" | "infoUrl" | "date"> | null;
 }
 
 function filterRecords(
   filters: LayerFilters,
   userCatalog: UserCatalog
 ): CatalogRecord[] {
-  const { owner, type, role, group_id: groupId, missing } = filters;
+  const { owner, role, group_id: groupId } = filters;
   const inGroup =
     groupId === null
       ? null
@@ -557,11 +555,9 @@ function filterRecords(
     (record) =>
       (ownerText === undefined ||
         record.owner?.toLocaleLowerCase("sv").includes(ownerText) === true) &&
-      (type === null || record.type === type) &&
       // A place isn't a layer, so it only counts when asked for by name
       (role === null ? record.role !== "place" : record.role === role) &&
-      (inGroup === null || inGroup.has(record.id)) &&
-      (missing ?? []).every((field) => record[field] === null)
+      (inGroup === null || inGroup.has(record.id))
   );
 }
 
@@ -570,7 +566,7 @@ function filterRecords(
  * is fixed, because a changed tool list breaks the prompt cache.
  */
 export const tools: Tool[] = [
-  define<{ query: string; limit: number | null }>({
+  define<{ query: string; limit: number }>({
     name: "search_layers",
     kind: "read",
     description:
@@ -582,18 +578,18 @@ export const tools: Tool[] = [
           "Search terms, preferably words likely to be used in the layer names and descriptions.",
       },
       limit: {
-        type: ["integer", "null"],
-        description: `How many matches to return, at most ${MAX_SEARCH_LIMIT}. Null means ${DEFAULT_SEARCH_LIMIT}.`,
+        type: "integer",
+        description: `How many matches to return, at most ${MAX_SEARCH_LIMIT}. Use ${DEFAULT_SEARCH_LIMIT} unless you need more.`,
       },
     }),
     async run({ query, limit }, { userCatalog, search }) {
-      if (limit !== null && limit < 1) {
+      if (limit < 1) {
         throw new ToolError("limit must be at least 1.");
       }
       const { hits } = await search.search(
         userCatalog,
         query,
-        Math.min(limit ?? DEFAULT_SEARCH_LIMIT, MAX_SEARCH_LIMIT)
+        Math.min(limit, MAX_SEARCH_LIMIT)
       );
       return { result: { layers: hits.map((h) => listItem(h.record)) } };
     },
@@ -602,7 +598,7 @@ export const tools: Tool[] = [
   define<{
     filters: LayerFilters;
     count_only: boolean;
-    offset: number | null;
+    offset: number;
   }>({
     name: "filter_layers",
     kind: "read",
@@ -614,25 +610,14 @@ export const tools: Tool[] = [
           description:
             "Part of the owner's name, ignoring case. Owners are often written in another form than the user's, so use a short distinctive part, such as `stadsbyggnad`, and try another one before saying that an owner has no layers.",
         },
-        type: nullableEnum(
-          ["wms", "wmts", "wfs", "wfst", "vector", "arcgis", "builtin"],
-          "The layer type."
-        ),
         role: nullableEnum(
           ["layer", "background", "search", "place"],
           "`layer` is in the layer tree, `background` is a background, `search` is only used in Search and `place` is a named place. Places are only included when this is `place`."
         ),
         group_id: {
           type: ["string", "null"],
-          description: "A group id. Includes layers in its subgroups.",
-        },
-        missing: {
-          type: ["array", "null"],
-          items: {
-            type: "string",
-            enum: ["owner", "text", "contentTag", "infoUrl", "date"],
-          },
-          description: "Only layers that lack all of these fields.",
+          description:
+            "A group id, to list what a group holds. Includes layers in its subgroups, and `groupPath` says where each one is.",
         },
       }),
       count_only: {
@@ -652,41 +637,6 @@ export const tools: Tool[] = [
     },
   }),
 
-  define<{ group_id: string | null; offset: number | null }>({
-    name: "browse_groups",
-    kind: "read",
-    description: `Walk the layer tree. Returns the subgroups of a group, then its own layers, ${PAGE_SIZE} items per page. A group's \`leafCount\` is how many layers it holds, including subgroups. Null lists the top level.`,
-    inputSchema: object({
-      group_id: {
-        type: ["string", "null"],
-        description: "The group to open. Null means the top level.",
-      },
-      offset: offsetSchema,
-    }),
-    run({ group_id: groupId, offset }, { userCatalog }) {
-      const start = readOffset(offset);
-      const group =
-        groupId === null ? null : allowedGroup(userCatalog, groupId);
-      const subGroups = userCatalog.groups
-        .filter((g) => g.parentId === (group?.id ?? null))
-        .sort((a, b) =>
-          collator.compare(pathText(a.groupPath), pathText(b.groupPath))
-        )
-        .map((g) => ({
-          id: g.id,
-          name: g.name,
-          groupPath: pathText(g.groupPath),
-          exclusive: g.exclusive,
-          leafCount: g.leafLayerIds.length,
-        }));
-      const layers =
-        group === null
-          ? []
-          : directLayers(group, userCatalog).sort(byPlace).map(listItem);
-      return { result: page([...subGroups, ...layers], start) };
-    },
-  }),
-
   define<{ id: string }>({
     name: "get_layer_details",
     kind: "read",
@@ -700,15 +650,6 @@ export const tools: Tool[] = [
       }
       return { result: record };
     },
-  }),
-
-  define<Record<string, never>>({
-    name: "get_map_info",
-    kind: "read",
-    description:
-      "Get the title and projection of the map, and which tools it offers.",
-    inputSchema: object({}),
-    run: (_input, { userCatalog }) => ({ result: userCatalog.mapInfo }),
   }),
 
   define<{ ids: string[] }>({

@@ -94,7 +94,7 @@
           "place": "KrisGIS > Samlingsplatser"
         },
         {
-          "id": "1574",
+          "id": "ab490923-6593-4747-994c-714f83496426",
           "caption": "Bibliotek",
           "place": "(search)"
         }
@@ -501,7 +501,7 @@
       "heldOut": true,
       "expected": [
         {
-          "id": "1884",
+          "id": "5363b92f-c8d5-43e0-aeae-9722bb9513b6",
           "caption": "Ö",
           "place": "(search)"
         }

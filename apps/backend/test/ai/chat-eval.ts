@@ -14,6 +14,10 @@
  * two more figures are shown for information. "Delivered": the layer got to the
  * user, as a control under the answer or as an action on the map, directly or
  * through a folder or sublayer. "Reached": it was in any tool result.
+ *
+ * A search-only layer can also be a feature source, with the same id. A hit in
+ * search_features on such a source counts as both search and delivered, as the
+ * answer then comes from the data of the expected layer.
  */
 import fs from "fs";
 import { parseArgs } from "util";
@@ -52,6 +56,7 @@ interface Outcome {
   reached: boolean;
   searches: string[];
   tools: string[];
+  answer: string;
   error: string | null;
   fellBack: boolean;
   ms: number;
@@ -80,6 +85,12 @@ const provider = await createProvider();
 const wfs = createWfsAccess(readWfsTimeoutMs());
 await searchService.buildVectors(map);
 
+// An id that has left the config can never pass, which looks like a bad answer
+const { recordsById } = await accessService.getUserCatalog(map);
+const stale = questions.flatMap((q) =>
+  q.expected.filter((e) => !recordsById.has(e.id)).map((e) => `${q.id}:${e.id}`)
+);
+
 async function run(q: Question): Promise<Outcome> {
   const expected = new Set(q.expected.map((e) => e.id));
   const searches: string[] = [];
@@ -88,6 +99,7 @@ async function run(q: Question): Promise<Outcome> {
   let delivered = false;
   let reached = false;
   let fellBack = false;
+  let answer = "";
   let error: string | null = null;
 
   // One orchestrator per question, so that the spies see this question only
@@ -112,6 +124,13 @@ async function run(q: Question): Promise<Outcome> {
       async run(name, input, context) {
         const output = await registry.run(name, input, context);
         tools.push(name);
+        if (name === "search_features" && !output.isError) {
+          const { source_id: sourceId } = input as { source_id: string };
+          const { total } = JSON.parse(output.content) as { total: number };
+          const answered = expected.has(sourceId) && total > 0;
+          passed ||= answered;
+          delivered ||= answered;
+        }
         reached ||= [...expected].some((id) =>
           output.content.includes(`"id":${JSON.stringify(id)}`)
         );
@@ -133,6 +152,7 @@ async function run(q: Question): Promise<Outcome> {
     turn,
     (event: ChatEvent) => {
       if (event.type === "error") error = event.code;
+      if (event.type === "text") answer += event.delta;
       const ids =
         event.type === "layers"
           ? event.items.map((item) => item.id)
@@ -165,6 +185,7 @@ async function run(q: Question): Promise<Outcome> {
     reached: reached || passed || delivered,
     searches,
     tools,
+    answer,
     error,
     fellBack,
     ms: performance.now() - started,
@@ -210,10 +231,14 @@ console.log(
   `Fell back to keywords: ${outcomes.filter((o) => o.fellBack).length}, errors: ${outcomes.filter((o) => o.error).length}`
 );
 
+if (stale.length > 0) {
+  console.log(`Expected ids not in the catalog: ${stale.join(", ")}`);
+}
+
 console.log("\nMisses, by search or delivery:");
 for (const o of outcomes.filter((o) => !o.passed || !o.delivered)) {
   console.log(
-    `${o.id} [${o.kind}] ${o.question}\n    search ${o.passed}, delivered ${o.delivered}, reached ${o.reached}, error ${o.error}, tools ${o.tools.join(",") || "none"}, searches: ${o.searches.join(" | ") || "none"}`
+    `${o.id} [${o.kind}] ${o.question}\n    search ${o.passed}, delivered ${o.delivered}, reached ${o.reached}, error ${o.error}, tools ${o.tools.join(",") || "none"}, searches: ${o.searches.join(" | ") || "none"}\n    answer: ${o.answer.replace(/\s+/g, " ").slice(0, 300)}`
   );
 }
 

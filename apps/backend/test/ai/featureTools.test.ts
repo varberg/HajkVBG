@@ -106,7 +106,7 @@ const NO_CRITERIA = {
   near: null,
   sort: null,
   count_only: false,
-  offset: null,
+  offset: 0,
 };
 
 async function call(name: string, input: unknown, ctx: ToolContext) {

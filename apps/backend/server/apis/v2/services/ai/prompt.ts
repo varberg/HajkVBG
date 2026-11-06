@@ -11,7 +11,7 @@ Answering:
 
 Finding layers:
 - Layer metadata is in Swedish. Don't search with the user's words as they are: write the terms a layer name or description is likely to use, including the formal terms. If the matches don't fit, search again with other terms before giving up.
-- Use filter_layers for exact lists and counts, browse_groups to walk the tree, and get_layer_details before describing what a layer contains.
+- Use filter_layers for exact lists and counts and, with \`group_id\`, to look inside a group from the tree below. Use get_layer_details before describing what a layer contains.
 - When a result is truncated, say so ("showing 25 of 188"). Never act on a partial list as if it were everything: fetch the remaining pages first, or tell the user how many layers the action would cover.
 
 Showing layers:
@@ -86,14 +86,26 @@ export function buildSystemPrompt(userCatalog: UserCatalog): string {
     plugins === ""
       ? "No tools can be opened or closed on this map."
       : `These are the tools that can be opened and closed, one per line, as \`- Title [type]\`:\n\n${plugins}`;
+  const fixedTools = mapInfo.tools
+    .filter((tool) => !tool.openable)
+    .map((tool) => tool.title)
+    .join(", ");
+  const otherTools =
+    fixedTools === ""
+      ? ""
+      : `\n\nThe map also has these tools, which can't be opened or closed: ${fixedTools}.`;
+  const projection =
+    mapInfo.projection === null
+      ? ""
+      : ` Its projection is ${mapInfo.projection}.`;
 
   return `${INSTRUCTIONS}
 
 ${renderFeatureSources(userCatalog)}
 
-${openable}
+${openable}${otherTools}
 
-The map is called "${title}". These are its layer groups, one per line, as \`- Name [group id] (number of layers)\`, with subgroups indented:
+The map is called "${title}".${projection} These are its layer groups, one per line, as \`- Name [group id] (number of layers)\`, with subgroups indented:
 
 ${renderGroupTree(groupTree)}`;
 }
