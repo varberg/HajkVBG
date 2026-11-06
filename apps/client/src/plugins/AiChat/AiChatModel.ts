@@ -11,6 +11,7 @@ import type {
   ChatMessage,
   ChatState,
   LayerSnapshot,
+  Preset,
   PresentedLayer,
 } from "./types";
 
@@ -54,6 +55,8 @@ export default class AiChatModel {
   #map: string;
   #layerControl: LayerControlModel;
   #toolControl: ToolControlModel;
+  #globalObserver: AiChatApp["globalObserver"];
+  #presets: Preset[];
   #state: ChatState = EMPTY_STATE;
   #listeners = new Set<() => void>();
   #conversationId: string | null = null;
@@ -66,6 +69,13 @@ export default class AiChatModel {
     this.#map = app.config.activeMap as string;
     this.#layerControl = app.layerControl;
     this.#toolControl = app.toolControl;
+    this.#globalObserver = app.globalObserver;
+
+    const { tools } = app.config.mapConfig as {
+      tools: Array<{ type: string; options?: { presetList?: Preset[] } }>;
+    };
+    this.#presets =
+      tools.find((tool) => tool.type === "preset")?.options?.presetList ?? [];
   }
 
   subscribe = (listener: () => void): (() => void) => {
@@ -84,6 +94,20 @@ export default class AiChatModel {
     this.#abort = null;
     this.#conversationId = null;
     this.#setState(EMPTY_STATE);
+  };
+
+  /**
+   * @summary Go to a place, the same way as picking it in the Preset control.
+   * @returns False if the place isn't in the map config that was loaded, which
+   * can happen if the config has changed since then
+   */
+  goToPlace = (name: string): boolean => {
+    const preset = this.#presets.find((p) => p.name === name);
+    if (preset === undefined) {
+      return false;
+    }
+    this.#globalObserver.publish("preset.selectPreset", preset);
+    return true;
   };
 
   send = async (text: string): Promise<void> => {
@@ -280,6 +304,12 @@ export default class AiChatModel {
     }
     if (action.action === "close_plugin") {
       this.#toolControl.hideTool(action.plugin);
+      return;
+    }
+    if (action.action === "go_to_place") {
+      if (!this.goToPlace(action.place)) {
+        this.#addNotice(answerId, UI_STRINGS.placeUnavailable);
+      }
       return;
     }
     if (action.action === "set_background") {

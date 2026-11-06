@@ -50,10 +50,10 @@ const OPENABLE_PLUGINS: Readonly<Record<string, string>> = {
 // that the button was hidden on purpose.
 const VISIBLE_TARGETS: unknown[] = ["toolbar", "left", "right", "control"];
 
-export type LayerRole = "layer" | "background" | "search";
+export type LayerRole = "layer" | "background" | "search" | "place";
 
 export type LayerType =
-  "wms" | "wmts" | "wfs" | "wfst" | "vector" | "arcgis" | "builtin";
+  "wms" | "wmts" | "wfs" | "wfst" | "vector" | "arcgis" | "builtin" | "place";
 
 export interface SubLayer {
   id: string;
@@ -80,6 +80,8 @@ export interface CatalogRecord {
   searchable: boolean;
   infoUrl: string | null;
   date: string | null;
+  /** Places only: going there also replaces the layers on the map. */
+  changesLayers?: boolean;
 }
 
 export interface CatalogGroup {
@@ -115,9 +117,17 @@ interface WalkedBuiltIn {
   caption: string;
 }
 
+interface WalkedPlace {
+  id: string;
+  caption: string;
+  groupPath: string[];
+  changesLayers: boolean;
+}
+
 /**
  * What the chat may tell about a map. Tool options are left out on purpose, as
- * some tools carry restricted configuration.
+ * some tools carry restricted configuration. The only exception is the names of
+ * the `preset` tool's places, which become records, see walkPlaces.
  */
 export interface MapInfo {
   title: string | null;
@@ -137,6 +147,7 @@ export interface WalkedMap {
   tree: WalkedLayer[];
   backgrounds: string[];
   builtInBackgrounds: WalkedBuiltIn[];
+  places: WalkedPlace[];
   search: string[];
   groups: CatalogGroup[];
 }
@@ -153,6 +164,11 @@ interface RawGroup {
 interface RawTool {
   type?: unknown;
   options?: Record<string, unknown>;
+}
+
+interface RawPlace {
+  name?: unknown;
+  presetUrl?: unknown;
 }
 
 export interface RawMapConfig {
@@ -194,6 +210,11 @@ const BUILT_IN_BACKGROUNDS = [
     option: "enableOSMVector",
   },
 ];
+
+// A colon can't be mistaken for a sublayer address, as records are looked up first
+const PLACE_ID_PREFIX = "place:";
+// Same default title as PresetLinks
+const DEFAULT_PLACES_TITLE = "Snabbval";
 
 const HTML_ENTITIES: Record<string, string> = {
   amp: "&",
@@ -326,6 +347,34 @@ function toMapTool({ type, options }: RawTool): MapTool {
 }
 
 /**
+ * @summary The named places of the `preset` tool. Only the name is kept, as the
+ * client has the link in its own map config, and a broken link is left out so
+ * that the chat never offers it. Same rule as isValidMapLink() in PresetLinks.
+ */
+function walkPlaces(options: RawTool["options"]): WalkedPlace[] {
+  const groupPath = [cleanInline(options?.title) ?? DEFAULT_PLACES_TITLE];
+  const places = new Map<string, WalkedPlace>();
+
+  for (const raw of asArray(options?.presetList) as RawPlace[]) {
+    const caption = cleanInline(raw.name);
+    const url =
+      typeof raw.presetUrl === "string" ? raw.presetUrl.toLowerCase() : "";
+    const valid =
+      (url.includes("x=") && url.includes("y=")) || url.includes("l=");
+
+    if (caption !== null && valid && !places.has(caption)) {
+      places.set(caption, {
+        id: `${PLACE_ID_PREFIX}${caption}`,
+        caption,
+        groupPath,
+        changesLayers: Boolean(new URLSearchParams(url).get("l")),
+      });
+    }
+  }
+  return [...places.values()];
+}
+
+/**
  * @summary The one tree walker. Runs both on the raw map config, to build the
  * catalog, and on a user's washed map config, to find out what they may access.
  */
@@ -333,6 +382,7 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
   const tools = asArray(mapConfig.tools) as RawTool[];
   const switcher = tools.find((t) => t.type === "layerswitcher")?.options;
   const search = tools.find((t) => t.type === "search")?.options;
+  const preset = tools.find((t) => t.type === "preset")?.options;
 
   const out: WalkedMap = {
     info: {
@@ -345,6 +395,7 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
     builtInBackgrounds: BUILT_IN_BACKGROUNDS.filter(
       ({ option }) => switcher?.[option] === true
     ).map(({ id, caption }) => ({ id, caption })),
+    places: walkPlaces(preset),
     search: entryIds(search?.layers),
     groups: [],
   };
@@ -391,6 +442,21 @@ function subLayersOf(type: LayerType, layer: RawStoreLayer): SubLayer[] {
 
 const uniqueTexts = (texts: Array<string | null>): string | null =>
   [...new Set(texts.filter((t) => t !== null))].join("\n\n") || null;
+
+// What is left of a record that has no layer in the store
+const EMPTY_RECORD = {
+  isGroupLayer: false,
+  groupPath: [],
+  groupId: null,
+  owner: null,
+  text: null,
+  contentTag: null,
+  subLayers: [],
+  subLayersToggleable: false,
+  searchable: false,
+  infoUrl: null,
+  date: null,
+};
 
 /**
  * @summary Merge a map config and the layers store by id. Only layers used by
@@ -466,27 +532,29 @@ export function buildCatalog(
   walked.backgrounds.forEach((id) => add(id, "background", null));
   walked.search.forEach((id) => add(id, "search", null));
 
+  const addWithoutStore = (record: CatalogRecord): void => {
+    records.push(record);
+    recordsById.set(record.id, record);
+    ownTextById.set(record.id, null);
+  };
+
   for (const { id, caption } of walked.builtInBackgrounds) {
-    const record: CatalogRecord = {
+    addWithoutStore({
+      ...EMPTY_RECORD,
       id,
       role: "background",
       type: "builtin",
-      isGroupLayer: false,
       caption,
-      groupPath: [],
-      groupId: null,
-      owner: null,
-      text: null,
-      contentTag: null,
-      subLayers: [],
-      subLayersToggleable: false,
-      searchable: false,
-      infoUrl: null,
-      date: null,
-    };
-    records.push(record);
-    recordsById.set(id, record);
-    ownTextById.set(id, null);
+    });
+  }
+
+  for (const place of walked.places) {
+    addWithoutStore({
+      ...EMPTY_RECORD,
+      ...place,
+      role: "place",
+      type: "place",
+    });
   }
 
   if (dangling.size > 0) {

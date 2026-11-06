@@ -29,6 +29,7 @@ export interface AllowedSets {
   layers: ReadonlySet<string>;
   backgrounds: ReadonlySet<string>;
   search: ReadonlySet<string>;
+  places: ReadonlySet<string>;
   groups: ReadonlySet<string>;
 }
 
@@ -138,6 +139,7 @@ export function buildUserCatalog(
     ].filter(known)
   );
   const search = new Set(walked.search.filter(known));
+  const places = new Set(walked.places.map((p) => p.id).filter(known));
 
   // A group survives only if the user may reach at least one layer below it.
   const groups = groupsWithLeaves(walked.groups, layers).filter(
@@ -153,7 +155,9 @@ export function buildUserCatalog(
         ? "background"
         : search.has(id)
           ? "search"
-          : null;
+          : places.has(id)
+            ? "place"
+            : null;
     if (role !== null) {
       records.push(viewRecord(record, role, search.has(id), catalog));
     }
@@ -166,6 +170,7 @@ export function buildUserCatalog(
       layers,
       backgrounds,
       search,
+      places,
       groups: new Set(groups.map((g) => g.id)),
     },
     records,

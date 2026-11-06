@@ -174,6 +174,48 @@ describe("SearchService", () => {
     assert.equal(result.hits[0].record, user.recordsById.get(ids(result)[0]));
   });
 
+  describe("places", () => {
+    const mentioning = wmsLayer("mentioning", {
+      caption: "Båtplatser",
+      infoText: "Båtplatser vid Bryggan och längs kusten.",
+    });
+
+    test("a place ranks above a layer that only mentions it", async () => {
+      current = catalogWith(mentioning);
+      const service = serviceWith(null);
+      const result = await service.search(userOf(current), "Bryggan", 5);
+      assert.deepEqual(ids(result), ["place:Bryggan", "mentioning"]);
+    });
+
+    test("all places are found by the title of the tool", async () => {
+      const service = serviceWith(null);
+      const result = await service.search(userOf(current), "snabbval", 5);
+      assert.deepEqual(ids(result).sort(), ["place:Bryggan", "place:Torget"]);
+    });
+
+    test("are embedded with the layers", async () => {
+      const embedder = fakeEmbedder();
+      await serviceWith(embedder).buildVectors("demo");
+      assert.ok(documentTexts(embedder).some((t) => t.startsWith("Bryggan")));
+    });
+
+    test("a user without the preset tool never finds one", async () => {
+      const config = mapConfig();
+      config.tools = config.tools.filter((t) => t.type !== "preset");
+      const user = buildUserCatalog(current, walkMapConfig(config));
+
+      for (const embedder of [fakeEmbedder(), null]) {
+        const service = serviceWith(embedder);
+        await service.buildVectors("demo");
+        const result = await service.search(user, "Bryggan", 50);
+        assert.equal(
+          ids(result).some((id) => id.startsWith("place:")),
+          false
+        );
+      }
+    });
+  });
+
   describe("access", () => {
     const restrictedUser = () =>
       buildUserCatalog(current, walkMapConfig(washedMapConfig()));

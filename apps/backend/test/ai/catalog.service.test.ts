@@ -262,9 +262,56 @@ describe("buildCatalog", () => {
       "text",
       "type",
     ];
-    for (const r of catalog().records) {
+    for (const r of catalog().records.filter((r) => r.role !== "place")) {
       assert.deepEqual(Object.keys(r).sort(), allowed);
     }
+  });
+
+  test("a place holds its name and nothing of its link", () => {
+    const place = record("place:Bryggan");
+    assert.equal(place.role, "place");
+    assert.equal(place.type, "place");
+    assert.equal(place.caption, "Bryggan");
+    assert.deepEqual(place.groupPath, ["Snabbval"]);
+    assert.equal(place.changesLayers, false);
+
+    const output = JSON.stringify(catalog().records);
+    assert.equal(output.includes("presetUrl"), false);
+    assert.equal(output.includes("100.5"), false);
+  });
+
+  test("a place uses the title of the preset tool", () => {
+    const config = mapConfig();
+    const preset = config.tools.find((t) => t.type === "preset")!;
+    (preset.options as { title?: string }).title = "Platser";
+    const { recordsById } = buildCatalog("demo", config, layersStore());
+    assert.deepEqual(recordsById.get("place:Torget")!.groupPath, ["Platser"]);
+  });
+
+  test("marks a place that also changes the layers", () => {
+    assert.equal(record("place:Torget").changesLayers, true);
+  });
+
+  test("keeps the first of two places with the same name", () => {
+    const places = catalog().records.filter((r) => r.role === "place");
+    assert.deepEqual(
+      places.map((r) => r.id),
+      ["place:Bryggan", "place:Torget"]
+    );
+  });
+
+  test("leaves out a place with a broken link", () => {
+    assert.equal(catalog().recordsById.has("place:Felaktig"), false);
+  });
+
+  test("a map without the preset tool has no places", () => {
+    const config = mapConfig();
+    config.tools = config.tools.filter((t) => t.type !== "preset");
+    const { records } = buildCatalog("demo", config, layersStore());
+    assert.equal(
+      records.some((r) => r.role === "place"),
+      false
+    );
   });
 
   test("no connection details or tool options reach the catalog", () => {

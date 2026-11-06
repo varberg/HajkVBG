@@ -29,7 +29,11 @@ const markdownComponents = {
     ),
 } as Components;
 
-function ChatMessageItem({ message, layerControl }: ChatMessageItemProps) {
+function ChatMessageItem({
+  message,
+  layerControl,
+  onGoToPlace,
+}: ChatMessageItemProps) {
   if (message.role === "user") {
     return (
       <Box
@@ -73,7 +77,11 @@ function ChatMessageItem({ message, layerControl }: ChatMessageItemProps) {
         </Box>
       )}
       {message.layers.length > 0 && (
-        <LayerResultList items={message.layers} layerControl={layerControl} />
+        <LayerResultList
+          items={message.layers}
+          layerControl={layerControl}
+          onGoToPlace={onGoToPlace}
+        />
       )}
       {message.stopped && (
         <Typography variant="caption" color="text.secondary">

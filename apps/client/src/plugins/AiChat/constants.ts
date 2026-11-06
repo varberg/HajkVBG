@@ -14,12 +14,14 @@ export const UI_STRINGS = {
   newConversation: "Ny konversation",
   thinking: "Tänker…",
   useBackground: "Använd",
+  goToPlace: "Gå till",
   backgroundInUse: "Används",
   layerList: "Lager från svaret",
   conversationRestarted:
     "Den förra konversationen hade upphört, så frågan skickades som en ny konversation.",
   truncated: "Svaret blev för långt och är avkortat.",
   pluginUnavailable: "Verktyget kunde inte öppnas.",
+  placeUnavailable: "Platsen kunde inte visas.",
 };
 
 export const TOOL_STATUS: Record<string, string> = {
@@ -33,6 +35,7 @@ export const TOOL_STATUS: Record<string, string> = {
   set_background: "Byter bakgrund…",
   open_plugin: "Öppnar verktyget…",
   close_plugin: "Stänger verktyget…",
+  go_to_place: "Går till platsen…",
 };
 
 const GENERIC_ERROR = "Det gick inte att få ett svar. Försök igen senare.";

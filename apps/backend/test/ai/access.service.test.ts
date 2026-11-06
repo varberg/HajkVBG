@@ -136,6 +136,29 @@ describe("buildUserCatalog", () => {
   });
 });
 
+describe("places", () => {
+  const withoutPreset = () => {
+    const config = mapConfig();
+    config.tools = config.tools.filter((t) => t.type !== "preset");
+    return buildUserCatalog(rawCatalog(), walkMapConfig(config));
+  };
+
+  test("are reachable with the preset tool", () => {
+    const { allowed, recordsById } = fullView();
+    assert.deepEqual([...allowed.places], ["place:Bryggan", "place:Torget"]);
+    assert.equal(recordsById.get("place:Bryggan")?.role, "place");
+  });
+
+  test("are gone for a user without the preset tool", () => {
+    const { allowed, records } = withoutPreset();
+    assert.equal(allowed.places.size, 0);
+    assert.equal(
+      records.some((r) => r.role === "place"),
+      false
+    );
+  });
+});
+
 describe("group tree", () => {
   test("nests groups and counts allowed leaves", () => {
     const [top] = washedView().groupTree;

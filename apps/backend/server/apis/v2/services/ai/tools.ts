@@ -56,7 +56,7 @@ export interface ToolDefinition {
   inputSchema: JsonSchema;
 }
 
-export type LayerControl = "toggle" | "background" | "none";
+export type LayerControl = "toggle" | "background" | "place" | "none";
 
 export interface PresentedLayer {
   /** Null for search-only layers, which have nothing to control on the map. */
@@ -77,7 +77,8 @@ export type ToolEvent =
       visible: boolean;
     }
   | { type: "action"; action: "set_background"; id: string }
-  | { type: "action"; action: PluginAction; plugin: string };
+  | { type: "action"; action: PluginAction; plugin: string }
+  | { type: "action"; action: "go_to_place"; place: string };
 
 export interface ToolContext {
   userCatalog: UserCatalog;
@@ -230,6 +231,7 @@ type Lookup =
   | { kind: "layer"; record: CatalogRecord }
   | { kind: "background"; record: CatalogRecord }
   | { kind: "search"; record: CatalogRecord }
+  | { kind: "place"; record: CatalogRecord }
   | { kind: "subLayer"; parent: CatalogRecord; subLayer: SubLayer }
   | { kind: "folder"; group: CatalogGroup }
   | { kind: "none"; reason: string };
@@ -329,6 +331,8 @@ function resolveTargets(ids: string[], userCatalog: UserCatalog) {
         id,
         reason: "This layer is only used in Search, it isn't a map layer.",
       });
+    } else if (found.kind === "place") {
+      rejected.push({ id, reason: "This is a place, use go_to_place." });
     } else if (found.kind === "none") {
       rejected.push({ id, reason: found.reason });
     } else {
@@ -457,6 +461,14 @@ function presentedItem(
             control: found.kind === "layer" ? "toggle" : "background",
           };
     }
+    case "place":
+      // The group path is only there for search, and would repeat on every row
+      return {
+        id,
+        caption: found.record.caption,
+        groupPath: [],
+        control: "place",
+      };
     case "subLayer":
       return {
         id,
@@ -532,7 +544,8 @@ function filterRecords(
       (ownerText === undefined ||
         record.owner?.toLocaleLowerCase("sv").includes(ownerText) === true) &&
       (type === null || record.type === type) &&
-      (role === null || record.role === role) &&
+      // A place isn't a layer, so it only counts when asked for by name
+      (role === null ? record.role !== "place" : record.role === role) &&
       (inGroup === null || inGroup.has(record.id)) &&
       (missing ?? []).every((field) => record[field] === null)
   );
@@ -547,7 +560,7 @@ export const tools: Tool[] = [
     name: "search_layers",
     kind: "read",
     description:
-      "Search the layers of the map by meaning and keywords, in Swedish. Use it for questions about a subject. Returns the best matches only, so a layer that isn't listed can still exist.",
+      "Search the layers and named places of the map by meaning and keywords, in Swedish. Use it for questions about a subject, and to find a place, which has the role `place`. Returns the best matches only, so a layer that isn't listed can still exist.",
     inputSchema: object({
       query: {
         type: "string",
@@ -592,8 +605,8 @@ export const tools: Tool[] = [
           "The layer type."
         ),
         role: nullableEnum(
-          ["layer", "background", "search"],
-          "`layer` is in the layer tree, `background` is a background and `search` is only used in Search."
+          ["layer", "background", "search", "place"],
+          "`layer` is in the layer tree, `background` is a background, `search` is only used in Search and `place` is a named place. Places are only included when this is `place`."
         ),
         group_id: {
           type: ["string", "null"],
@@ -687,7 +700,7 @@ export const tools: Tool[] = [
   define<{ ids: string[] }>({
     name: "present_layers",
     kind: "action",
-    description: `Show layers under your answer, with controls that let the user turn them on and off. Pick only what answers the question, at most ${MAX_PRESENTED}. Takes layer ids, group ids and sublayer addresses.`,
+    description: `Show layers under your answer, with controls that let the user turn them on and off. Pick only what answers the question, at most ${MAX_PRESENTED}. Takes layer ids, group ids, sublayer addresses and place ids, and a place gets a button that moves the map there.`,
     inputSchema: object({ ids: idList("The ids to show, in display order.") }),
     run({ ids }, { userCatalog }) {
       const unique = [...new Set(ids)];
@@ -789,6 +802,38 @@ export const tools: Tool[] = [
     }),
     run: ({ plugin }, { userCatalog }) =>
       runPluginAction("close_plugin", plugin, userCatalog),
+  }),
+
+  define<{ id: string }>({
+    name: "go_to_place",
+    kind: "action",
+    description:
+      "Move the map to a named place. Takes the id of a place, which is a result with the role `place`. If `needsConfirmation` is true, the user first has to confirm in a dialog that replaces the layers on the map, and the map hasn't moved yet. Always check `accepted` and `rejected` before telling the user what happened.",
+    inputSchema: object({
+      id: { type: "string", description: "The id of a place." },
+    }),
+    run({ id }, { userCatalog }) {
+      const record = userCatalog.recordsById.get(id);
+      if (record?.role !== "place") {
+        return {
+          result: {
+            accepted: [],
+            rejected: [{ id, reason: NOT_FOUND }],
+            needsConfirmation: false,
+          },
+        };
+      }
+      return {
+        result: {
+          accepted: [id],
+          rejected: [],
+          needsConfirmation: record.changesLayers === true,
+        },
+        events: [
+          { type: "action", action: "go_to_place", place: record.caption },
+        ],
+      };
+    },
   }),
 ];
 

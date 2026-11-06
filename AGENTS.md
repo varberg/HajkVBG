@@ -113,6 +113,21 @@ visibility changes etc instead of reinventing something new.
 - Ids are OpenLayers `name`s; a tree-group folder id or `"groupId:subId"` also works.
   Import `BACKGROUND_LAYER_IDS` instead of hard-coding `"-1"`…`"-4"`.
 
+### Opening Tools (Client)
+
+Use `ToolControlModel` (`apps/client/src/models/ToolControlModel.ts`) to open and
+close plugins from code, instead of publishing `<type>.showWindow` events.
+
+- **Why**: windows and dialogs are built differently, and the events give no answer,
+  so a plugin that isn't there fails silently. The model handles both kinds, opens a
+  tool the same way as clicking its button, and returns whether it worked. See its
+  doc header for examples of every method and its known limitations.
+- Access via `props.app.toolControl` (plugins) or `window.hajkPublicApi.toolControl`
+  (embedders, console). In React, read state with the `useToolVisibility` hook.
+- Ids are lowercase plugin types, such as `"sketch"`.
+- The events still work and are the only way to pass options to a plugin, such as
+  Sketch opening AttributeEditor.
+
 ### Common Integration Points
 
 - Backend API paths:
@@ -142,6 +157,7 @@ visibility changes etc instead of reinventing something new.
 - `apps/client/src/` - Main client application code
 - `apps/client/src/plugins/` - Tool plugins (28+)
 - `apps/client/src/models/LayerControlModel.js` - Centralized layer visibility API (see above)
+- `apps/client/src/models/ToolControlModel.ts` - Centralized API for opening and closing plugins (see above)
 - `apps/admin/src/` - Admin interface code
 - `apps/backend/server/` - Backend server implementation
 - `apps/backend/App_Data/*.json` - Map configuration files

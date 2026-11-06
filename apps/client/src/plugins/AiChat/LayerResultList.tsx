@@ -106,15 +106,48 @@ function BackgroundRow({ item, layerControl }: RowProps) {
   );
 }
 
+function PlaceRow({
+  item,
+  onGoToPlace,
+}: {
+  item: PresentedLayer;
+  onGoToPlace: (name: string) => void;
+}) {
+  return (
+    <>
+      <LayerLabel item={item} />
+      <Button
+        size="small"
+        variant="outlined"
+        sx={{
+          flexShrink: 0,
+          minWidth: 0,
+          py: 0,
+          px: 1,
+          fontSize: "0.75rem",
+        }}
+        onClick={() => onGoToPlace(item.caption)}
+      >
+        {UI_STRINGS.goToPlace}
+      </Button>
+    </>
+  );
+}
+
 function LayerRow({
   item,
   layerControl,
+  onGoToPlace,
 }: {
   item: PresentedLayer;
   layerControl: LayerControlModel;
+  onGoToPlace: (name: string) => void;
 }): ReactNode {
   if (item.id === null || item.control === "none") {
     return <LayerLabel item={item} />;
+  }
+  if (item.control === "place") {
+    return <PlaceRow item={item} onGoToPlace={onGoToPlace} />;
   }
   const row = { item: { ...item, id: item.id }, layerControl };
   return item.control === "background" ? (
@@ -124,7 +157,11 @@ function LayerRow({
   );
 }
 
-function LayerResultList({ items, layerControl }: LayerResultListProps) {
+function LayerResultList({
+  items,
+  layerControl,
+  onGoToPlace,
+}: LayerResultListProps) {
   return (
     <List dense disablePadding aria-label={UI_STRINGS.layerList}>
       {items.map((item) => (
@@ -133,7 +170,11 @@ function LayerResultList({ items, layerControl }: LayerResultListProps) {
           disableGutters
           sx={{ justifyContent: "space-between", gap: 1, py: 0.25 }}
         >
-          <LayerRow item={item} layerControl={layerControl} />
+          <LayerRow
+            item={item}
+            layerControl={layerControl}
+            onGoToPlace={onGoToPlace}
+          />
         </ListItem>
       ))}
     </List>

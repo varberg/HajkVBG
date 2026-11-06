@@ -42,11 +42,13 @@ export interface AiChatViewProps {
 export interface ChatMessageItemProps {
   message: ChatMessage;
   layerControl: LayerControlModel;
+  onGoToPlace: (name: string) => void;
 }
 
 export interface LayerResultListProps {
   items: PresentedLayer[];
   layerControl: LayerControlModel;
+  onGoToPlace: (name: string) => void;
 }
 
 // ---- What Backend sends, see services/ai/orchestrator.ts and tools.ts ----
@@ -56,7 +58,7 @@ export interface PresentedLayer {
   id: string | null;
   caption: string;
   groupPath: string[];
-  control: "toggle" | "background" | "none";
+  control: "toggle" | "background" | "place" | "none";
 }
 
 export type LayerAction =
@@ -67,7 +69,9 @@ export type PluginAction =
   | { action: "open_plugin"; plugin: string }
   | { action: "close_plugin"; plugin: string };
 
-export type ChatAction = LayerAction | PluginAction;
+export type PlaceAction = { action: "go_to_place"; place: string };
+
+export type ChatAction = LayerAction | PluginAction | PlaceAction;
 
 export type ChatEvent =
   | { type: "start"; conversationId: string }
@@ -77,6 +81,13 @@ export type ChatEvent =
   | ({ type: "action" } & ChatAction)
   | { type: "done"; truncated: boolean }
   | { type: "error"; code: string; message: string };
+
+// ---- From the map config, see controls/PresetLinks.jsx ----
+
+export interface Preset {
+  name: string;
+  presetUrl: string;
+}
 
 // ---- The state of the chat ----
 

@@ -116,6 +116,17 @@ export const mapConfig = () => ({
     { type: "print", options: { target: "left", title: "Skriv ut kartan" } },
     { type: "measurer", options: { target: "hidden" } },
     { type: "location", options: { target: "control" } },
+    {
+      type: "preset",
+      options: {
+        presetList: [
+          { name: "Bryggan", presetUrl: "?m=demo&x=100.5&y=200.5&z=5" },
+          { name: "Torget", presetUrl: "?m=demo&x=300&y=400&z=5&l=plain" },
+          { name: "Bryggan", presetUrl: "?m=demo&x=500&y=600&z=5" },
+          { name: "Felaktig", presetUrl: "?m=demo&z=5" },
+        ],
+      },
+    },
   ],
 });
 

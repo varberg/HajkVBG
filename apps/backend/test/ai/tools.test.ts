@@ -133,6 +133,7 @@ describe("tool schemas", () => {
     const actions = tools.filter((t) => t.kind === "action").map((t) => t.name);
     assert.deepEqual(actions.sort(), [
       "close_plugin",
+      "go_to_place",
       "open_plugin",
       "present_layers",
       "set_background",
@@ -801,6 +802,128 @@ describe("close_plugin", () => {
       restricted.result.rejected[0].reason,
       unknown.result.rejected[0].reason
     );
+  });
+});
+
+describe("places", () => {
+  const filter = (filters: object) =>
+    call("filter_layers", {
+      filters: { ...noFilters, ...filters },
+      count_only: false,
+      offset: null,
+    });
+
+  const withoutPreset = () => {
+    const config = mapConfig();
+    config.tools = config.tools.filter((t) => t.type !== "preset");
+    return context(view(config));
+  };
+
+  test("filter_layers leaves them out unless asked for", async () => {
+    const { result } = await filter({});
+    assert.equal(
+      result.layers.some((l: { role: string }) => l.role === "place"),
+      false
+    );
+
+    const missing = await filter({ missing: ["owner", "text"] });
+    assert.equal(
+      missing.result.layers.some((l: { role: string }) => l.role === "place"),
+      false
+    );
+  });
+
+  test("filter_layers lists them by role", async () => {
+    const { result } = await filter({ role: "place" });
+    assert.deepEqual(
+      result.layers.map((l: { caption: string }) => l.caption),
+      ["Bryggan", "Torget"]
+    );
+  });
+
+  test("set_layer_visibility rejects a place", async () => {
+    const { events, result } = await call("set_layer_visibility", {
+      ids: ["place:Bryggan"],
+      visible: true,
+    });
+    assert.deepEqual(events, []);
+    assert.match(result.rejected[0].reason, /go_to_place/);
+  });
+
+  test("present_layers gives them a control of their own", async () => {
+    const { events } = await call("present_layers", {
+      ids: ["place:Bryggan"],
+    });
+    assert.deepEqual(events, [
+      {
+        type: "layers",
+        items: [
+          {
+            id: "place:Bryggan",
+            caption: "Bryggan",
+            groupPath: [],
+            control: "place",
+          },
+        ],
+      },
+    ]);
+  });
+
+  test("go_to_place sends the name of the place", async () => {
+    const { events, result } = await call("go_to_place", {
+      id: "place:Bryggan",
+    });
+    assert.deepEqual(events, [
+      { type: "action", action: "go_to_place", place: "Bryggan" },
+    ]);
+    assert.deepEqual(result, {
+      accepted: ["place:Bryggan"],
+      rejected: [],
+      needsConfirmation: false,
+    });
+  });
+
+  test("go_to_place says when the user has to confirm", async () => {
+    const { result } = await call("go_to_place", { id: "place:Torget" });
+    assert.equal(result.needsConfirmation, true);
+  });
+
+  test("go_to_place rejects a layer and an unknown id alike", async () => {
+    const layer = await call("go_to_place", { id: "plain" });
+    const unknown = await call("go_to_place", { id: "place:Nope" });
+    assert.deepEqual(layer.events, []);
+    assert.deepEqual(unknown.events, []);
+    assert.equal(
+      layer.result.rejected[0].reason,
+      unknown.result.rejected[0].reason
+    );
+  });
+
+  test("a user without the preset tool can't go to a place", async () => {
+    const { events, result } = await call(
+      "go_to_place",
+      { id: "place:Bryggan" },
+      withoutPreset()
+    );
+    assert.deepEqual(events, []);
+    assert.deepEqual(result.accepted, []);
+  });
+
+  test("no result holds the link of a place", async () => {
+    const outputs = await Promise.all([
+      call("filter_layers", {
+        filters: { ...noFilters, role: "place" },
+        count_only: false,
+        offset: null,
+      }),
+      call("get_layer_details", { id: "place:Bryggan" }),
+      call("get_map_info", {}),
+      call("go_to_place", { id: "place:Bryggan" }),
+    ]);
+    for (const { content } of outputs) {
+      assert.equal(content.includes("presetUrl"), false);
+      assert.equal(content.includes("100.5"), false);
+    }
   });
 });
 

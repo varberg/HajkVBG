@@ -106,6 +106,7 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
             key={message.id}
             message={message}
             layerControl={layerControl}
+            onGoToPlace={model.goToPlace}
           />
         ))}
       </Stack>
