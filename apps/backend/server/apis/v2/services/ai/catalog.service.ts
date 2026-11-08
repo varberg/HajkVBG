@@ -112,6 +112,7 @@ export interface Catalog {
 }
 
 export interface FeatureConnection extends WfsTarget {
+  caption: string;
   /** May hold labels, see isDisplayLabel. */
   displayFields: string[];
   infobox: string | null;
@@ -428,9 +429,9 @@ export function infoboxFields(infobox: string | null): string[] {
 }
 
 /**
- * @summary The sources the chat may query. The list is opt-in, and being on it
- * gives no access: that still comes from `allowed.search`, as the config wash
- * only reaches one level into tool options, and so never into this list.
+ * @summary The sources the chat may query. The list is opt-in, and the config
+ * wash only reaches one level into tool options, so never into this list. Who
+ * may query a source is decided in AccessService.
  */
 function walkFeatureSources(
   options: RawTool["options"]
@@ -557,6 +558,7 @@ function toConnection(
     return null;
   }
   return {
+    caption: cleanInline(layer.caption) ?? String(layer.id),
     url: layer.url,
     typeName: typeNames[0],
     // Same default as SearchModel.js in the client
@@ -573,8 +575,8 @@ function toConnection(
 
 /**
  * @summary The connections of a map. Listing a source isn't enough: it must also
- * be a WFS layer and be in Search, as other layers in Search have no search
- * config, and what admins left out of Search must stay out of the chat.
+ * be a WFS layer, as other layers in Search have no search config. It doesn't
+ * have to be in Search, so that a source can be for the chat only.
  */
 function buildFeatureConnections(
   map: string,
@@ -585,10 +587,10 @@ function buildFeatureConnections(
 
   for (const { id } of walked.featureSources) {
     const stored = storeIndex.get(id);
-    const usable = stored?.type === "wfs" && walked.search.includes(id);
-    const connection = usable
-      ? toConnection(stored.layer, walked.info.projection)
-      : null;
+    const connection =
+      stored?.type === "wfs"
+        ? toConnection(stored.layer, walked.info.projection)
+        : null;
 
     if (connection === null) {
       logger.warn(`Feature source "${id}" can't be used in map "${map}".`);

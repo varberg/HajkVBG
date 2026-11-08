@@ -186,6 +186,30 @@ describe("search_features", () => {
     assert.equal(content.includes("secret.example.com"), false);
   });
 
+  test("gives the links of the infobox", async () => {
+    const store = featureStore();
+    const sjo = store.wfslayers.find((layer) => layer.id === "sjo")!;
+    Object.assign(sjo, {
+      infobox: '<a href="https://karta.example.com/dok/{namn}.pdf">Länk</a>',
+    });
+    const catalog = buildCatalog("demo", featureMapConfig(), store);
+    const { wfs } = fakeWfs(
+      () => [feature("sjo.1", { namn: "L89" }), feature("sjo.2")],
+      catalog
+    );
+    const userCatalog = buildUserCatalog(
+      catalog,
+      walkMapConfig(featureMapConfig())
+    );
+    const { result } = await search(context(wfs, { userCatalog }), {
+      source_id: "sjo",
+    });
+    assert.deepEqual(result.features[0].links, [
+      { text: "Länk", url: "https://karta.example.com/dok/L89.pdf" },
+    ]);
+    assert.equal("links" in result.features[1], false);
+  });
+
   test("gives an empty title when the display fields are", async () => {
     const { wfs } = fakeWfs(() => [feature("sjo.1", { maxdjup: 5 })]);
     const { result } = await search(context(wfs), { source_id: "sjo" });
@@ -238,10 +262,10 @@ describe("search_features", () => {
   });
 
   describe("access", () => {
-    test("needs a source to pass all three checks", async () => {
+    test("needs a source to be listed, known and a WFS layer", async () => {
       const { wfs, calls } = fakeWfs(() => []);
-      // Not listed, not in Search, not WFS, and not known at all
-      for (const id of ["ejlistad", "ejisok", "searchWms", "okand"]) {
+      // Not listed, not WFS, and not known at all
+      for (const id of ["ejlistad", "searchWms", "okand"]) {
         const { isError, result } = await search(context(wfs), {
           source_id: id,
         });
@@ -249,6 +273,13 @@ describe("search_features", () => {
         assert.equal(result.error, "Unknown id.", id);
       }
       assert.equal(calls.length, 0);
+    });
+
+    test("a source for the chat only can be queried", async () => {
+      const { wfs, calls } = fakeWfs(() => []);
+      const { isError } = await search(context(wfs), { source_id: "ejisok" });
+      assert.equal(isError, false);
+      assert.equal(calls.length, 1);
     });
 
     test("a restricted source looks like one that doesn't exist", async () => {
@@ -601,11 +632,89 @@ describe("search_features", () => {
   });
 
   describe("unstable ids", () => {
-    test("leaves out fid- ids, and keeps the feature", async () => {
-      const { wfs } = fakeWfs(() => [feature("fid-1a2b", { sok: "Något" })]);
+    // A view gives new fid- ids with every request, as GeoServer makes them up
+    let request = 0;
+    const unstable = (properties: Record<string, unknown>, x = 0) =>
+      feature(`vy.fid-${request}_${x}`, properties, point(x));
+
+    /** The plan source answers a near search, and the view everything else. */
+    const viewWfs = () =>
+      fakeWfs(({ typeName, options }) => {
+        request += 1;
+        if (typeName === "ws:sjo") {
+          return [feature("sjo.1", { namn: "Planen" })];
+        }
+        return options.filter.includes("ResourceId")
+          ? []
+          : [unstable({ sok: "Druväpplet 2" }), unstable({ sok: "Annan" }, 9)];
+      });
+
+    test("gives a feature an id from its result and properties", async () => {
+      const { wfs } = viewWfs();
       const { result } = await search(context(wfs));
-      assert.equal("id" in result.features[0], false);
-      assert.equal(result.features[0].title, "Något | Adress");
+      const [first, second] = ids(result) as string[];
+      assert.match(first, /^r1~[0-9a-f]{16}$/);
+      assert.notEqual(first, second);
+      assert.equal(result.features[0].title, "Druväpplet 2 | Adress");
+    });
+
+    test("keeps the id when the source gives new fid- ids", async () => {
+      const { wfs } = viewWfs();
+      const ctx = context(wfs);
+      const first = ids((await search(ctx)).result);
+      const again = ids((await search(ctx)).result);
+      assert.deepEqual(first, again);
+    });
+
+    test("can use the id in near, with the geometry of that feature", async () => {
+      const { wfs, calls } = viewWfs();
+      const ctx = context(wfs);
+      const anchor = await found(ctx);
+      const { result } = await search(ctx, {
+        source_id: "sjo",
+        ...nearInput(anchor, 0),
+      });
+      assert.deepEqual(ids(result), ["sjo.1"]);
+      const filter = calls.at(-1)!.options.filter;
+      assert.match(filter, /Intersects/);
+      assert.equal(filter.includes("9 0"), false);
+    });
+
+    test("can show only that feature", async () => {
+      const { wfs } = viewWfs();
+      const ctx = context(wfs);
+      const { result } = await search(ctx);
+      const [first] = ids(result) as string[];
+      const { events, result: shown } = await show(
+        ctx,
+        [result.resultId],
+        [first]
+      );
+      const { features } = shownEvent(events).collections[0].featureCollection;
+      assert.equal(shown.shown, 1);
+      assert.deepEqual(features[0].properties, { sok: "Druväpplet 2" });
+    });
+
+    test("counts a feature found by two results once", async () => {
+      const { wfs } = viewWfs();
+      const ctx = context(wfs);
+      const a = (await search(ctx)).result.resultId;
+      const b = (await search(ctx, { text: "Druväpplet" })).result.resultId;
+      const { result } = await show(ctx, [a, b]);
+      assert.deepEqual(
+        { shown: result.shown, total: result.total },
+        { shown: 2, total: 2 }
+      );
+    });
+
+    test("rejects an id that matches no feature", async () => {
+      const { wfs } = viewWfs();
+      const ctx = context(wfs);
+      await search(ctx);
+      for (const id of ["r1~0000000000000000", "r9~0000000000000000"]) {
+        const { result } = await search(ctx, nearInput(id));
+        assert.equal(result.error, "Unknown id.");
+      }
     });
 
     test("can't use a fid- id in near", async () => {
@@ -685,10 +794,20 @@ describe("show_features", () => {
 
     assert.deepEqual(shownEvent(events).collections, [
       {
-        sourceId: "adress",
+        source: {
+          id: "adress",
+          caption: "Källa adress",
+          displayFields: ["sok", '"Adress"', "postort"],
+          infobox:
+            "<style>td{color:red}</style>{gata} {adat|date} {kod@@documenthandler} {{if villkor}}{the_geom}{{/if}}",
+        },
         featureCollection: { type: "FeatureCollection", features: [row] },
       },
     ]);
+    assert.equal(
+      JSON.stringify(shownEvent(events)).includes("secret.example.com"),
+      false
+    );
     assert.equal(content.includes("coordinates"), false);
     assert.equal(content.includes("Till infoboxen"), false);
   });

@@ -1,13 +1,15 @@
 export const DEFAULT_TITLE = "AI-chatt";
 export const DEFAULT_DESCRIPTION = "Hitta och tänd kartlager genom att fråga";
 export const DEFAULT_INTRO_TEXT =
-  "Fråga om kartans lager, till exempel vilka lager som finns om ett ämne. Du kan också be mig tända och släcka lager, byta bakgrund eller öppna och stänga kartans verktyg.";
+  "Fråga mig om kartan, så hjälper jag dig. Du kan till exempel skriva:\n\n• Vilka lager finns om naturvård?\n• Tänd lagret med skolor\n• Byt bakgrund till flygfoto\n• Öppna ritverktyget";
 
 // Also enforced by Backend, see controllers/ai/controller.ts
 export const MAX_MESSAGE_LENGTH = 4000;
 
 export const UI_STRINGS = {
   inputLabel: "Skriv din fråga",
+  sensitiveWarning:
+    "Skriv inte in känsliga uppgifter, till exempel personnummer.",
   send: "Skicka",
   stop: "Stoppa",
   stopped: "Du stoppade svaret.",
@@ -22,8 +24,8 @@ export const UI_STRINGS = {
   truncated: "Svaret blev för långt och är avkortat.",
   pluginUnavailable: "Verktyget kunde inte öppnas.",
   placeUnavailable: "Platsen kunde inte visas.",
-  featuresUnavailable: "Alla träffar kunde inte visas på kartan.",
   searchUnavailable: "Sökningen är inte tillgänglig i den här kartan.",
+  eventFailed: "En del av svaret kunde inte visas.",
 };
 
 export const TOOL_STATUS: Record<string, string> = {

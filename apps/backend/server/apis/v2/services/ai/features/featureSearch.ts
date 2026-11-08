@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
+
 import type { FeatureSource } from "../access.service.ts";
 import { isDisplayLabel } from "../catalog.service.ts";
 import type { FeatureConnection } from "../catalog.service.ts";
 import type { ToolContext, ToolEvent } from "../tools.ts";
 import { NOT_FOUND, PAGE_SIZE, ToolError, readOffset } from "../toolSupport.ts";
 import { distanceBetween } from "./distance.ts";
+import { featureLinks } from "./featureLinks.ts";
 import { isAddressable } from "./featureResults.ts";
 import type { StoredQuery } from "./featureResults.ts";
 import type { Feature, Geometry } from "./geojson.ts";
@@ -21,6 +24,9 @@ const MAX_REQUESTS_PER_TURN = 20;
 const MAX_VALUE_LENGTH = 300;
 
 const TOO_MANY_TO_SHOW = "Too many matches to show, narrow the search.";
+
+/** The id of a feature that has no stable one, see `idOf`. */
+const DERIVED_ID = /^(r\d+)~([0-9a-f]{16})$/;
 
 type Context = Pick<
   ToolContext,
@@ -61,7 +67,7 @@ interface Prepared {
 }
 
 /**
- * @summary The source of a query. `allowed.search`, the opt-in list and the
+ * @summary The source of a query. The access rules, the opt-in list and the
  * store are all behind `featureSources`, so this is where access is decided, and
  * it runs on every use, as access can change during a conversation.
  */
@@ -99,7 +105,56 @@ function request(
   return context.wfs.query(connection, options, context.signal);
 }
 
-async function anchorOf(featureId: string, context: Context) {
+/** @summary Properties are the same in every response, unlike a `fid-` id. */
+const propertyHash = ({ properties }: Feature): string =>
+  createHash("sha256")
+    .update(JSON.stringify(properties ?? {}))
+    .digest("hex")
+    .slice(0, 16);
+
+/**
+ * @summary The id the model sees. A source without a primary key, such as a
+ * view, gives ids that change with every request, so such a feature gets one
+ * from the result that found it and its properties. Features that only differ
+ * in their geometry then share an id.
+ */
+function idOf(feature: Feature, resultId: string): string {
+  const { id } = feature;
+  return id !== undefined && isAddressable(String(id))
+    ? String(id)
+    : `${resultId}~${propertyHash(feature)}`;
+}
+
+/** @summary Find a feature with a derived id by running its result again. */
+async function derivedAnchorOf(
+  resultId: string,
+  hash: string,
+  context: Context
+): Promise<Geometry> {
+  const query = context.featureResults.getResult(resultId);
+  if (query === undefined) {
+    throw new ToolError(NOT_FOUND);
+  }
+  const { matches } = await fetchMatches(
+    query,
+    await prepare(query, context),
+    context
+  );
+  const match = matches.find(({ feature }) => propertyHash(feature) === hash);
+  if (!match?.feature.geometry) {
+    throw new ToolError(NOT_FOUND);
+  }
+  return match.feature.geometry;
+}
+
+async function anchorOf(
+  featureId: string,
+  context: Context
+): Promise<Geometry> {
+  const derived = DERIVED_ID.exec(featureId);
+  if (derived !== null) {
+    return derivedAnchorOf(derived[1], derived[2], context);
+  }
   const sourceId = context.featureResults.getSourceOf(featureId);
   if (sourceId === undefined) {
     throw new ToolError(NOT_FOUND);
@@ -230,9 +285,13 @@ function titleOf(
     .join(" | ");
 }
 
-/** @summary A feature as the model sees it: allowed fields and no geometry. */
+/**
+ * @summary A feature as the model sees it: allowed fields, the links of its
+ * infobox, and no geometry.
+ */
 function toRow(
   { feature, distance }: Match,
+  resultId: string,
   source: FeatureSource,
   connection: FeatureConnection
 ) {
@@ -243,13 +302,13 @@ function toRow(
       return value === undefined ? [] : [[field, value]];
     })
   );
-  const { id } = feature;
+  const links = featureLinks(connection.infobox, properties, source.fields);
   return {
-    // Such a feature can only be shown along with the rest of its result
-    ...(id !== undefined && isAddressable(id) && { id }),
+    id: idOf(feature, resultId),
     title: titleOf(connection, properties),
     geometryType: feature.geometry?.type ?? null,
     fields,
+    ...(links.length > 0 && { links }),
     ...(distance !== null &&
       Number.isFinite(distance) && { distanceM: Math.round(distance) }),
   };
@@ -314,20 +373,23 @@ export async function searchFeatures(input: SearchInput, context: Context) {
     return { source: source.caption, total, tooMany, features: [] };
   }
 
+  const resultId = featureResults.addResult(query);
   const shown = matches.slice(start, start + PAGE_SIZE);
   for (const { feature } of shown) {
     if (feature.id !== undefined) {
-      featureResults.addFeature(feature.id, sourceId);
+      featureResults.addFeature(String(feature.id), sourceId);
     }
   }
   return {
-    resultId: featureResults.addResult(query),
+    resultId,
     source: source.caption,
     total,
     reachable: matches.length,
     truncated: start + shown.length < total,
     offset: start,
-    features: shown.map((match) => toRow(match, source, prepared.connection)),
+    features: shown.map((match) =>
+      toRow(match, resultId, source, prepared.connection)
+    ),
   };
 }
 
@@ -343,7 +405,10 @@ export async function showFeatures(
   const rejected: Rejection[] = [];
   const wanted = featureIds === null ? null : new Set(featureIds);
   const found = new Set<string>();
-  const bySource = new Map<string, Map<string, Feature>>();
+  const bySource = new Map<
+    string,
+    { connection: FeatureConnection; features: Map<string, Feature> }
+  >();
   // Results can overlap, so what they found is counted once, after the loop
   let leftOut = 0;
 
@@ -353,21 +418,29 @@ export async function showFeatures(
       if (query === undefined) {
         throw new ToolError(NOT_FOUND);
       }
+      const prepared = await prepare(query, context);
       const { matches, total, tooMany } = await fetchMatches(
         query,
-        await prepare(query, context),
+        prepared,
         context
       );
       if (tooMany) {
         throw new ToolError(TOO_MANY_TO_SHOW);
       }
 
-      const features = bySource.get(query.sourceId) ?? new Map();
-      bySource.set(query.sourceId, features);
+      const { connection } = prepared;
+      const { features } = bySource.get(query.sourceId) ?? {
+        features: new Map<string, Feature>(),
+      };
+      bySource.set(query.sourceId, { connection, features });
       for (const { feature } of matches) {
-        const key = String(feature.id);
-        if (wanted === null || wanted.has(key)) {
-          found.add(key);
+        const featureId = idOf(feature, id);
+        if (wanted === null || wanted.has(featureId)) {
+          found.add(featureId);
+          // A derived id differs between results, but the feature doesn't
+          const key = DERIVED_ID.test(featureId)
+            ? `~${propertyHash(feature)}`
+            : featureId;
           features.set(key, feature);
         }
       }
@@ -387,14 +460,20 @@ export async function showFeatures(
   }
 
   let room = MAX_FEATURES;
-  const collections = [...bySource].flatMap(([sourceId, features]) => {
+  const collections = [...bySource].flatMap(([id, source]) => {
+    const { connection, features } = source;
     const kept = [...features.values()].slice(0, room);
     room -= kept.length;
     return kept.length === 0
       ? []
       : [
           {
-            sourceId,
+            source: {
+              id,
+              caption: connection.caption,
+              displayFields: connection.displayFields,
+              infobox: connection.infobox,
+            },
             featureCollection: {
               type: "FeatureCollection" as const,
               features: kept,
@@ -403,7 +482,11 @@ export async function showFeatures(
         ];
   });
   const shown = MAX_FEATURES - room;
-  const total = found.size + leftOut;
+  const total =
+    [...bySource.values()].reduce(
+      (sum, { features }) => sum + features.size,
+      0
+    ) + leftOut;
 
   const events: ToolEvent[] =
     shown > 0 ? [{ type: "action", action: "show_features", collections }] : [];

@@ -71,9 +71,20 @@ export interface PresentedLayer {
 
 type PluginAction = "open_plugin" | "close_plugin";
 
+/**
+ * What the Search panel needs to show a source. It's sent along, as a source for
+ * the chat only isn't among the sources of Search in the client.
+ */
+export interface ShownSource {
+  id: string;
+  caption: string;
+  displayFields: string[];
+  infobox: string | null;
+}
+
 /** Features for the Search panel, with all properties so that the infobox works. */
 export interface FeatureSet {
-  sourceId: string;
+  source: ShownSource;
   featureCollection: { type: "FeatureCollection"; features: Feature[] };
 }
 

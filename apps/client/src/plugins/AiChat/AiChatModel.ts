@@ -136,7 +136,10 @@ export default class AiChatModel {
 
     try {
       await this.#runTurn(message, answer.id, abort.signal);
-    } catch {
+    } catch (error) {
+      if (!abort.signal.aborted) {
+        console.error("AiChat: the answer failed", error);
+      }
       this.#updateMessage(answer.id, () =>
         abort.signal.aborted ? { stopped: true } : { error: ERRORS.connection }
       );
@@ -239,7 +242,14 @@ export default class AiChatModel {
       signal.throwIfAborted();
       const chatEvent = { ...JSON.parse(data), type: event } as ChatEvent;
       finished = chatEvent.type === "done" || chatEvent.type === "error";
-      this.#handleEvent(chatEvent, answerId);
+      // A throw here would end the stream, and Backend would drop the turn. A
+      // plugin that fails to show something shouldn't cost the whole answer.
+      try {
+        this.#handleEvent(chatEvent, answerId);
+      } catch (error) {
+        console.error(`AiChat: couldn't handle a ${event} event`, error);
+        this.#addNotice(answerId, UI_STRINGS.eventFailed);
+      }
     }
 
     // The connection can be lost without any error along the way
@@ -318,18 +328,20 @@ export default class AiChatModel {
 
     const sources: SearchSource[] = searchModel.getSources();
     const format = new GeoJSON();
-    const results = sets.flatMap(({ sourceId, featureCollection }) => {
-      const source = sources.find(({ id }) => id === sourceId);
-      if (source === undefined) {
-        return [];
-      }
-      const features = format.readFeatures(featureCollection) as Feature[];
-      return [{ source, origin: "WFS" as const, value: { features } }];
-    });
+    const results = sets.map(({ source, featureCollection }) => ({
+      // A source for the chat only isn't in Search, so the backend sends along
+      // what the panel needs. Search's own has more, such as secondary labels.
+      source: sources.find(({ id }) => id === source.id) ?? source,
+      origin: "WFS" as const,
+      value: {
+        features: (format.readFeatures(featureCollection) as Feature[]).map(
+          // Not a property, which would end up in the infobox and in exports.
+          // Search's FeatureStyle then draws the points with the marker.
+          (feature) => Object.assign(feature, { useMarkerIcon: true })
+        ),
+      },
+    }));
 
-    if (results.length < sets.length) {
-      this.#addNotice(answerId, UI_STRINGS.featuresUnavailable);
-    }
     if (results.length > 0) {
       this.#globalObserver.publish("search.showFeatureCollections", results);
     }

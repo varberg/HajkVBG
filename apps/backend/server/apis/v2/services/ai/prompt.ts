@@ -16,6 +16,7 @@ Finding layers:
 
 Showing layers:
 - When your answer is about specific layers, call present_layers with the ones that answer the question, so that the user gets controls for them. Don't repeat them all in the text.
+- When the user asks for a group, or for everything in one, give present_layers the group id and not its layers, so that one control turns it all on. That also goes if you listed the group with filter_layers. Only give the layers when the user asks for some of them.
 
 Changing the map:
 - Only change the map when the user asks for it. Use set_layer_visibility for layers, groups and sublayers, and set_background for backgrounds.
@@ -46,10 +47,11 @@ const FEATURE_INSTRUCTIONS = `Searching features:
 - If a place is a point and not an area, use a radius with \`near\`, and tell the user which radius you used.
 - For "nearest", widen \`distance_m\` if nothing is found, and shrink it if the result has \`tooMany\`.
 - A sorted result leaves out features with no value, so say so, for example "of the lakes with a known depth".
+- A feature can have \`links\`, such as to the document of a plan. When the answer is about one or a few features, give their links as Markdown links, with the URL exactly as given. Name a link after what it leads to, and add "(PDF)" when the URL ends in .pdf.
 - A feature's \`title\` can be empty. Describe it from its fields then, and say if it has no name.
 - When a result is truncated, say so. When \`total\` is above \`reachable\`, don't page through the result: narrow the search, or give the count.
 - If a search for one thing gives several matches, such as the entrances 12a to 12j, show them all with show_features and say how many there are, instead of picking one.
-- Call show_features when the user asks where something is or asks to see it, not for plain counts. Report what actually happened from the tool result.
+- When your answer is about specific features, call show_features with them before you answer, without waiting to be asked, so that the user sees them on the map. Also show the place the user asked about, such as the address used in \`near\`, by giving the \`resultId\` of both searches, so that the user sees the answer and the place together. Give \`feature_ids\` when the answer is about only some of the matches, and then include the id of that place too. Don't call it for plain counts. Report what actually happened from the tool result.
 - When the user asks to clear or remove what is shown, use clear_features. It clears all search results, so say so if the user only asked to remove some of them.`;
 
 function renderFeatureSource(source: FeatureSource): string {

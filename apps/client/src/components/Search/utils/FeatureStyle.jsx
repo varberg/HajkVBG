@@ -146,6 +146,13 @@ export default class FeatureStyle {
   };
 
   getDefaultSearchResultStyle = (feature) => {
+    // Points that the AI chat shows have `useMarkerIcon`, and get the marker
+    // of a selected result, so that they stand out from the circles of a search
+    const type = feature.getGeometry()?.getType();
+    if (feature.useMarkerIcon === true && /^(Multi)?Point$/.test(type)) {
+      return this.getFeatureStyle(feature);
+    }
+
     const settings = this.#defaultSelectionStyleSettings;
 
     const fill = new Fill({

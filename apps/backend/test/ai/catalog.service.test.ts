@@ -542,6 +542,7 @@ describe("feature sources", () => {
 
   test("holds what it takes to reach a source", () => {
     assert.deepEqual(connections().get("adress"), {
+      caption: "Källa adress",
       url: "https://secret.example.com/wfs",
       typeName: "ws:adress",
       geometryField: "the_geom",
@@ -553,10 +554,11 @@ describe("feature sources", () => {
     });
   });
 
-  test("needs a source to be listed, in Search and a WFS layer", () => {
+  test("needs a source to be listed and a WFS layer", () => {
     assert.deepEqual([...connections().keys()].sort(), [
       "adress",
       "begransad",
+      "ejisok",
       "sjo",
     ]);
   });

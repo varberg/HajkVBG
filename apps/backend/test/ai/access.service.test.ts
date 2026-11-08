@@ -405,11 +405,24 @@ describe("feature sources", () => {
   const source = (id: string, config?: RawMapConfig) =>
     view(config).featureSources.find((s) => s.id === id);
 
-  test("needs a source to be listed, in Search and a WFS layer", () => {
+  test("needs a source to be listed and a WFS layer", () => {
     assert.deepEqual(
       view().featureSources.map((s) => s.id),
-      ["adress", "sjo", "begransad"]
+      ["adress", "sjo", "begransad", "ejisok"]
     );
+  });
+
+  test("a source for the chat only isn't a record or in Search", () => {
+    const { allowed, recordsById } = view();
+    assert.equal(source("ejisok")!.caption, "Källa ejisok");
+    assert.equal(allowed.search.has("ejisok"), false);
+    assert.equal(recordsById.has("ejisok"), false);
+  });
+
+  test("a source for the chat only follows the chat", () => {
+    const config = featureMapConfig();
+    const tools = config.tools.filter((tool) => tool.type !== "aichat");
+    assert.equal(source("ejisok", { ...config, tools }), undefined);
   });
 
   test("gives the caption and the description", () => {

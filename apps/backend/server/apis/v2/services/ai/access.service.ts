@@ -151,8 +151,11 @@ function allowedFields(
 }
 
 /**
- * @summary The sources a user may query: listed in the washed config, allowed in
- * Search, and a WFS layer, which is what `featureConnections` was built from.
+ * @summary The sources a user may query: listed in the washed config, and a WFS
+ * layer, which is what `featureConnections` was built from. A source that the
+ * map uses elsewhere is a record, and then needs to be allowed in Search, so that
+ * limits set there hold in the chat. Any other source is for the chat only, and
+ * is limited by who may use the chat.
  */
 function buildFeatureSources(
   catalog: Catalog,
@@ -160,14 +163,14 @@ function buildFeatureSources(
   search: ReadonlySet<string>
 ): FeatureSource[] {
   return walked.featureSources.flatMap(({ id, description, extraFields }) => {
-    const record = catalog.recordsById.get(id);
     const connection = catalog.featureConnections.get(id);
-    if (record?.type !== "wfs" || !search.has(id) || connection === undefined) {
+    const blocked = catalog.recordsById.has(id) && !search.has(id);
+    if (connection === undefined || blocked) {
       return [];
     }
     return {
       id,
-      caption: record.caption,
+      caption: connection.caption,
       description,
       fields: allowedFields(connection, extraFields),
     };

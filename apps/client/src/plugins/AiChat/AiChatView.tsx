@@ -1,4 +1,10 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { FormEvent, KeyboardEvent } from "react";
 
 import {
@@ -31,6 +37,7 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
     model.getState
   );
   const [draft, setDraft] = useState("");
+  const warningId = useId();
   const { scrollToTop } = useWindowSheetScroll();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -97,7 +104,11 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
         }}
       >
         {messages.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ whiteSpace: "pre-line" }}
+          >
             {introText}
           </Typography>
         )}
@@ -155,8 +166,9 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
           display: "flex",
           alignItems: "flex-end",
           gap: 1,
-          p: 1.5,
+          px: 1.5,
           pt: 0.5,
+          pb: 0.5,
         }}
       >
         <TextField
@@ -169,7 +181,12 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}
-          slotProps={{ htmlInput: { maxLength: MAX_MESSAGE_LENGTH } }}
+          slotProps={{
+            htmlInput: {
+              maxLength: MAX_MESSAGE_LENGTH,
+              "aria-describedby": warningId,
+            },
+          }}
         />
         {running ? (
           <Tooltip title={UI_STRINGS.stop}>
@@ -193,6 +210,14 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
           </Tooltip>
         )}
       </Box>
+      <Typography
+        id={warningId}
+        variant="caption"
+        color="error"
+        sx={{ px: 1.5, pb: 1 }}
+      >
+        {UI_STRINGS.sensitiveWarning}
+      </Typography>
     </Stack>
   );
 }

@@ -78,7 +78,7 @@ export type PlaceAction = { action: "go_to_place"; place: string };
 
 /** GeoJSON in the map's projection, with all the properties of the features */
 export interface FeatureSet {
-  sourceId: string;
+  source: SearchSource;
   featureCollection: object;
 }
 
