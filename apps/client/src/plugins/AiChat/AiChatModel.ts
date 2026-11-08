@@ -69,6 +69,7 @@ export default class AiChatModel {
   #conversationId: string | null = null;
   #abort: AbortController | null = null;
   #nextMessageId = 1;
+  #notifyScheduled = false;
 
   constructor(app: AiChatApp) {
     this.#app = app;
@@ -166,7 +167,25 @@ export default class AiChatModel {
 
   #setState(state: Partial<ChatState>): void {
     this.#state = { ...this.#state, ...state };
-    this.#listeners.forEach((listener) => listener());
+    this.#scheduleNotify();
+  }
+
+  /**
+   * @summary Tell the view once per frame, not once per event.
+   * @description One network chunk can hold hundreds of text events, read one
+   * microtask after another. Each update of an external store renders at once,
+   * so React would see that as an update loop and throw "Maximum update depth
+   * exceeded", which ended the answer.
+   */
+  #scheduleNotify(): void {
+    if (this.#notifyScheduled) {
+      return;
+    }
+    this.#notifyScheduled = true;
+    requestAnimationFrame(() => {
+      this.#notifyScheduled = false;
+      this.#listeners.forEach((listener) => listener());
+    });
   }
 
   #updateMessage(
