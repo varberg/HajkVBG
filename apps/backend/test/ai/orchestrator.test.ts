@@ -130,6 +130,7 @@ interface Setup {
   ) => Promise<ReturnType<typeof userCatalog>>;
   now?: () => number;
   wfs?: WfsAccess;
+  instructions?: (map: string) => Promise<string | null>;
 }
 
 const noWfs: WfsAccess = {
@@ -147,6 +148,9 @@ const orchestrator = (setup: Setup) =>
     access: {
       getUserCatalog:
         setup.access ?? (async (map) => ({ ...userCatalog(), map })),
+    },
+    instructions: setup.instructions && {
+      getInstructions: setup.instructions,
     },
     now: setup.now,
   });
@@ -838,6 +842,69 @@ describe("access", () => {
     const { conversationId } = await ask(chat);
     allowed = false;
     await assert.rejects(ask(chat, { conversationId }), AccessError);
+  });
+
+  test("is checked before the instructions are read", async () => {
+    const maps: string[] = [];
+    const chat = orchestrator({
+      provider: fakeProvider().provider,
+      access: () => Promise.reject(new AccessError("No")),
+      instructions: async (map) => {
+        maps.push(map);
+        return null;
+      },
+    });
+    await assert.rejects(ask(chat), AccessError);
+    assert.deepEqual(maps, []);
+  });
+});
+
+describe("instructions", () => {
+  /** A provider that keeps the system prompt of every session. */
+  function recordingProvider() {
+    const fake = fakeProvider();
+    const systems: string[] = [];
+    const provider: ChatProvider = {
+      ...fake.provider,
+      createSession(options) {
+        systems.push(options.system);
+        return fake.provider.createSession(options);
+      },
+    };
+    return { provider, systems };
+  }
+
+  test("go into the system prompt of a new conversation", async () => {
+    const { provider, systems } = recordingProvider();
+    const maps: string[] = [];
+    const chat = orchestrator({
+      provider,
+      instructions: async (map) => {
+        maps.push(map);
+        return "Du är kartassistent i Demo.";
+      },
+    });
+    await ask(chat, { map: "demo" });
+    assert.deepEqual(maps, ["demo"]);
+    assert.equal(systems.length, 1);
+    assert.ok(systems[0].includes("Du är kartassistent i Demo."));
+  });
+
+  test("don't change a running conversation", async () => {
+    const { provider, systems } = recordingProvider();
+    let text = "Första.";
+    const chat = orchestrator({ provider, instructions: async () => text });
+    const { conversationId } = await ask(chat);
+    text = "Andra.";
+    await ask(chat, { conversationId });
+    assert.equal(systems.length, 1);
+    assert.ok(systems[0].includes("Första."));
+  });
+
+  test("are left out when there are none", async () => {
+    const { provider, systems } = recordingProvider();
+    await ask(orchestrator({ provider }));
+    assert.equal(systems[0].includes("has added these instructions"), false);
   });
 });
 

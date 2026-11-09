@@ -10,7 +10,7 @@ Answering:
 - Many layers share a caption, so mention the group when that tells them apart.
 
 Finding layers:
-- Layer metadata is in Swedish. Don't search with the user's words as they are: write the terms a layer name or description is likely to use, including the formal terms. If the matches don't fit, search again with other terms before giving up.
+- Don't search with the user's words as they are: write the terms a layer name or description is likely to use, in the language of the metadata, including the formal terms. If the matches don't fit, search again with other terms before giving up.
 - Use filter_layers for exact lists and counts and, with \`group_id\`, to look inside a group from the tree below. Use get_layer_details before describing what a layer contains.
 - When a result is truncated, say so ("showing 25 of 188"). Never act on a partial list as if it were everything: fetch the remaining pages first, or tell the user how many layers the action would cover.
 
@@ -72,12 +72,23 @@ These are the feature sources, one per line, as \`- Caption [id]: description. F
 ${featureSources.map(renderFeatureSource).join("\n")}`;
 }
 
+const renderInstructions = (instructions: string | null): string =>
+  instructions === null
+    ? ""
+    : `\n\nThe organisation that runs this map has added these instructions:\n\n${instructions}`;
+
 /**
  * @summary The system prompt. It must stay the same for a given set of allowed
- * layers, as it is the stable prefix that prompt caching relies on. Anything
- * that changes, such as the map state, belongs in the user message.
+ * layers and instruction files, as it is the stable prefix that prompt caching
+ * relies on. Anything that changes, such as the map state, belongs in the user
+ * message.
+ * @param instructions From App_Data/ai, see InstructionsService. They add to
+ * the rules above and never replace them, as those describe the tools.
  */
-export function buildSystemPrompt(userCatalog: UserCatalog): string {
+export function buildSystemPrompt(
+  userCatalog: UserCatalog,
+  instructions: string | null = null
+): string {
   const { mapInfo, groupTree } = userCatalog;
   const title = mapInfo.title ?? userCatalog.map;
   const plugins = mapInfo.tools
@@ -101,7 +112,7 @@ export function buildSystemPrompt(userCatalog: UserCatalog): string {
       ? ""
       : ` Its projection is ${mapInfo.projection}.`;
 
-  return `${INSTRUCTIONS}
+  return `${INSTRUCTIONS}${renderInstructions(instructions)}
 
 ${renderFeatureSources(userCatalog)}
 

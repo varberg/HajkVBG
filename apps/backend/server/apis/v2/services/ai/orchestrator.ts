@@ -60,8 +60,14 @@ interface OrchestratorOptions {
   wfs: ToolContext["wfs"];
   registry: ToolRegistry;
   limits: ChatLimits;
+  /** The added instructions from App_Data/ai. Without it, there are none. */
+  instructions?: { getInstructions(map: string): Promise<string | null> };
   now?: () => number;
 }
+
+const noInstructions: NonNullable<OrchestratorOptions["instructions"]> = {
+  getInstructions: async () => null,
+};
 
 export interface TurnRequest {
   map: string;
@@ -128,6 +134,7 @@ export class Orchestrator {
   #wfs: ToolContext["wfs"];
   #registry: ToolRegistry;
   #limits: ChatLimits;
+  #instructions: NonNullable<OrchestratorOptions["instructions"]>;
   #conversations: ConversationStore;
   #dailyTurns: DailyTurnCounter;
 
@@ -138,6 +145,7 @@ export class Orchestrator {
     wfs,
     registry,
     limits,
+    instructions,
     now,
   }: OrchestratorOptions) {
     this.#provider = provider;
@@ -146,6 +154,7 @@ export class Orchestrator {
     this.#wfs = wfs;
     this.#registry = registry;
     this.#limits = limits;
+    this.#instructions = instructions ?? noInstructions;
     this.#conversations = new ConversationStore({
       maxConversations: limits.maxConversations,
       ttlMs: limits.conversationTtlMs,
@@ -162,7 +171,10 @@ export class Orchestrator {
    */
   async beginTurn(request: TurnRequest): Promise<Turn> {
     const { map, user, conversationId, message, mapState } = request;
+    // Access first: a user without it mustn't make us read anything else
     const userCatalog = await this.#access.getUserCatalog(map, user);
+    // Only a new conversation uses them, but reading them is two stats
+    const instructions = await this.#instructions.getInstructions(map);
 
     // Nothing below awaits, so two requests can't both pass the running check
     let conversation =
@@ -200,7 +212,7 @@ export class Orchestrator {
       userCatalog.map,
       user,
       this.#provider.createSession({
-        system: buildSystemPrompt(userCatalog),
+        system: buildSystemPrompt(userCatalog, instructions),
         tools: this.#registry.tools.map(
           ({ name, description, inputSchema }) => ({
             name,

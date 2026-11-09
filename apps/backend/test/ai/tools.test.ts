@@ -891,4 +891,23 @@ describe("buildSystemPrompt", () => {
       buildSystemPrompt(view(config)).includes("No tools can be opened")
     );
   });
+
+  test("adds the instructions after the built-in rules", () => {
+    const prompt = buildSystemPrompt(view(), "Du är kartassistent i Demo.");
+    const added = prompt.indexOf(
+      "The organisation that runs this map has added these instructions:\n\nDu är kartassistent i Demo."
+    );
+    assert.ok(added > prompt.indexOf("<map_state>"));
+    assert.ok(added < prompt.indexOf("The map is called"));
+  });
+
+  test("adds nothing without instructions", () => {
+    const prompt = buildSystemPrompt(view());
+    assert.equal(prompt.includes("has added these instructions"), false);
+    assert.equal(buildSystemPrompt(view(), null), prompt);
+  });
+
+  test("leaves the language of the metadata to the instructions", () => {
+    assert.equal(buildSystemPrompt(view()).includes("in Swedish"), false);
+  });
 });

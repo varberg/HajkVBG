@@ -4,6 +4,7 @@ import { AiChatError } from "../../utils/AiChatError.ts";
 import accessService from "./access.service.ts";
 import { readChatLimits, readWfsTimeoutMs } from "./config.ts";
 import { createWfsAccess } from "./features/wfsAccess.ts";
+import instructionsService from "./instructions.ts";
 import { Orchestrator } from "./orchestrator.ts";
 import { createProvider } from "./providers/index.ts";
 import searchService from "./search/search.service.ts";
@@ -23,6 +24,7 @@ async function create(): Promise<Orchestrator> {
     wfs: createWfsAccess(readWfsTimeoutMs()),
     registry,
     limits: readChatLimits(),
+    instructions: instructionsService,
   });
 }
 

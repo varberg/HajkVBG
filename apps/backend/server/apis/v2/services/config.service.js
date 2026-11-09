@@ -1150,6 +1150,11 @@ class ConfigServiceV2 {
 
       // Copy!
       await fs.promises.copyFile(srcPath, destPath);
+
+      // A copy of a map keeps the instructions of its AI chat
+      if (!src.endsWith(".template")) {
+        await this.#copyAiInstructions(src, dest);
+      }
       // Sending a valid object will turn it into JSON which in turn will return
       // status 200 and that empty object. I know it's not the best way and we
       // should be more explicit about successful returns than just an empty object…
@@ -1183,10 +1188,41 @@ class ConfigServiceV2 {
         `${validateMapName(name)}.json`
       );
       await fs.promises.unlink(filePath);
+      // Or a new map with the same name would get them
+      await ignoreMissing(fs.promises.unlink(this.#aiInstructionsPath(name)));
       return {};
     } catch (error) {
       return { error };
     }
+  }
+
+  /**
+   * @summary The instructions that the AI chat adds for one map, see
+   * services/ai/instructions.ts. Kept in a folder, so it's never read as a map.
+   */
+  #aiInstructionsPath(map) {
+    return resolvePathUnder(
+      path.join(process.cwd(), "App_Data", "ai"),
+      `${validateMapName(map)}.instructions.md`
+    );
+  }
+
+  async #copyAiInstructions(src, dest) {
+    await ignoreMissing(
+      fs.promises.copyFile(
+        this.#aiInstructionsPath(src),
+        this.#aiInstructionsPath(dest)
+      )
+    );
+  }
+}
+
+/** @summary Settle with undefined if the file doesn't exist. */
+async function ignoreMissing(promise) {
+  try {
+    await promise;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
   }
 }
 
