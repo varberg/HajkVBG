@@ -159,6 +159,8 @@ function spatial(
   { geometryField, srsName }: QueryTarget
 ): string {
   const operands = `${valueReference(geometryField)}${geometryToGml(geometry, srsName)}`;
+  // Some GeoServer versions ignore `uom` and use the units of the projection,
+  // so this assumes a map projection in metres, as the Swedish ones are
   return distance === 0
     ? `<fes:Intersects>${operands}</fes:Intersects>`
     : `<fes:DWithin>${operands}<fes:Distance uom="m">${distance}</fes:Distance></fes:DWithin>`;

@@ -4,6 +4,7 @@ import { ToolError } from "../toolSupport.ts";
 import type { JsonSchema, Tool, ToolContext, ToolEvent } from "../tools.ts";
 import { HIDDEN_ERROR, toModelContent } from "./exposure.ts";
 import type { Exposure } from "./exposure.ts";
+import { isErrorAnswer } from "./mcpClient.ts";
 import type { McpConnection, McpToolInfo } from "./mcpClient.ts";
 import { stripOmitted, toRegistrySchema } from "./mcpSchema.ts";
 
@@ -16,26 +17,37 @@ export interface McpServer {
   name: string;
   exposure: Exposure;
   connection: McpConnection;
+  /** Until when calls fail at once, as the server was down. Set by callMcp. */
+  downUntil?: number;
 }
 
 // The first call after a long pause sometimes times out while the next one
 // works, so a failed call is made once more on a new connection. The bridged
 // tools only read, which makes that safe.
 const ATTEMPTS = 2;
+// After that, calls fail at once for a while, so that a server that never
+// answers doesn't cost every call its timeouts and the turn its time limit
+const DOWN_MS = 60_000;
 
 /**
  * @summary Call an MCP tool and give its structured result.
- * @description With `client` exposure, no text from the server reaches the
- * model or the log, as an error message can hold the data too.
+ * @description A server that couldn't be reached on any attempt fails at
+ * once for {@link DOWN_MS}, then gets tried again. With `client` exposure, no
+ * text from the server reaches the model or the log, as an error message can
+ * hold the data too.
  * @throws {ToolError} With a message the model may see
  */
 export async function callMcp(
   server: McpServer,
   tool: string,
   args: Record<string, unknown>,
-  signal: AbortSignal
+  signal: AbortSignal,
+  now: () => number = Date.now
 ): Promise<Record<string, unknown>> {
   const hidden = server.exposure !== "model";
+  if (server.downUntil !== undefined && now() < server.downUntil) {
+    throw new ToolError(UNREACHABLE);
+  }
   let result;
   for (let attempt = 1; result === undefined; attempt++) {
     try {
@@ -46,10 +58,18 @@ export async function callMcp(
       const next = attempt < ATTEMPTS ? ", trying again" : "";
       logger.warn(`The ${server.name} tool "${tool}" failed${reason}${next}`);
       if (attempt >= ATTEMPTS) {
+        // A server that answered with an error is up, so only this call failed
+        if (!isErrorAnswer(error)) {
+          server.downUntil = now() + DOWN_MS;
+          logger.warn(
+            `The ${server.name} server seems down. Its tools fail at once for ${DOWN_MS / 1000} s.`
+          );
+        }
         throw new ToolError(UNREACHABLE);
       }
     }
   }
+  server.downUntil = undefined;
   if (result.isError) {
     throw new ToolError(
       hidden
@@ -116,7 +136,13 @@ export function bridgeTool(options: BridgeOptions): Tool {
         ? await prepare(input as Record<string, unknown>, inputSchema, context)
         : (input as Record<string, unknown>);
       const args = stripOmitted(prepared, tool.inputSchema);
-      const result = await callMcp(server, tool.name, args, context.signal);
+      const result = await callMcp(
+        server,
+        tool.name,
+        args,
+        context.signal,
+        now
+      );
 
       const kept = hidden || (keep?.(result) ?? false);
       const resultId = kept

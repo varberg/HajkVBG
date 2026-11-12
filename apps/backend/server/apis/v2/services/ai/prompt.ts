@@ -1,5 +1,8 @@
-import { renderGroupTree } from "./access.service.ts";
-import type { FeatureSource, UserCatalog } from "./access.service.ts";
+import type {
+  FeatureSource,
+  GroupTreeNode,
+  UserCatalog,
+} from "./access.service.ts";
 
 const INSTRUCTIONS = `You help people find the layers of a web map, answer questions about them, turn them on and off, open and close the tools of the map, go to its named places, and search the data of its feature sources, if it has any.
 
@@ -54,11 +57,27 @@ const FEATURE_INSTRUCTIONS = `Searching features:
 - When your answer is about specific features, call show_features with them before you answer, without waiting to be asked, so that the user sees them on the map. Also show the place the user asked about, such as the address used in \`near\`, by giving the \`resultId\` of both searches, so that the user sees the answer and the place together. Give \`feature_ids\` when the answer is about only some of the matches, and then include the id of that place too. Don't call it for plain counts. Report what actually happened from the tool result.
 - When the user asks to clear or remove what is shown, use clear_features. It clears all search results, so say so if the user only asked to remove some of them.`;
 
-// Only on maps that take them, see drawn.ts. The label is the one in the browser.
+// Only on maps that take them, see drawn.ts
 const DRAWN_INSTRUCTIONS = `Drawn features:
 - The map state can have \`drawn\`: shapes that the user drew with the map's drawing tool and chose to share, with an id such as s1, their kind and size, and a title if they gave one. They are the user's own, not data from a source.
 - Use a drawn id wherever a feature id is taken, such as in \`near\`, with \`distance_m\` 0 for what lies inside a drawn area, as a point for routing, or in \`avoid\`. Only the ones in the latest map state can be used.
-- If the user mentions something they drew and the map state has no drawn features, tell them to turn on "Ta med ritade objekt" by the input, which shows once they have drawn something. \`drawnSkipped\` counts drawings that couldn't be used, as they were too many or too detailed.`;
+- If the user mentions something they drew and the map state has no drawn features, tell them to turn on the switch for drawn objects above the message input, which shows once they have drawn something. \`drawnSkipped\` counts drawings that couldn't be used, as they were too many or too detailed.`;
+
+/**
+ * @summary The group tree as compact text for the prompt, one group per line:
+ * `- Name [id] (allowed leaf layers)`, with nesting shown by indentation.
+ */
+export function renderGroupTree(nodes: GroupTreeNode[], depth = 0): string {
+  return nodes
+    .flatMap((node) => {
+      const exclusive = node.exclusive ? " exclusive" : "";
+      const line = `${"  ".repeat(depth)}- ${node.name} [${node.id}] (${node.leafCount})${exclusive}`;
+      return node.children.length > 0
+        ? [line, renderGroupTree(node.children, depth + 1)]
+        : [line];
+    })
+    .join("\n");
+}
 
 function renderFeatureSource(source: FeatureSource): string {
   const details = `Fields: ${source.fields.join(", ")}`;

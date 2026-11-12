@@ -16,5 +16,5 @@
     "allowJs": true,
     "checkJs": false // The existing JS services stay unchecked, same as in the client.
   },
-  "include": ["server/**/*.ts", "test/**/*.ts"]
+  "include": ["server/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]
 }

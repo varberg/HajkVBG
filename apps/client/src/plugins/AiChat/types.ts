@@ -248,6 +248,15 @@ export type ChatEvent =
   | { type: "tool_status"; tool: string; status: "running" | "done" | "failed" }
   | { type: "layers"; items: PresentedLayer[] }
   | ({ type: "action" } & ChatAction)
+  // From an MCP server with `client` exposure. Backend turns those servers off
+  // for now, see readMcpExtensions, so nothing shows it yet.
+  | {
+      type: "mcp_result";
+      server: string;
+      tool: string;
+      resultId: string;
+      result: Record<string, unknown>;
+    }
   | { type: "done"; truncated: boolean }
   | { type: "error"; code: string; message: string };
 

@@ -13,7 +13,7 @@ import { McpResultStore } from "../../server/apis/v2/services/ai/mcp/mcpResults.
 import { buildSystemPrompt } from "../../server/apis/v2/services/ai/prompt.ts";
 import {
   PAGE_SIZE,
-  runTool,
+  createRegistry,
   tools,
   validateInput,
 } from "../../server/apis/v2/services/ai/tools.ts";
@@ -28,6 +28,9 @@ import {
   washedMapConfig,
   wmsLayer,
 } from "./fixtures.ts";
+
+// Without extensions, so only the built-in tools
+const registry = createRegistry();
 
 const view = (config: RawMapConfig = mapConfig(), store = layersStore()) =>
   buildUserCatalog(buildCatalog("demo", config, store), walkMapConfig(config));
@@ -67,7 +70,7 @@ async function call(
   input: unknown,
   ctx: ToolContext = context()
 ) {
-  const run = await runTool(name, input, ctx);
+  const run = await registry.run(name, input, ctx);
   return { ...run, result: JSON.parse(run.content) };
 }
 
@@ -94,6 +97,116 @@ const bigMap = (count: number) => {
   store.wmslayers.push(...(ids.map((id) => wmsLayer(id)) as never[]));
   return view(config, store);
 };
+
+describe("extensions that can't load", () => {
+  const tool = {
+    name: "route",
+    kind: "read" as const,
+    description: "Route.",
+    inputSchema: { type: "object", properties: {} } as JsonSchema,
+    run: async () => ({ result: {} }),
+  };
+
+  function flaky() {
+    let up = false;
+    let now = 0;
+    const registry = createRegistry(
+      [
+        {
+          name: "routing",
+          unavailablePrompt: "Routing is unavailable.",
+          async load() {
+            if (!up) {
+              throw new Error("connect ECONNREFUSED");
+            }
+            return { tools: [tool], prompt: "Routing." };
+          },
+        },
+      ],
+      () => now
+    );
+    return {
+      registry,
+      comeBack() {
+        up = true;
+        now = 60_000;
+      },
+    };
+  }
+
+  test("tell the model that they are unavailable", async () => {
+    const { registry } = flaky();
+    await registry.refresh();
+    assert.deepEqual(registry.promptSections, ["Routing is unavailable."]);
+    assert.ok(!registry.tools.some((t) => t.name === "route"));
+  });
+
+  test("get their own prompt once they load", async () => {
+    const { registry, comeBack } = flaky();
+    await registry.refresh();
+    comeBack();
+    await registry.refresh();
+    assert.deepEqual(registry.promptSections, ["Routing."]);
+  });
+
+  test("a turn starting during a load waits for it", async () => {
+    let finish = () => {};
+    const registry = createRegistry([
+      {
+        name: "routing",
+        unavailablePrompt: "Routing is unavailable.",
+        load: () =>
+          new Promise((resolve) => {
+            finish = () => resolve({ tools: [tool], prompt: "Routing." });
+          }),
+      },
+    ]);
+    const first = registry.refresh();
+    const second = registry.refresh().then(() => registry.promptSections);
+    finish();
+    await first;
+    assert.deepEqual(await second, ["Routing."]);
+  });
+
+  test("keep the built-in tools first, in the same order", async () => {
+    const builtIn = tools.map((t) => t.name);
+    const { registry, comeBack } = flaky();
+    await registry.refresh();
+    assert.deepEqual(
+      registry.tools.map((t) => t.name),
+      builtIn
+    );
+    comeBack();
+    await registry.refresh();
+    assert.deepEqual(
+      registry.tools.map((t) => t.name),
+      [...builtIn, "route"]
+    );
+  });
+});
+
+describe("tool order", () => {
+  // Part of the prompt cache, so a change must be on purpose
+  test("the built-in tools keep their order", () => {
+    assert.deepEqual(
+      tools.map((tool) => tool.name),
+      [
+        "search_layers",
+        "filter_layers",
+        "get_layer_details",
+        "present_layers",
+        "set_layer_visibility",
+        "set_background",
+        "open_plugin",
+        "close_plugin",
+        "go_to_place",
+        "search_features",
+        "show_features",
+        "clear_features",
+      ]
+    );
+  });
+});
 
 describe("tool schemas", () => {
   test("meet the strict mode of both providers", () => {
@@ -189,7 +302,7 @@ describe("validateInput", () => {
   });
 });
 
-describe("runTool", () => {
+describe("registry.run", () => {
   test("reports an unknown tool", async () => {
     const { isError } = await call("drop_tables", {});
     assert.equal(isError, true);

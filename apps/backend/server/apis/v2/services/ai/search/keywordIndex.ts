@@ -19,7 +19,7 @@ const OWN_VIEW_FIELDS = [
   "subLayers",
 ];
 
-// The Snowball list for Swedish, and the words people use to ask for a layer.
+// The Snowball list for Swedish, the language in ../locale.ts, and the words people use to ask for a layer.
 // Without this "Var finns ..." matches every layer with Varberg in it, as "var"
 // is also a prefix. Only left out of queries, so the index still holds them.
 const STOP_WORDS = new Set(

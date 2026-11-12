@@ -60,7 +60,6 @@ export const UI_STRINGS = {
   download: "Ladda ner",
   downloadLabel: "Ladda ner det som visas på kartan",
   nothingToDownload: "Det fanns inget att ladda ner.",
-  // The model tells users to turn on "Ta med ritade objekt", see prompt.ts in Backend
   includeDrawn: (count: number, max: number) =>
     count > max
       ? `Ta med ritade objekt (${max} av ${count})`
@@ -143,6 +142,7 @@ export const REQUEST_ERRORS: Record<string, string> = {
     "Den förra frågan besvaras fortfarande. Vänta en stund och försök igen.",
   daily_limit:
     "Chatten har nått sin gräns för i dag. Kartan fungerar som vanligt.",
+  map_not_found: "Kartan finns inte längre. Ladda om sidan och försök igen.",
 };
 
 // The codes of `error` events, which end a turn that has started streaming

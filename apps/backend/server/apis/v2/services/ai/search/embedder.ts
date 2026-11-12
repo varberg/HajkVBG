@@ -1,5 +1,8 @@
 import log4js from "log4js";
 
+import { readEmbeddingConfig } from "../config.ts";
+import type { EmbeddingConfig } from "../config.ts";
+
 const logger = log4js.getLogger("service.ai.search");
 
 export type EmbeddingInputType = "query" | "document";
@@ -142,24 +145,22 @@ export function createVoyageEmbedder(apiKey: string, model: string): Embedder {
  * @returns The embedder, or null if it isn't configured. The chat then runs on
  * keyword search only, so this must never stop the backend.
  */
-export function createEmbedder(env = process.env): Embedder | null {
-  const provider = env.AI_EMBEDDING_PROVIDER || "openai";
-  const model = env.AI_EMBEDDING_MODEL;
-  const apiKey =
-    provider === "openai" ? env.OPENAI_API_KEY : env.VOYAGE_API_KEY;
-
+export function createEmbedder(
+  config: EmbeddingConfig = readEmbeddingConfig()
+): Embedder | null {
+  const { provider, model, apiKey } = config;
   if (provider !== "openai" && provider !== "voyage") {
     logger.warn(
       `Unknown AI_EMBEDDING_PROVIDER "${provider}", using keyword search only.`
     );
     return null;
   }
-  if (!apiKey) {
+  if (apiKey === undefined) {
     logger.warn(`No API key for "${provider}", using keyword search only.`);
     return null;
   }
 
   return provider === "openai"
-    ? createOpenAiEmbedder(apiKey, model || "text-embedding-3-small")
-    : createVoyageEmbedder(apiKey, model || "voyage-4");
+    ? createOpenAiEmbedder(apiKey, model)
+    : createVoyageEmbedder(apiKey, model);
 }

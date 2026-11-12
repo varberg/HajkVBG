@@ -10,7 +10,6 @@ import type { ChatLimits } from "../../server/apis/v2/services/ai/config.ts";
 import { Orchestrator } from "../../server/apis/v2/services/ai/orchestrator.ts";
 import type {
   ChatEvent,
-  ToolRegistry,
   TurnRequest,
 } from "../../server/apis/v2/services/ai/orchestrator.ts";
 import { SessionHistory } from "../../server/apis/v2/services/ai/providers/types.ts";
@@ -22,10 +21,11 @@ import type {
   ToolCall,
   ToolResult,
 } from "../../server/apis/v2/services/ai/providers/types.ts";
-import { registry } from "../../server/apis/v2/services/ai/tools.ts";
+import { createRegistry } from "../../server/apis/v2/services/ai/tools.ts";
 import type {
   ToolContext,
   ToolDefinition,
+  ToolRegistry,
 } from "../../server/apis/v2/services/ai/tools.ts";
 import type { WfsAccess } from "../../server/apis/v2/services/ai/features/wfsAccess.ts";
 import { AccessError } from "../../server/apis/v2/utils/AccessError.js";
@@ -141,7 +141,7 @@ const noWfs: WfsAccess = {
 const orchestrator = (setup: Setup) =>
   new Orchestrator({
     provider: setup.provider,
-    registry: setup.registry ?? registry,
+    registry: setup.registry ?? createRegistry(),
     limits: { ...limits, ...setup.limits },
     search: { search: async () => ({ hits: [], mode: "keyword" }) },
     wfs: setup.wfs ?? noWfs,
@@ -601,6 +601,7 @@ describe("map state", () => {
       answer(),
     ]);
     let content = "";
+    const registry = createRegistry();
     const chat = orchestrator({
       provider,
       registry: {

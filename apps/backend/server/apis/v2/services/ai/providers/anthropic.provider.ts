@@ -19,22 +19,17 @@ import type {
   ToolResult,
 } from "./types.ts";
 
-export const DEFAULT_MODEL = "claude-opus-5-5";
 const DEFAULT_EFFORT = "low";
 
-// Server-side fallback on refusals. Models outside this list reject the field.
+// Server-side fallback on refusals. Models without it reject the field.
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
-const MODELS_WITH_FALLBACK = [
-  "claude-opus-5-5",
-  "claude-opus-5",
-  "claude-sonnet-5-5",
-  "claude-fable-5-1",
-];
 
 interface AnthropicProviderOptions {
   client: Anthropic;
-  model?: string;
+  model: string;
   effort?: string;
+  /** Turn on the server-side fallback. Only for models that have it. */
+  fallback?: boolean;
 }
 
 // `eager_input_streaming` stays off: it turns off the server's validation that
@@ -62,18 +57,20 @@ class AnthropicSession implements ProviderSession {
   #client: Anthropic;
   #model: string;
   #effort: string;
+  #fallback: boolean;
   #system: string;
   #tools: BetaTool[];
   #history = new SessionHistory<BetaMessageParam>();
 
   constructor(
-    { client, model, effort }: AnthropicProviderOptions,
+    { client, model, effort, fallback }: AnthropicProviderOptions,
     system: string,
     tools: ProviderTool[]
   ) {
     this.#client = client;
-    this.#model = model ?? DEFAULT_MODEL;
+    this.#model = model;
     this.#effort = effort ?? DEFAULT_EFFORT;
+    this.#fallback = fallback === true;
     this.#system = system;
     this.#tools = tools.map(toTool);
   }
@@ -95,7 +92,6 @@ class AnthropicSession implements ProviderSession {
   }
 
   async run({ onTextDelta, signal }: RunOptions): Promise<ModelTurn> {
-    const hasFallback = MODELS_WITH_FALLBACK.includes(this.#model);
     const stream = this.#client.beta.messages.stream(
       {
         model: this.#model,
@@ -114,7 +110,7 @@ class AnthropicSession implements ProviderSession {
         cache_control: { type: "ephemeral" },
         tools: this.#tools,
         messages: this.#history.items,
-        ...(hasFallback && {
+        ...(this.#fallback && {
           betas: [FALLBACK_BETA],
           fallbacks: "default",
         }),
@@ -168,7 +164,7 @@ class AnthropicSession implements ProviderSession {
 export const createAnthropicProvider = (
   options: AnthropicProviderOptions
 ): ChatProvider => ({
-  id: `anthropic:${options.model ?? DEFAULT_MODEL}`,
+  id: `anthropic:${options.model}`,
   createSession: ({ system, tools }) =>
     new AnthropicSession(options, system, tools),
 });

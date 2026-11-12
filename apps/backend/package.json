@@ -21,6 +21,7 @@
     "lint": "eslint server",
     "lint:fix": "eslint --fix server",
     "typecheck": "tsc --noEmit",
+    "snapshot:routing": "node --env-file=.env scripts/snapshot-routing-mcp.ts",
     "test": "node --env-file=.env.example --test \"test/**/*.test.js\" \"test/**/*.test.ts\""
   },
   "dependencies": {

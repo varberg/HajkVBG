@@ -1,5 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 
 import type { McpServerConfig } from "../config.ts";
 
@@ -10,6 +11,7 @@ export interface McpToolInfo {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: Record<string, unknown>;
 }
 
 export interface McpCallResult {
@@ -21,6 +23,11 @@ export interface McpCallResult {
 
 export interface McpConnection {
   listTools(): Promise<McpToolInfo[]>;
+  /**
+   * The server's own `instructions` from the MCP handshake, or null if it has
+   * none. Costs no request once connected.
+   */
+  getInstructions(): Promise<string | null>;
   call(
     name: string,
     args: Record<string, unknown>,
@@ -39,6 +46,17 @@ function parseObject(text: string): Record<string, unknown> | null {
     return null;
   }
 }
+
+/**
+ * @summary Whether a failed call got an error answer from the server, such as
+ * for invalid arguments, which shows that the server is up. The SDK reports a
+ * timeout or a lost connection with the same error class, so those are told
+ * apart by their code.
+ */
+export const isErrorAnswer = (error: unknown): boolean =>
+  error instanceof McpError &&
+  error.code !== ErrorCode.RequestTimeout &&
+  error.code !== ErrorCode.ConnectionClosed;
 
 /**
  * @summary A connection to one MCP server over streamable HTTP, with its bearer
@@ -84,11 +102,24 @@ export function createMcpConnection(config: McpServerConfig): McpConnection {
               name: tool.name,
               description: tool.description ?? "",
               inputSchema: tool.inputSchema as Record<string, unknown>,
+              ...(tool.annotations === undefined
+                ? {}
+                : { annotations: tool.annotations }),
             });
           }
           cursor = page.nextCursor;
         } while (cursor !== undefined);
         return tools;
+      } catch (error) {
+        return reset(error);
+      }
+    },
+
+    async getInstructions() {
+      try {
+        const connected = await connect();
+        const instructions = connected.getInstructions()?.trim() ?? "";
+        return instructions === "" ? null : instructions;
       } catch (error) {
         return reset(error);
       }

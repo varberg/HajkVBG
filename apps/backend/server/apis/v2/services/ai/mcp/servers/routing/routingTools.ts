@@ -5,6 +5,7 @@ import { UnsupportedSchemaError } from "../../mcpSchema.ts";
 import { bridgeTool, callMcp } from "../../mcpTools.ts";
 import type { McpServer } from "../../mcpTools.ts";
 import { NOT_FOUND, ToolError } from "../../../toolSupport.ts";
+import type { Rejection } from "../../../toolSupport.ts";
 import type { ShownRoute, Tool, ToolContext } from "../../../tools.ts";
 import { AVOID_SCHEMA } from "./avoid.ts";
 import { LOCATION_SCHEMA, sridOf } from "./location.ts";
@@ -32,15 +33,18 @@ const MAIN_ROADS = 3;
 const UNNAMED = "(unnamed road)";
 const MAX_SHOWN = 30;
 
-/** Sent once, in the system prompt, instead of in every tool description. */
-export const ROUTING_INSTRUCTIONS = `Routing (the NVDB road network and Hallandstrafiken's public transport, for Varbergs kommun and about 15 km around it):
-- Answer travel times, distances, routes, reachable areas and questions about bus lines with the routing tools, never from memory.
+/**
+ * How the chat uses the routing tools. Sent once, in the system prompt,
+ * instead of in every tool description. What the routing covers (area, data,
+ * modes, public transport) comes from the server's own instructions, so no
+ * place or data source is named here.
+ */
+export const ROUTING_INSTRUCTIONS = `Routing:
+- Answer travel times, distances, routes, reachable areas and questions about public transport lines with the routing tools, never from memory.
 - Give a point as the \`id\` of a feature from search_features, in \`feature_id\`. For a street without a house number, use find_street and pass its x and y. Always give a short \`label\`.
 - To route around road works, closures or other areas, pass them in \`avoid\`: all the features of a search by its \`resultId\` in \`result_id\`, or one feature in \`feature_id\`. For road works, first search for the ones going on today, by the date in the map state, that close the road, and use \`modes\` ["car"] when people on foot and bike may pass. Only avoid when the user asks for it.
 - With \`avoid\`, say what was avoided, and how much longer the detour is from \`minutes_without_avoid\`. A warning that an area touches no road means it didn't change the route.
-- Modes: car, the default, follows speed limits, one-way streets and turn restrictions, and is slower in towns and roundabouts. bike and walk avoid motorways, at a fixed speed. Traffic, time rules, access bans and weight or height limits aren't modelled, so say so when it matters.
-- transit is public transport plus walking to, from and between stops. Its times are typical for one period of the day (see data_status), with an average wait instead of exact connections. So never give departure or arrival times, next departures or timetables, and don't plan an exact trip: say that the time is typical, and refer to Hallandstrafiken (hallandstrafiken.se or its app) for actual trips.
-- For a transit route, say which lines to take, where to get on and off, and how long the walks are.
+- For a public transport route, say which lines to take, where to get on and off, and how long the walks are.
 - For how far places are from public transport (hållplats, busshållplats), such as which schools are furthest from a stop, use nearest_stops with all the places in one call and compare \`walk_m\` of their nearest stop, instead of routing to stops yourself. First find every place with search_features, and page through all of them.
 - line_info describes a line: its stops in order and how often it runs. When several lines match, call it again with the \`route_id\` of the right one.
 - A large \`snap_m\` or any \`warnings\` mean that a point may be wrong. Tell the user.
@@ -48,6 +52,41 @@ export const ROUTING_INSTRUCTIONS = `Routing (the NVDB road network and Hallands
 - The tools give times in minutes with decimals. Write them as people say them: under a minute in seconds ("20 s"), then in whole minutes ("7 min", never "7,3 min" or "0,3 min"), and from an hour as "1 h 15 min". The same goes for tables.
 - When the answer is about routes, reachable areas, lines or nearest stops, call show_route once, with the \`resultId\` of every one of them. That shows them on the map, with their streets, steps or stops under your answer, so don't list the streets or the stops of a line yourself.
 - show_route marks the start and end of each route, and the user can turn each route on and off. So don't call show_features for the places of a route, unlike for other answers about features.`;
+
+/** The most of the server's instructions that goes in the prompt. */
+export const MAX_SERVER_INSTRUCTIONS = 8000;
+
+const SERVER_PREFACE =
+  "The routing service's own description follows. Where it describes coordinates, GeoJSON or geometry_url, use the tool parameters described above instead.";
+
+/** Cut at the last full sentence that fits in `max` characters. */
+function capText(text: string, max: number): string {
+  if (text.length <= max) {
+    return text;
+  }
+  const head = text.slice(0, max);
+  const last = [...head.matchAll(/[.!?](?=\s|$)/g)].at(-1);
+  return (last === undefined ? head : head.slice(0, last.index + 1)).trimEnd();
+}
+
+/**
+ * @summary The routing section of the system prompt: Hajk's rules, then the
+ * server's own instructions, which say what it covers, capped at
+ * {@link MAX_SERVER_INSTRUCTIONS} characters.
+ */
+export function buildRoutingPrompt(serverInstructions: string | null): string {
+  if (serverInstructions === null || serverInstructions.trim() === "") {
+    return ROUTING_INSTRUCTIONS;
+  }
+  const text = serverInstructions.trim();
+  const capped = capText(text, MAX_SERVER_INSTRUCTIONS);
+  if (capped.length < text.length) {
+    logger.warn(
+      `The routing server's instructions are ${text.length} characters, cut to ${capped.length}.`
+    );
+  }
+  return `${ROUTING_INSTRUCTIONS}\n\n${SERVER_PREFACE}\n\n${capped}`;
+}
 
 interface Street {
   name: string;
@@ -133,11 +172,6 @@ function browserUrl(link: string, srid: number): string {
   return url.toString();
 }
 
-interface Rejection {
-  id: string;
-  reason: string;
-}
-
 /** What the browser draws for a tool, which is a route unless listed */
 const KINDS: Record<string, ShownRoute["kind"]> = {
   reachable_within: "reach",
@@ -164,7 +198,8 @@ async function routeFor(
       server,
       stored.tool,
       stored.args,
-      context.signal
+      context.signal,
+      now
     );
     if (!hasLink(result)) {
       throw new ToolError("The route can't be shown any more.");

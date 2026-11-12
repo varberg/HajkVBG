@@ -6,8 +6,8 @@ import {
   buildUserCatalog,
   isSubLayerAddressAllowed,
   parseSubLayerAddress,
-  renderGroupTree,
 } from "../../server/apis/v2/services/ai/access.service.ts";
+import { renderGroupTree } from "../../server/apis/v2/services/ai/prompt.ts";
 import {
   buildCatalog,
   walkMapConfig,

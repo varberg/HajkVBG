@@ -119,22 +119,6 @@ function buildGroupTree(groups: CatalogGroup[]): GroupTreeNode[] {
   return roots;
 }
 
-/**
- * @summary The group tree as compact text for the prompt, one group per line:
- * `- Name [id] (allowed leaf layers)`, with nesting shown by indentation.
- */
-export function renderGroupTree(nodes: GroupTreeNode[], depth = 0): string {
-  return nodes
-    .flatMap((node) => {
-      const exclusive = node.exclusive ? " exclusive" : "";
-      const line = `${"  ".repeat(depth)}- ${node.name} [${node.id}] (${node.leafCount})${exclusive}`;
-      return node.children.length > 0
-        ? [line, renderGroupTree(node.children, depth + 1)]
-        : [line];
-    })
-    .join("\n");
-}
-
 /** @summary What users already see of a source, and the extras listed for it. */
 function allowedFields(
   { searchFields, displayFields, infobox, geometryField }: FeatureConnection,

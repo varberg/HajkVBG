@@ -18,7 +18,12 @@ import type {
 import { McpResultStore } from "../../server/apis/v2/services/ai/mcp/mcpResults.ts";
 import { representativePoint } from "../../server/apis/v2/services/ai/features/points.ts";
 import { sridOf } from "../../server/apis/v2/services/ai/mcp/servers/routing/location.ts";
-import { buildRoutingTools } from "../../server/apis/v2/services/ai/mcp/servers/routing/routingTools.ts";
+import {
+  MAX_SERVER_INSTRUCTIONS,
+  ROUTING_INSTRUCTIONS,
+  buildRoutingPrompt,
+  buildRoutingTools,
+} from "../../server/apis/v2/services/ai/mcp/servers/routing/routingTools.ts";
 import { createRegistry } from "../../server/apis/v2/services/ai/tools.ts";
 import type {
   ToolContext,
@@ -26,10 +31,12 @@ import type {
 } from "../../server/apis/v2/services/ai/tools.ts";
 import { featureMapConfig, featureStore } from "./fixtures.ts";
 
-const toolList = (): McpToolInfo[] =>
+const snapshot = (): { instructions: string; tools: McpToolInfo[] } =>
   JSON.parse(
     fs.readFileSync(new URL("./routing-tools.json", import.meta.url), "utf-8")
-  ).tools;
+  );
+
+const toolList = (): McpToolInfo[] => snapshot().tools;
 
 const URL_BASE = "http://routing.example.com/geojson/signed";
 
@@ -138,6 +145,7 @@ function fakeServer(
   const calls: Call[] = [];
   const connection: McpConnection = {
     listTools: async () => toolList(),
+    getInstructions: async () => snapshot().instructions,
     async call(name, args) {
       calls.push({ name, args });
       return {
@@ -257,6 +265,42 @@ const shownRoute = (events: ToolEvent[]) => {
 };
 
 const show = (...ids: string[]) => ({ result_ids: ids });
+
+describe("buildRoutingPrompt", () => {
+  const PREFACE = "The routing service's own description follows.";
+
+  test("has no place, data source or tool that the chat doesn't keep", () => {
+    for (const word of ["Varberg", "Hallandstrafiken", "NVDB", "data_status"]) {
+      assert.ok(!ROUTING_INSTRUCTIONS.includes(word), word);
+    }
+  });
+
+  test("adds the server's instructions unchanged after a preface", () => {
+    const { instructions } = snapshot();
+    const prompt = buildRoutingPrompt(instructions);
+    assert.ok(prompt.startsWith(ROUTING_INSTRUCTIONS));
+    assert.ok(prompt.includes(PREFACE));
+    assert.ok(prompt.endsWith(instructions.trim()));
+    assert.ok(prompt.indexOf(PREFACE) < prompt.indexOf(instructions.trim()));
+  });
+
+  test("is only Hajk's rules without server instructions", () => {
+    assert.equal(buildRoutingPrompt(null), ROUTING_INSTRUCTIONS);
+    assert.equal(buildRoutingPrompt("  "), ROUTING_INSTRUCTIONS);
+  });
+
+  test("cuts long server instructions at a sentence", () => {
+    const sentence = "This sentence is about routing. ";
+    const long = sentence.repeat(
+      Math.ceil((MAX_SERVER_INSTRUCTIONS * 2) / sentence.length)
+    );
+    const prompt = buildRoutingPrompt(long);
+    const server = prompt.slice(prompt.indexOf(PREFACE)).split("\n\n")[1];
+    assert.ok(server.length <= MAX_SERVER_INSTRUCTIONS);
+    assert.ok(server.length > MAX_SERVER_INSTRUCTIONS - sentence.length);
+    assert.ok(server.endsWith("routing."));
+  });
+});
 
 describe("buildRoutingTools", () => {
   test("keeps the routing tools, adds show_route and drops data_status", async () => {

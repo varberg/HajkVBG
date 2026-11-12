@@ -3,13 +3,12 @@ import {
   resultGeometries,
 } from "../../../features/featureSearch.ts";
 import type { Geometry } from "../../../features/geojson.ts";
-import { ToolError } from "../../../toolSupport.ts";
+import { MAX_LABEL, ToolError } from "../../../toolSupport.ts";
 import type { JsonSchema, ToolContext } from "../../../tools.ts";
 import { sridOf } from "./location.ts";
 
 /** The server's limit, for all areas of one call together */
 export const MAX_AVOID = 50;
-const MAX_LABEL = 100;
 
 /**
  * Takes the place of the server's AvoidArea, whose GeoJSON the model can't

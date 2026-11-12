@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import type Anthropic from "@anthropic-ai/sdk";
 import type OpenAI from "openai";
 
+import { DEFAULT_ANTHROPIC_MODEL } from "../../server/apis/v2/services/ai/config.ts";
 import { createAnthropicProvider } from "../../server/apis/v2/services/ai/providers/anthropic.provider.ts";
 import { createOpenAiProvider } from "../../server/apis/v2/services/ai/providers/openai.provider.ts";
 import type {
@@ -121,7 +122,9 @@ const ANTHROPIC_STOPS: Record<StopReason, string> = {
   refusal: "refusal",
 };
 
-function anthropicHarness(options: { model?: string } = {}): Harness {
+function anthropicHarness(
+  options: { model?: string; fallback?: boolean } = {}
+): Harness {
   const scripts: Script[] = [];
   const requests: Params[] = [];
   const signals: Array<AbortSignal | undefined> = [];
@@ -175,6 +178,7 @@ function anthropicHarness(options: { model?: string } = {}): Harness {
   return {
     provider: createAnthropicProvider({
       client: client as unknown as Anthropic,
+      model: DEFAULT_ANTHROPIC_MODEL,
       ...options,
     }),
     requests,
@@ -441,19 +445,22 @@ describe("Anthropic adapter", () => {
     assert.deepEqual(request.cache_control, { type: "ephemeral" });
   });
 
-  test("uses server-side fallbacks where the model has them", async () => {
-    const h = anthropicHarness();
+  test("uses server-side fallbacks when turned on", async () => {
+    const h = anthropicHarness({ fallback: true });
     const session = open(h);
     session.addUserMessage("Hej");
     await run(session);
     assert.equal(h.requests[0].fallbacks, "default");
     assert.deepEqual(h.requests[0].betas, ["server-side-fallback-2026-07-01"]);
+  });
 
-    const other = anthropicHarness({ model: "claude-haiku-5-5" });
-    const second = open(other);
-    second.addUserMessage("Hej");
-    await run(second);
-    assert.equal("fallbacks" in other.requests[0], false);
+  test("sends no fallback by default, whatever the model", async () => {
+    const h = anthropicHarness();
+    const session = open(h);
+    session.addUserMessage("Hej");
+    await run(session);
+    assert.equal("fallbacks" in h.requests[0], false);
+    assert.equal("betas" in h.requests[0], false);
   });
 
   test("sends all tool results in one message, with error flags", async () => {

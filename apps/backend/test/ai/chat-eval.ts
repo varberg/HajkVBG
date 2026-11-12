@@ -34,7 +34,10 @@ import { createProvider } from "../../server/apis/v2/services/ai/providers/index
 import defaultSearchService, {
   SearchService,
 } from "../../server/apis/v2/services/ai/search/search.service.ts";
-import { registry } from "../../server/apis/v2/services/ai/tools.ts";
+import { createRegistry } from "../../server/apis/v2/services/ai/tools.ts";
+
+// The built-in tools only
+const registry = createRegistry();
 
 const TOP_N = 5;
 const TARGET = 0.9;

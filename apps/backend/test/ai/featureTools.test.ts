@@ -18,7 +18,10 @@ import { WfsClient } from "../../server/apis/v2/services/ai/features/wfsClient.t
 import type { WfsResult } from "../../server/apis/v2/services/ai/features/wfsClient.ts";
 import type { GetFeatureOptions } from "../../server/apis/v2/services/ai/features/wfsQuery.ts";
 import { buildSystemPrompt } from "../../server/apis/v2/services/ai/prompt.ts";
-import { PAGE_SIZE, runTool } from "../../server/apis/v2/services/ai/tools.ts";
+import {
+  PAGE_SIZE,
+  createRegistry,
+} from "../../server/apis/v2/services/ai/tools.ts";
 import type {
   ToolContext,
   ToolEvent,
@@ -30,6 +33,9 @@ import {
   layersStore,
   washedFeatureMapConfig,
 } from "./fixtures.ts";
+
+// Without extensions, so only the built-in tools
+const registry = createRegistry();
 
 const point = (x: number, y = 0): Geometry => ({
   type: "Point",
@@ -121,7 +127,7 @@ const NO_CRITERIA = {
 };
 
 async function call(name: string, input: unknown, ctx: ToolContext) {
-  const run = await runTool(name, input, ctx);
+  const run = await registry.run(name, input, ctx);
   return { ...run, result: JSON.parse(run.content) };
 }
 
@@ -1141,7 +1147,7 @@ describe("drawn features", () => {
 
   test("never reach the model's result as coordinates", async () => {
     const { wfs } = fakeWfs(() => [feature("sjo.1")]);
-    const { content } = await runTool(
+    const { content } = await registry.run(
       "search_features",
       { source_id: "sjo", ...NO_CRITERIA, ...nearInput("s1", 0) },
       context(wfs, { drawn })
@@ -1153,7 +1159,7 @@ describe("drawn features", () => {
 
 describe("the prompt and drawn features", () => {
   test("tells the model about them on a map that takes them", () => {
-    assert.ok(buildSystemPrompt(view()).includes("Ta med ritade objekt"));
+    assert.ok(buildSystemPrompt(view()).includes("switch for drawn objects"));
   });
 
   test("leaves them out on a map that turns them off", () => {
@@ -1172,7 +1178,7 @@ describe("the prompt and drawn features", () => {
     );
     assert.equal(catalog.mapInfo.drawnFeatures, false);
     assert.equal(
-      buildSystemPrompt(catalog).includes("Ta med ritade objekt"),
+      buildSystemPrompt(catalog).includes("switch for drawn objects"),
       false
     );
   });

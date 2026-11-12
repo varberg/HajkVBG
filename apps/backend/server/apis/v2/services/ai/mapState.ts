@@ -14,9 +14,11 @@ export interface MapState {
   today: string;
 }
 
-/** The date where the backend runs, which is where the map is */
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** The date where the backend runs, which is where the map is, as YYYY-MM-DD */
 export const localDate = (date: Date = new Date()): string =>
-  date.toLocaleDateString("sv-SE");
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 

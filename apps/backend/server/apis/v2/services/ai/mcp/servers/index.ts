@@ -28,6 +28,14 @@ export function readMcpExtensions(): ToolExtension[] {
       );
       continue;
     }
+    // The model would be told that a result was shown, but the client doesn't
+    // show `mcp_result` events yet, see bridgeTool. Kept off until it does.
+    if (config.exposure === "client") {
+      logger.error(
+        `The ${config.name} MCP server is off: AI_${name}_MCP_EXPOSURE is "client", and the chat can't show such results yet.`
+      );
+      continue;
+    }
     try {
       extensions.push(create(config));
     } catch (error) {

@@ -1,8 +1,6 @@
 import { featurePoint } from "../../../features/featureSearch.ts";
-import { ToolError } from "../../../toolSupport.ts";
+import { MAX_LABEL, ToolError } from "../../../toolSupport.ts";
 import type { JsonSchema, ToolContext } from "../../../tools.ts";
-
-const MAX_LABEL = 100;
 
 /**
  * Takes the place of the server's Point, so that the model can give a feature

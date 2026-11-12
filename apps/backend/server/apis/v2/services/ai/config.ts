@@ -6,6 +6,62 @@ import {
 import { readExposure } from "./mcp/exposure.ts";
 import type { Exposure } from "./mcp/exposure.ts";
 
+/** Used when AI_MODEL isn't set. OpenAI has no default, see providers/index.ts. */
+export const DEFAULT_ANTHROPIC_MODEL = "claude-opus-5-5";
+export const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
+export const DEFAULT_VOYAGE_EMBEDDING_MODEL = "voyage-4";
+
+type Env = Record<string, string | undefined>;
+
+/** A setting, with an empty value read as not set. */
+const read = (name: string, env: Env = process.env): string | undefined =>
+  env[name]?.trim() || undefined;
+
+export interface ProviderConfig {
+  /** "anthropic" or "openai". Checked by createProvider. */
+  provider: string | undefined;
+  model: string | undefined;
+  effort: string | undefined;
+  /** Server-side fallback on refusals, for Claude models that have it. */
+  fallback: boolean;
+  anthropicApiKey: string | undefined;
+  openAiApiKey: string | undefined;
+  /** For Azure OpenAI or a gateway. */
+  openAiBaseUrl: string | undefined;
+}
+
+export const readProviderConfig = (): ProviderConfig => ({
+  provider: read("AI_PROVIDER"),
+  model: read("AI_MODEL"),
+  effort: read("AI_REASONING_EFFORT"),
+  fallback: grabBoolean("AI_MODEL_FALLBACK", false),
+  anthropicApiKey: read("ANTHROPIC_API_KEY"),
+  openAiApiKey: read("OPENAI_API_KEY"),
+  openAiBaseUrl: read("OPENAI_BASE_URL"),
+});
+
+export interface EmbeddingConfig {
+  /** "openai" or "voyage". Checked by createEmbedder. */
+  provider: string;
+  model: string;
+  apiKey: string | undefined;
+}
+
+/** @param env Taken for the tests. Defaults to process.env. */
+export function readEmbeddingConfig(env: Env = process.env): EmbeddingConfig {
+  const provider = read("AI_EMBEDDING_PROVIDER", env) ?? "openai";
+  const isVoyage = provider === "voyage";
+  return {
+    provider,
+    model:
+      read("AI_EMBEDDING_MODEL", env) ??
+      (isVoyage
+        ? DEFAULT_VOYAGE_EMBEDDING_MODEL
+        : DEFAULT_OPENAI_EMBEDDING_MODEL),
+    apiKey: read(isVoyage ? "VOYAGE_API_KEY" : "OPENAI_API_KEY", env),
+  };
+}
+
 export interface ChatLimits {
   /** Model calls per turn */
   maxIterations: number;
@@ -39,8 +95,8 @@ export interface McpServerConfig {
  */
 export function readMcpServerConfig(name: string): McpServerConfig | null {
   const prefix = `AI_${name.toUpperCase()}_MCP_`;
-  const url = process.env[`${prefix}URL`]?.trim();
-  const token = process.env[`${prefix}TOKEN`]?.trim();
+  const url = read(`${prefix}URL`);
+  const token = read(`${prefix}TOKEN`);
   if (!url || !token) {
     return null;
   }

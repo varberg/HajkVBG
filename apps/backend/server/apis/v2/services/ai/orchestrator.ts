@@ -13,12 +13,7 @@ import type {
   ToolResult,
   Usage,
 } from "./providers/types.ts";
-import type {
-  ToolContext,
-  ToolDefinition,
-  ToolEvent,
-  ToolRun,
-} from "./tools.ts";
+import type { ToolContext, ToolEvent, ToolRegistry } from "./tools.ts";
 
 const logger = log4js.getLogger("service.ai.chat");
 
@@ -47,15 +42,6 @@ export type ChatEvent =
   | { type: "error"; code: TurnErrorCode; message: string };
 
 export type Emit = (event: ChatEvent) => void;
-
-export interface ToolRegistry {
-  readonly tools: ToolDefinition[];
-  run(name: string, input: unknown, context: ToolContext): Promise<ToolRun>;
-  /** What extensions such as MCP servers add to the system prompt. */
-  readonly promptSections?: string[];
-  /** Load the extensions that aren't loaded yet, see createRegistry. */
-  refresh?(): Promise<void>;
-}
 
 interface OrchestratorOptions {
   provider: ChatProvider;

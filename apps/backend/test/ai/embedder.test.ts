@@ -1,6 +1,7 @@
 import { afterEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 
+import { readEmbeddingConfig } from "../../server/apis/v2/services/ai/config.ts";
 import {
   batchTexts,
   createEmbedder,
@@ -125,38 +126,51 @@ describe("Voyage embedder", () => {
 
 describe("createEmbedder", () => {
   test("defaults to OpenAI text-embedding-3-small", () => {
-    const embedder = createEmbedder({ OPENAI_API_KEY: "key" });
+    const embedder = createEmbedder(
+      readEmbeddingConfig({ OPENAI_API_KEY: "key" })
+    );
     assert.equal(embedder?.id, "openai:text-embedding-3-small");
   });
 
   test("picks Voyage, with voyage-4 as its default model", () => {
-    const embedder = createEmbedder({
-      AI_EMBEDDING_PROVIDER: "voyage",
-      VOYAGE_API_KEY: "key",
-    });
+    const embedder = createEmbedder(
+      readEmbeddingConfig({
+        AI_EMBEDDING_PROVIDER: "voyage",
+        VOYAGE_API_KEY: "key",
+      })
+    );
     assert.equal(embedder?.id, "voyage:voyage-4");
     assert.equal(embedder?.maxBatchTexts, 1000);
   });
 
   test("the model comes from AI_EMBEDDING_MODEL", () => {
-    const embedder = createEmbedder({
-      OPENAI_API_KEY: "key",
-      AI_EMBEDDING_MODEL: "other",
-    });
+    const embedder = createEmbedder(
+      readEmbeddingConfig({
+        OPENAI_API_KEY: "key",
+        AI_EMBEDDING_MODEL: "other",
+      })
+    );
     assert.equal(embedder?.id, "openai:other");
   });
 
   test("a missing key or unknown provider gives no embedder", () => {
-    assert.equal(createEmbedder({}), null);
+    assert.equal(createEmbedder(readEmbeddingConfig({})), null);
     assert.equal(
-      createEmbedder({
-        AI_EMBEDDING_PROVIDER: "voyage",
-        OPENAI_API_KEY: "key",
-      }),
+      createEmbedder(
+        readEmbeddingConfig({
+          AI_EMBEDDING_PROVIDER: "voyage",
+          OPENAI_API_KEY: "key",
+        })
+      ),
       null
     );
     assert.equal(
-      createEmbedder({ AI_EMBEDDING_PROVIDER: "x", OPENAI_API_KEY: "key" }),
+      createEmbedder(
+        readEmbeddingConfig({
+          AI_EMBEDDING_PROVIDER: "x",
+          OPENAI_API_KEY: "key",
+        })
+      ),
       null
     );
   });
