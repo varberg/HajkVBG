@@ -49,8 +49,12 @@ export type ChatEvent =
 export type Emit = (event: ChatEvent) => void;
 
 export interface ToolRegistry {
-  tools: ToolDefinition[];
+  readonly tools: ToolDefinition[];
   run(name: string, input: unknown, context: ToolContext): Promise<ToolRun>;
+  /** What extensions such as MCP servers add to the system prompt. */
+  readonly promptSections?: string[];
+  /** Load the extensions that aren't loaded yet, see createRegistry. */
+  refresh?(): Promise<void>;
 }
 
 interface OrchestratorOptions {
@@ -175,6 +179,10 @@ export class Orchestrator {
     const userCatalog = await this.#access.getUserCatalog(map, user);
     // Only a new conversation uses them, but reading them is two stats
     const instructions = await this.#instructions.getInstructions(map);
+    if (conversationId === null) {
+      // Only new conversations get the tools of an extension that comes back
+      await this.#registry.refresh?.();
+    }
 
     // Nothing below awaits, so two requests can't both pass the running check
     let conversation =
@@ -212,7 +220,11 @@ export class Orchestrator {
       userCatalog.map,
       user,
       this.#provider.createSession({
-        system: buildSystemPrompt(userCatalog, instructions),
+        system: buildSystemPrompt(
+          userCatalog,
+          instructions,
+          this.#registry.promptSections
+        ),
         tools: this.#registry.tools.map(
           ({ name, description, inputSchema }) => ({
             name,
@@ -260,8 +272,11 @@ export class Orchestrator {
         visibleLayers: new Set(state.layers.map((layer) => layer.id)),
         wfs: this.#wfs,
         featureResults: conversation.featureResults,
+        mcpResults: conversation.mcpResults,
         signal: turnSignal,
         wfsRequests: 0,
+        wfsResponses: new Map(),
+        drawn: new Map(state.drawn.map((feature) => [feature.id, feature])),
       };
       const truncated = await this.#loop(
         conversation,
@@ -296,6 +311,8 @@ export class Orchestrator {
     signal: AbortSignal
   ): Promise<boolean> {
     for (let i = 0; i < this.#limits.maxIterations; i++) {
+      // A client that is already gone, maybe before the turn started, costs nothing
+      signal.throwIfAborted();
       const result = await session.run({
         onTextDelta: (delta) => emit({ type: "text", delta }),
         signal,

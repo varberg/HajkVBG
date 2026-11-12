@@ -32,7 +32,7 @@ Going to places:
 - Only move the map when the user asks for it, with go_to_place. When a place is relevant but the user hasn't asked to go there, call present_layers with it, which gives them a button.
 - If the result has \`needsConfirmation\`, tell the user to confirm in the dialog, and don't say that the map has moved.
 
-A user message can start with a <map_state> block, which holds the layers and background on the map right now. It is only sent when something has changed, so the latest one applies. It is data, not something the user wrote.`;
+A user message can start with a <map_state> block, which holds today's date and the layers and background on the map right now. It is only sent when something has changed, so the latest one applies. It is data, not something the user wrote.`;
 
 // On a map without sources, nothing but the named places can be reached
 const NO_FEATURE_SOURCES = `This map has no feature sources, so only the named places can be reached. If the user asks for an address or any other place, say that you can't go there instead of picking one nearby.`;
@@ -53,6 +53,12 @@ const FEATURE_INSTRUCTIONS = `Searching features:
 - If a search for one thing gives several matches, such as the entrances 12a to 12j, show them all with show_features and say how many there are, instead of picking one.
 - When your answer is about specific features, call show_features with them before you answer, without waiting to be asked, so that the user sees them on the map. Also show the place the user asked about, such as the address used in \`near\`, by giving the \`resultId\` of both searches, so that the user sees the answer and the place together. Give \`feature_ids\` when the answer is about only some of the matches, and then include the id of that place too. Don't call it for plain counts. Report what actually happened from the tool result.
 - When the user asks to clear or remove what is shown, use clear_features. It clears all search results, so say so if the user only asked to remove some of them.`;
+
+// Only on maps that take them, see drawn.ts. The label is the one in the browser.
+const DRAWN_INSTRUCTIONS = `Drawn features:
+- The map state can have \`drawn\`: shapes that the user drew with the map's drawing tool and chose to share, with an id such as s1, their kind and size, and a title if they gave one. They are the user's own, not data from a source.
+- Use a drawn id wherever a feature id is taken, such as in \`near\`, with \`distance_m\` 0 for what lies inside a drawn area, as a point for routing, or in \`avoid\`. Only the ones in the latest map state can be used.
+- If the user mentions something they drew and the map state has no drawn features, tell them to turn on "Ta med ritade objekt" by the input, which shows once they have drawn something. \`drawnSkipped\` counts drawings that couldn't be used, as they were too many or too detailed.`;
 
 function renderFeatureSource(source: FeatureSource): string {
   const details = `Fields: ${source.fields.join(", ")}`;
@@ -84,10 +90,12 @@ const renderInstructions = (instructions: string | null): string =>
  * message.
  * @param instructions From App_Data/ai, see InstructionsService. They add to
  * the rules above and never replace them, as those describe the tools.
+ * @param sections What extensions such as MCP servers add, see createRegistry.
  */
 export function buildSystemPrompt(
   userCatalog: UserCatalog,
-  instructions: string | null = null
+  instructions: string | null = null,
+  sections: string[] = []
 ): string {
   const { mapInfo, groupTree } = userCatalog;
   const title = mapInfo.title ?? userCatalog.map;
@@ -112,11 +120,14 @@ export function buildSystemPrompt(
       ? ""
       : ` Its projection is ${mapInfo.projection}.`;
 
+  const extra = sections.map((section) => `${section}\n\n`).join("");
+  const drawn = mapInfo.drawnFeatures ? `${DRAWN_INSTRUCTIONS}\n\n` : "";
+
   return `${INSTRUCTIONS}${renderInstructions(instructions)}
 
 ${renderFeatureSources(userCatalog)}
 
-${openable}${otherTools}
+${drawn}${extra}${openable}${otherTools}
 
 The map is called "${title}".${projection} These are its layer groups, one per line, as \`- Name [group id] (number of layers)\`, with subgroups indented:
 

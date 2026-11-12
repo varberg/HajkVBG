@@ -7,6 +7,7 @@ import {
   FormControlLabel,
   List,
   ListItem,
+  Radio,
   Typography,
 } from "@mui/material";
 
@@ -28,6 +29,12 @@ interface RowProps {
   item: PresentedLayer & { id: string };
   layerControl: LayerControlModel;
 }
+
+/**
+ * The small icon is as tall as the body2 line, so pulling the padding up
+ * centers it on the caption's first line, also when a group path follows.
+ */
+const CONTROL_SX = { p: 0.5, mr: 0.5, mt: -0.5 };
 
 /** Captions are often reused, so the group path is always shown too */
 function LayerLabel({ item }: { item: PresentedLayer }) {
@@ -75,7 +82,7 @@ function ToggleRow({ item, layerControl }: RowProps) {
       control={
         <Checkbox
           size="small"
-          sx={{ p: 0.5, mr: 0.5 }}
+          sx={CONTROL_SX}
           checked={state.visible}
           indeterminate={isPartlyOn(item.id, state, layerControl)}
           onChange={(e) =>
@@ -87,22 +94,27 @@ function ToggleRow({ item, layerControl }: RowProps) {
   );
 }
 
-/** A background has no off switch: hiding one can leave the map without any */
+/**
+ * A background has no off switch: hiding one can leave the map without any.
+ * So it's a radio button, as in the BackgroundSwitcher: choosing one shows it
+ * and hides the others.
+ */
 function BackgroundRow({ item, layerControl }: RowProps) {
   const active = useLayerVisibility(layerControl, item.id);
 
   return (
-    <>
-      <LayerLabel item={item} />
-      <Button
-        size="small"
-        disabled={active}
-        sx={{ flexShrink: 0 }}
-        onClick={() => layerControl.showLayer(item.id)}
-      >
-        {active ? UI_STRINGS.backgroundInUse : UI_STRINGS.useBackground}
-      </Button>
-    </>
+    <FormControlLabel
+      sx={{ m: 0, alignItems: "flex-start" }}
+      label={<LayerLabel item={item} />}
+      control={
+        <Radio
+          size="small"
+          sx={CONTROL_SX}
+          checked={active}
+          onChange={() => layerControl.showLayer(item.id)}
+        />
+      }
+    />
   );
 }
 
@@ -126,7 +138,7 @@ function PlaceRow({
           px: 1,
           fontSize: "0.75rem",
         }}
-        onClick={() => onGoToPlace(item.caption)}
+        onClick={() => onGoToPlace(item.place ?? item.caption)}
       >
         {UI_STRINGS.goToPlace}
       </Button>

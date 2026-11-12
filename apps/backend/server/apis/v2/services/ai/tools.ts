@@ -13,9 +13,12 @@ import type {
 } from "./catalog.service.ts";
 import { searchFeatures, showFeatures } from "./features/featureSearch.ts";
 import type { SearchInput, ShowInput } from "./features/featureSearch.ts";
+import type { DrawnFeature } from "./features/drawn.ts";
 import type { FeatureResultStore } from "./features/featureResults.ts";
 import type { Feature } from "./features/geojson.ts";
 import type { WfsAccess } from "./features/wfsAccess.ts";
+import type { WfsResult } from "./features/wfsClient.ts";
+import type { McpResultStore } from "./mcp/mcpResults.ts";
 import type { SearchService } from "./search/search.service.ts";
 import { NOT_FOUND, PAGE_SIZE, ToolError, readOffset } from "./toolSupport.ts";
 
@@ -67,6 +70,8 @@ export interface PresentedLayer {
   caption: string;
   groupPath: string[];
   control: LayerControl;
+  /** Places only: the name to go to, see CatalogRecord.presetName. */
+  place?: string;
 }
 
 type PluginAction = "open_plugin" | "close_plugin";
@@ -88,6 +93,15 @@ export interface FeatureSet {
   featureCollection: { type: "FeatureCollection"; features: Feature[] };
 }
 
+/** A route, reachable area, line or nearest stops for the map, see mcp/servers/routing/routingTools.ts. */
+export interface ShownRoute {
+  /** Signed and short-lived, fetched by the browser. Never shown to the model. */
+  url: string;
+  kind: "route" | "reach" | "line" | "stops";
+  /** The whole result, which the model only got part of. */
+  summary: Record<string, unknown>;
+}
+
 export type ToolEvent =
   | { type: "layers"; items: PresentedLayer[] }
   | {
@@ -100,7 +114,16 @@ export type ToolEvent =
   | { type: "action"; action: PluginAction; plugin: string }
   | { type: "action"; action: "go_to_place"; place: string }
   | { type: "action"; action: "show_features"; collections: FeatureSet[] }
-  | { type: "action"; action: "clear_features" };
+  | { type: "action"; action: "clear_features" }
+  | { type: "action"; action: "show_route"; routes: ShownRoute[] }
+  | {
+      /** The result of an MCP server with `client` exposure, see exposure.ts. */
+      type: "mcp_result";
+      server: string;
+      tool: string;
+      resultId: string;
+      result: Record<string, unknown>;
+    };
 
 export interface ToolContext {
   userCatalog: UserCatalog;
@@ -115,6 +138,12 @@ export interface ToolContext {
   signal: AbortSignal;
   /** WFS requests so far in this turn. */
   wfsRequests: number;
+  /** Their answers, by request, see featureSearch.ts. */
+  wfsResponses: Map<string, Promise<WfsResult>>;
+  /** Lives as long as the conversation. */
+  mcpResults: McpResultStore;
+  /** What the user shared with this message, by id, see drawn.ts. */
+  drawn: ReadonlyMap<string, DrawnFeature>;
 }
 
 interface ToolOutput {
@@ -151,7 +180,12 @@ export function validateInput(
   path = "input"
 ): string | null {
   const actual = typeOf(value);
-  if (![schema.type].flat().includes(actual)) {
+  const types = [schema.type].flat();
+  // An integer is a number too
+  if (
+    !types.includes(actual) &&
+    !(actual === "integer" && types.includes("number"))
+  ) {
     return `${path} must be of type ${[schema.type].flat().join(" or ")}.`;
   }
   if (schema.enum !== undefined && !schema.enum.includes(value as string)) {
@@ -328,16 +362,64 @@ function exclusiveSlot(
   return group?.exclusive ? { group, childId: record.id } : null;
 }
 
-/** @returns What a target counts as against the cap on turning layers on */
+type ExclusiveSlot = NonNullable<ReturnType<typeof exclusiveSlot>>;
+
+/**
+ * @summary The exclusive groups below a plain folder, each with the direct child
+ * that stays on when the folder is turned on. The client shows the leaves one
+ * by one, in the order of `leafLayerIds`, so in an exclusive group each direct
+ * child hides the one before it and the last one is left.
+ */
+function lastInExclusiveGroups(
+  group: CatalogGroup,
+  userCatalog: UserCatalog
+): Map<string, string> {
+  const last = new Map<string, string>();
+  for (const id of group.leafLayerIds) {
+    const parentId = userCatalog.recordsById.get(id)?.groupId;
+    if (parentId && userCatalog.groupsById.get(parentId)?.exclusive) {
+      last.set(parentId, id);
+    }
+  }
+  return last;
+}
+
+/**
+ * @summary The direct children of exclusive groups that a target leaves on,
+ * one per group. Empty if the target doesn't touch an exclusive group.
+ */
+function exclusiveOutcomes(
+  target: Target,
+  userCatalog: UserCatalog
+): ExclusiveSlot[] {
+  if (target.kind === "folder" && !target.group.exclusive) {
+    return [...lastInExclusiveGroups(target.group, userCatalog)].map(
+      ([groupId, childId]) => ({
+        group: userCatalog.groupsById.get(groupId) as CatalogGroup,
+        childId,
+      })
+    );
+  }
+  const slot = exclusiveSlot(target, userCatalog);
+  return slot === null ? [] : [slot];
+}
+
+/** @returns The leaves that a target leaves on, which count against the cap */
 function leavesOf(id: string, target: Target, userCatalog: UserCatalog) {
   if (target.kind !== "folder") {
     return [id];
   }
-  return target.group.exclusive
-    ? directLayers(target.group, userCatalog)
-        .slice(0, 1)
-        .map((record) => record.id)
-    : target.group.leafLayerIds;
+  const { group } = target;
+  if (group.exclusive) {
+    return directLayers(group, userCatalog)
+      .slice(0, 1)
+      .map((record) => record.id);
+  }
+  const last = lastInExclusiveGroups(group, userCatalog);
+  return group.leafLayerIds.filter((leaf) => {
+    const parentId = userCatalog.recordsById.get(leaf)?.groupId;
+    return !parentId || !last.has(parentId) || last.get(parentId) === leaf;
+  });
 }
 
 function resolveTargets(ids: string[], userCatalog: UserCatalog) {
@@ -419,10 +501,11 @@ function turnOn(
   // Only accepted targets hide anything, as the cap can reject a winner. Direct
   // children are what the client hides, so those are the ones to report.
   const slots = new Map(
-    accepted.flatMap((id) => {
-      const slot = exclusiveSlot(targets.get(id) as Target, userCatalog);
-      return slot === null ? [] : ([[slot.group.id, slot]] as const);
-    })
+    accepted.flatMap((id) =>
+      exclusiveOutcomes(targets.get(id) as Target, userCatalog).map(
+        (slot) => [slot.group.id, slot] as const
+      )
+    )
   );
   const hiddenSiblings = [...slots.values()].flatMap(({ group, childId }) =>
     directLayers(group, userCatalog)
@@ -430,11 +513,14 @@ function turnOn(
       .map((r) => ({ id: r.id, caption: r.caption, group: group.name }))
   );
 
+  // Also the exclusive groups inside a plain folder, which leave only one on
   const shownInExclusiveFolders = accepted.flatMap((id) => {
     const target = targets.get(id) as Target;
-    const slot = exclusiveSlot(target, userCatalog);
-    return target.kind === "folder" && slot !== null
-      ? [{ folderId: id, shownLayerId: slot.childId }]
+    return target.kind === "folder"
+      ? exclusiveOutcomes(target, userCatalog).map(({ group, childId }) => ({
+          folderId: group.id,
+          shownLayerId: childId,
+        }))
       : [];
   });
 
@@ -444,7 +530,12 @@ function turnOn(
       visibleLayers.add(target.kind === "subLayer" ? target.parent.id : leaf);
     }
   }
-  hiddenSiblings.forEach(({ id }) => visibleLayers.delete(id));
+  // Whatever else this call turned on, one child per exclusive group is left
+  for (const { group, childId } of slots.values()) {
+    directLayers(group, userCatalog)
+      .filter((r) => r.id !== childId)
+      .forEach((r) => visibleLayers.delete(r.id));
+  }
 
   return { accepted, hiddenSiblings, shownInExclusiveFolders };
 }
@@ -493,6 +584,7 @@ function presentedItem(
         caption: found.record.caption,
         groupPath: [],
         control: "place",
+        place: found.record.presetName ?? found.record.caption,
       };
     case "subLayer":
       return {
@@ -695,7 +787,7 @@ export const tools: Tool[] = [
     name: "set_layer_visibility",
     kind: "action",
     description:
-      'Turn layers on or off on the map. Takes layer ids, group ids, which cover everything below the group, and "layerId:subLayerId" sublayer addresses. Backgrounds aren\'t accepted, use set_background. Only one direct layer of an exclusive group can be on, and the result lists the layers that get hidden because of that. There is a limit on how many layers can be turned on at once, but none for turning them off. Always check `accepted` and `rejected` before telling the user what happened.',
+      'Turn layers on or off on the map. Takes layer ids, group ids, which cover everything below the group, and "layerId:subLayerId" sublayer addresses. Backgrounds aren\'t accepted, use set_background. Only one direct layer of an exclusive group can be on, also when a group above it is turned on: `shownInExclusiveFolders` says which one, and `hiddenSiblings` lists the layers that get hidden because of that. There is a limit on how many layers can be turned on at once, but none for turning them off. Always check `accepted` and `rejected` before telling the user what happened.',
     inputSchema: object({
       ids: idList("The ids to change."),
       visible: { type: "boolean", description: "True is on, false is off." },
@@ -796,7 +888,11 @@ export const tools: Tool[] = [
           needsConfirmation: record.changesLayers === true,
         },
         events: [
-          { type: "action", action: "go_to_place", place: record.caption },
+          {
+            type: "action",
+            action: "go_to_place",
+            place: record.presetName ?? record.caption,
+          },
         ],
       };
     },
@@ -884,7 +980,7 @@ export const tools: Tool[] = [
     name: "clear_features",
     kind: "action",
     description:
-      "Clear the Search panel and remove all search results from the map, the same way as the user clearing the search. It always clears everything, also what the user searched for themselves, and can't remove only some of the features.",
+      "Clear the Search panel and remove all search results, and any route, from the map, the same way as the user clearing the search. It always clears everything, also what the user searched for themselves, and can't remove only some of the features.",
     inputSchema: object({}),
     run: () => ({
       result: { cleared: true },
@@ -893,7 +989,9 @@ export const tools: Tool[] = [
   }),
 ];
 
-const toolsByName = new Map(tools.map((tool) => [tool.name, tool]));
+const byName = (list: Tool[]) => new Map(list.map((tool) => [tool.name, tool]));
+
+const toolsByName = byName(tools);
 
 const failure = (message: string): ToolRun => ({
   content: JSON.stringify({ error: message }),
@@ -905,12 +1003,21 @@ const failure = (message: string): ToolRun => ({
  * @summary Run a tool. Never rejects: a tool that fails gives a result that says
  * so, as the model needs an answer to every call and can often recover.
  */
-export async function runTool(
+export function runTool(
   name: string,
   input: unknown,
   context: ToolContext
 ): Promise<ToolRun> {
-  const tool = toolsByName.get(name);
+  return runIn(toolsByName, name, input, context);
+}
+
+async function runIn(
+  available: Map<string, Tool>,
+  name: string,
+  input: unknown,
+  context: ToolContext
+): Promise<ToolRun> {
+  const tool = available.get(name);
   if (tool === undefined) {
     return failure(`Unknown tool "${name}".`);
   }
@@ -932,4 +1039,89 @@ export async function runTool(
   }
 }
 
-export const registry = { tools, run: runTool };
+/** Tools from outside the backend, such as an MCP server. */
+export interface ToolExtension {
+  name: string;
+  /**
+   * @returns The tools, and the part of the system prompt that explains them
+   * @throws If they can't be loaded now, which is tried again later
+   */
+  load(): Promise<{ tools: Tool[]; prompt: string }>;
+}
+
+export interface Registry {
+  /** The tools of new conversations. Extensions are only ever added. */
+  readonly tools: ToolDefinition[];
+  /** What the loaded extensions add to the system prompt. */
+  readonly promptSections: string[];
+  run(name: string, input: unknown, context: ToolContext): Promise<ToolRun>;
+  /** Try to load the extensions that aren't loaded yet. Never rejects. */
+  refresh(): Promise<void>;
+}
+
+const RETRY_MS = 60_000;
+
+/**
+ * @summary The built-in tools, then the tools of each extension once it has
+ * loaded. An extension that fails is tried again at most once a minute, and the
+ * chat works without it in the meantime. The order stays the same, as a changed
+ * tool list breaks the prompt cache.
+ */
+export function createRegistry(
+  extensions: ToolExtension[] = [],
+  now: () => number = Date.now
+): Registry {
+  const loaded = new Map<string, { tools: Tool[]; prompt: string }>();
+  const lastTry = new Map<string, number>();
+  let all: Tool[] = tools;
+  let available = toolsByName;
+  let promptSections: string[] = [];
+
+  const rebuild = () => {
+    const parts = extensions.flatMap((e) => loaded.get(e.name) ?? []);
+    all = [...tools, ...parts.flatMap((part) => part.tools)];
+    available = byName(all);
+    promptSections = parts.map((part) => part.prompt);
+  };
+
+  async function load(extension: ToolExtension): Promise<void> {
+    // Set before awaiting, so that a turn starting meanwhile doesn't try too
+    lastTry.set(extension.name, now());
+    try {
+      const part = await extension.load();
+      const taken = part.tools.find((tool) =>
+        all.some((t) => t.name === tool.name)
+      );
+      if (taken !== undefined) {
+        throw new Error(`The tool name "${taken.name}" is already in use.`);
+      }
+      loaded.set(extension.name, part);
+      rebuild();
+      logger.info(`${extension.name}: ${part.tools.length} tools.`);
+    } catch (error) {
+      logger.warn(
+        `Could not load the ${extension.name} tools, the chat runs without them: ${(error as Error).message}`
+      );
+    }
+  }
+
+  return {
+    get tools() {
+      return all;
+    },
+    get promptSections() {
+      return promptSections;
+    },
+    run: (name, input, context) => runIn(available, name, input, context),
+    async refresh() {
+      const due = extensions.filter(
+        (e) =>
+          !loaded.has(e.name) &&
+          now() - (lastTry.get(e.name) ?? -Infinity) >= RETRY_MS
+      );
+      await Promise.all(due.map(load));
+    },
+  };
+}
+
+export const registry = createRegistry();

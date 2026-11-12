@@ -160,7 +160,8 @@ async function run(q: Question): Promise<Outcome> {
               "plugin" in event ||
               "place" in event ||
               "collections" in event ||
-              event.action === "clear_features"
+              event.action === "clear_features" ||
+              event.action === "show_route"
             ? []
             : event.action === "set_background"
               ? [event.id]

@@ -2,6 +2,7 @@ import crypto from "crypto";
 
 import { AiChatError } from "../../utils/AiChatError.ts";
 import { FeatureResultStore } from "./features/featureResults.ts";
+import { McpResultStore } from "./mcp/mcpResults.ts";
 import type { ProviderSession } from "./providers/types.ts";
 
 export interface Conversation {
@@ -10,6 +11,7 @@ export interface Conversation {
   readonly user: string | undefined;
   readonly session: ProviderSession;
   readonly featureResults: FeatureResultStore;
+  readonly mcpResults: McpResultStore;
   /** The map state as of the last committed turn. */
   lastMapState: string | null;
   /** Committed turns */
@@ -69,6 +71,7 @@ export class ConversationStore {
       user,
       session,
       featureResults: new FeatureResultStore(),
+      mcpResults: new McpResultStore(),
       lastMapState: null,
       turns: 0,
       running: false,

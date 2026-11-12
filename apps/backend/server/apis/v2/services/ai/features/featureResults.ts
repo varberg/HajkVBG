@@ -1,3 +1,4 @@
+import type { Geometry, Position } from "./geojson.ts";
 import type { FieldFilter, FeatureSort } from "./wfsQuery.ts";
 
 const MAX_RESULTS = 50;
@@ -6,12 +7,17 @@ const MAX_FEATURE_IDS = 1000;
 /** Ids like this change with every request, with or without the type in front. */
 const UNSTABLE_ID = /^(.*\.)?fid-/;
 
-/** A search, as the model asked for it. Holds no geometry and no features. */
+/**
+ * A search, as the model asked for it. Holds no features, and no geometry
+ * except a drawn feature in `near`, which is kept as it was when searched. A
+ * drawing only lives for one message, and the result must still mean the same
+ * when it's shown later.
+ */
 export interface StoredQuery {
   sourceId: string;
   text: string | null;
   filters: FieldFilter[];
-  near: { featureId: string; distanceM: number } | null;
+  near: { featureId: string; distanceM: number; geometry?: Geometry } | null;
   sort: FeatureSort | null;
 }
 
@@ -36,6 +42,8 @@ export class FeatureResultStore {
   #results = new Map<string, StoredQuery>();
   #resultIds = new Map<string, string>();
   #sources = new Map<string, string>();
+  /** One point per feature, so that routing needs no request of its own. */
+  #points = new Map<string, Position>();
   #nextResult = 1;
 
   /** @returns The id of the result. The same query always gets the same id. */
@@ -55,10 +63,22 @@ export class FeatureResultStore {
     return this.#results.get(id);
   }
 
-  addFeature(featureId: string, sourceId: string): void {
+  /** @param point In the map projection, see representativePoint */
+  addFeature(
+    featureId: string,
+    sourceId: string,
+    point: Position | null = null
+  ): void {
     if (isAddressable(featureId)) {
       addCapped(this.#sources, featureId, sourceId, MAX_FEATURE_IDS);
+      if (point !== null) {
+        addCapped(this.#points, featureId, point, MAX_FEATURE_IDS);
+      }
     }
+  }
+
+  getPoint(featureId: string): Position | undefined {
+    return this.#points.get(featureId);
   }
 
   /** @returns The source of a feature, which can have lost its access since. */

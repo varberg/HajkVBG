@@ -9,6 +9,7 @@ import {
 } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import type { RawMapConfig } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import { FeatureResultStore } from "../../server/apis/v2/services/ai/features/featureResults.ts";
+import { McpResultStore } from "../../server/apis/v2/services/ai/mcp/mcpResults.ts";
 import { buildSystemPrompt } from "../../server/apis/v2/services/ai/prompt.ts";
 import {
   PAGE_SIZE,
@@ -43,8 +44,11 @@ const context = (
     query: () => Promise.reject(new Error("No source in this test.")),
   },
   featureResults: new FeatureResultStore(),
+  mcpResults: new McpResultStore(),
   signal: new AbortController().signal,
   wfsRequests: 0,
+  wfsResponses: new Map(),
+  drawn: new Map(),
   search: {
     async search(catalog, _query, limit = 10) {
       return {
@@ -546,6 +550,15 @@ describe("set_layer_visibility", () => {
       assert.deepEqual(result.accepted, ["nested", "plain"]);
     });
 
+    test("counts only the layers a plain folder leaves on", async () => {
+      // Three of its own, and one of the exclusive group below it
+      const { result } = await set(["top"], true, {
+        ...context(),
+        maxLayersOn: 4,
+      });
+      assert.deepEqual(result.accepted, ["top"]);
+    });
+
     test("lets a later small id through after a big one", async () => {
       const { result } = await set(["bigGroup", "plain"], true, capped(25));
       assert.deepEqual(result.accepted, ["plain"]);
@@ -619,6 +632,35 @@ describe("set_layer_visibility", () => {
       const { result } = await set(["group"], false, ctx);
       assert.deepEqual(result.accepted, ["group"]);
       assert.deepEqual([...ctx.visibleLayers], ["sameCaption"]);
+    });
+
+    test("a plain folder leaves one layer on in an exclusive group below it", async () => {
+      const ctx = context(view(), { visibleLayers: new Set(["sameCaption"]) });
+      const { result, events } = await set(["top"], true, ctx);
+      assert.deepEqual(result.accepted, ["top"]);
+      // The client shows the leaves one by one, so the last one is left
+      assert.deepEqual(result.shownInExclusiveFolders, [
+        { folderId: "nested", shownLayerId: "hiddenSubs" },
+      ]);
+      assert.deepEqual(
+        result.hiddenSiblings.map((s: { id: string }) => s.id),
+        ["sameCaption"]
+      );
+      assert.deepEqual([...ctx.visibleLayers].sort(), [
+        "arcgis1",
+        "hiddenSubs",
+        "plain",
+        "wmts1",
+      ]);
+      assert.deepEqual((events[0] as { ids: string[] }).ids, ["top"]);
+    });
+
+    test("a later id wins over a plain folder in the same exclusive group", async () => {
+      const ctx = context();
+      const { result } = await set(["top", "sameCaption"], true, ctx);
+      assert.deepEqual(result.accepted, ["top", "sameCaption"]);
+      assert.equal(ctx.visibleLayers.has("sameCaption"), true);
+      assert.equal(ctx.visibleLayers.has("hiddenSubs"), false);
     });
 
     test("rejects an exclusive folder with no layers of its own", async () => {
@@ -786,6 +828,7 @@ describe("places", () => {
             caption: "Bryggan",
             groupPath: [],
             control: "place",
+            place: "Bryggan",
           },
         ],
       },
@@ -804,6 +847,42 @@ describe("places", () => {
       rejected: [],
       needsConfirmation: false,
     });
+  });
+
+  test("go_to_place sends the name as the map config has it", async () => {
+    // The caption is cleaned, but the client looks the place up by its name
+    const config = mapConfig();
+    const preset = config.tools.find((t) => t.type === "preset")!;
+    const presets = preset.options!.presetList as unknown as Array<{
+      name: string;
+      presetUrl: string;
+    }>;
+    presets.push({ name: "Hamn &amp;  kaj", presetUrl: "?m=demo&x=1&y=2" });
+    const ctx = context(view(config));
+
+    const shown = await call(
+      "present_layers",
+      { ids: ["place:Hamn & kaj"] },
+      ctx
+    );
+    const gone = await call("go_to_place", { id: "place:Hamn & kaj" }, ctx);
+    assert.deepEqual(shown.events, [
+      {
+        type: "layers",
+        items: [
+          {
+            id: "place:Hamn & kaj",
+            caption: "Hamn & kaj",
+            groupPath: [],
+            control: "place",
+            place: "Hamn &amp;  kaj",
+          },
+        ],
+      },
+    ]);
+    assert.deepEqual(gone.events, [
+      { type: "action", action: "go_to_place", place: "Hamn &amp;  kaj" },
+    ]);
   });
 
   test("go_to_place says when the user has to confirm", async () => {

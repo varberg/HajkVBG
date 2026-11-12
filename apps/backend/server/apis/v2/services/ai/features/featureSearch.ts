@@ -6,10 +6,12 @@ import type { FeatureConnection } from "../catalog.service.ts";
 import type { ToolContext, ToolEvent } from "../tools.ts";
 import { NOT_FOUND, PAGE_SIZE, ToolError, readOffset } from "../toolSupport.ts";
 import { distanceBetween } from "./distance.ts";
+import { DRAWN_ID } from "./drawn.ts";
 import { featureLinks } from "./featureLinks.ts";
 import { isAddressable } from "./featureResults.ts";
 import type { StoredQuery } from "./featureResults.ts";
-import type { Feature, Geometry } from "./geojson.ts";
+import type { Feature, Geometry, Position } from "./geojson.ts";
+import { representativePoint } from "./points.ts";
 import type { WfsResult } from "./wfsClient.ts";
 import { buildFilter, buildResourceIdFilter } from "./wfsQuery.ts";
 import type {
@@ -30,8 +32,17 @@ const DERIVED_ID = /^(r\d+)~([0-9a-f]{16})$/;
 
 type Context = Pick<
   ToolContext,
-  "userCatalog" | "wfs" | "featureResults" | "signal" | "wfsRequests"
+  | "userCatalog"
+  | "wfs"
+  | "featureResults"
+  | "signal"
+  | "wfsRequests"
+  | "wfsResponses"
+  | "drawn"
 >;
+
+const DRAWN_NOT_SHARED =
+  "That drawn feature isn't shared now. Only the drawn features in the latest map state can be used.";
 
 export interface SearchInput {
   source_id: string;
@@ -90,19 +101,40 @@ async function connectionOf(
   return connection;
 }
 
-/** The count is checked right before the request, as read tools run in parallel. */
+/**
+ * @summary A request, or its answer from earlier in the turn. Showing,
+ * routing and `near` run searches again, which would otherwise use up the cap
+ * on what the search itself already fetched.
+ * @description The count is checked right before the request, as read tools
+ * run in parallel. An answer is kept as a promise, so that parallel tools
+ * share one request too, and dropped if it fails, so that it can be tried
+ * again.
+ */
 function request(
   connection: FeatureConnection,
   options: GetFeatureOptions,
   context: Context
 ): Promise<WfsResult> {
+  const key = JSON.stringify([
+    connection.url,
+    connection.typeName,
+    connection.srsName,
+    options,
+  ]);
+  const earlier = context.wfsResponses.get(key);
+  if (earlier !== undefined) {
+    return earlier;
+  }
   if (context.wfsRequests >= MAX_REQUESTS_PER_TURN) {
     throw new ToolError(
       "Too many searches for one question. Answer with what you have."
     );
   }
   context.wfsRequests += 1;
-  return context.wfs.query(connection, options, context.signal);
+  const response = context.wfs.query(connection, options, context.signal);
+  context.wfsResponses.set(key, response);
+  response.catch(() => context.wfsResponses.delete(key));
+  return response;
 }
 
 /** @summary Properties are the same in every response, unlike a `fid-` id. */
@@ -147,10 +179,22 @@ async function derivedAnchorOf(
   return match.feature.geometry;
 }
 
+/** @summary A drawn feature of this message. They need no access check. */
+function drawnGeometry(featureId: string, { drawn }: Context): Geometry {
+  const feature = drawn.get(featureId);
+  if (feature === undefined) {
+    throw new ToolError(DRAWN_NOT_SHARED);
+  }
+  return feature.geometry;
+}
+
 async function anchorOf(
   featureId: string,
   context: Context
 ): Promise<Geometry> {
+  if (DRAWN_ID.test(featureId)) {
+    return drawnGeometry(featureId, context);
+  }
   const derived = DERIVED_ID.exec(featureId);
   if (derived !== null) {
     return derivedAnchorOf(derived[1], derived[2], context);
@@ -175,6 +219,78 @@ async function anchorOf(
   return geometry;
 }
 
+/**
+ * @summary One point for a feature from an earlier search, in the map
+ * projection, under the same access rules as `near`. The search kept it, so it
+ * usually costs no request, which matters when routing to many features.
+ * @throws {ToolError} If it's unknown, out of reach or has no geometry
+ */
+export async function featurePoint(
+  featureId: string,
+  context: Context
+): Promise<Position> {
+  if (DRAWN_ID.test(featureId)) {
+    return representativePoint(drawnGeometry(featureId, context));
+  }
+  const sourceId = context.featureResults.getSourceOf(featureId);
+  const point = context.featureResults.getPoint(featureId);
+  if (sourceId !== undefined && point !== undefined) {
+    // Access can change during a conversation
+    querySource(sourceId, context);
+    return point;
+  }
+  return representativePoint(await anchorOf(featureId, context));
+}
+
+/**
+ * @summary The whole geometry of a feature from an earlier search, or of a
+ * drawn feature, in the map projection, under the same access rules as `near`.
+ * @throws {ToolError} If it's unknown, out of reach or has no geometry
+ */
+export const featureGeometry = (
+  featureId: string,
+  context: Context
+): Promise<Geometry> => anchorOf(featureId, context);
+
+/**
+ * @summary The features of an earlier search, with their geometry and title,
+ * such as all the road works to avoid on a route.
+ * @param max The most that may be used. A result with more is refused, as
+ * leaving some out would give a wrong answer.
+ * @throws {ToolError} If the result is unknown, out of reach or too large
+ */
+export async function resultGeometries(
+  resultId: string,
+  max: number,
+  context: Context
+): Promise<Array<{ geometry: Geometry; title: string }>> {
+  const query = context.featureResults.getResult(resultId);
+  if (query === undefined) {
+    throw new ToolError(NOT_FOUND);
+  }
+  const prepared = await prepare(query, context);
+  const { matches, total, tooMany } = await fetchMatches(
+    query,
+    prepared,
+    context
+  );
+  if (tooMany || total > max || matches.length < total) {
+    throw new ToolError(
+      `The result has ${total} features, and at most ${max} can be used. Narrow the search.`
+    );
+  }
+  return matches.flatMap(({ feature }) =>
+    feature.geometry === null
+      ? []
+      : [
+          {
+            geometry: feature.geometry,
+            title: titleOf(prepared.connection, feature.properties ?? {}),
+          },
+        ]
+  );
+}
+
 async function prepare(
   query: StoredQuery,
   context: Context
@@ -184,7 +300,10 @@ async function prepare(
     context
   );
   const anchor =
-    query.near === null ? null : await anchorOf(query.near.featureId, context);
+    query.near === null
+      ? null
+      : (query.near.geometry ??
+        (await anchorOf(query.near.featureId, context)));
   const filter = buildFilter(
     {
       text: query.text,
@@ -343,7 +462,13 @@ export async function searchFeatures(input: SearchInput, context: Context) {
     near:
       near === null
         ? null
-        : { featureId: near.feature_id, distanceM: near.distance_m },
+        : {
+            featureId: near.feature_id,
+            distanceM: near.distance_m,
+            ...(DRAWN_ID.test(near.feature_id) && {
+              geometry: drawnGeometry(near.feature_id, context),
+            }),
+          },
     // A count isn't about the order, and shouldn't leave out empty values
     sort: countOnly ? null : sort,
   };
@@ -377,7 +502,11 @@ export async function searchFeatures(input: SearchInput, context: Context) {
   const shown = matches.slice(start, start + PAGE_SIZE);
   for (const { feature } of shown) {
     if (feature.id !== undefined) {
-      featureResults.addFeature(String(feature.id), sourceId);
+      featureResults.addFeature(
+        String(feature.id),
+        sourceId,
+        feature.geometry === null ? null : representativePoint(feature.geometry)
+      );
     }
   }
   return {

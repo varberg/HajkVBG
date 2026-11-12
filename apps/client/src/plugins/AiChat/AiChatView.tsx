@@ -25,6 +25,7 @@ import { useWindowSheetScroll } from "../../components/WindowSheet";
 import { isMobile } from "../../utils/IsMobile";
 
 import ChatMessageItem from "./ChatMessageItem";
+import DrawnToggle from "./DrawnToggle";
 import { MAX_MESSAGE_LENGTH, TOOL_STATUS, UI_STRINGS } from "./constants";
 import type { AiChatViewProps } from "./types";
 
@@ -32,7 +33,7 @@ import type { AiChatViewProps } from "./types";
 const FOLLOW_MARGIN = 40;
 
 function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
-  const { messages, running, activeTool } = useSyncExternalStore(
+  const { messages, running, activeTool, includeDrawn } = useSyncExternalStore(
     model.subscribe,
     model.getState
   );
@@ -117,7 +118,9 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
             key={message.id}
             message={message}
             layerControl={layerControl}
+            routeLayer={model.routeLayer}
             onGoToPlace={model.goToPlace}
+            onDownload={model.download}
           />
         ))}
       </Stack>
@@ -154,6 +157,8 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
           </Button>
         )}
       </Box>
+
+      <DrawnToggle model={model} checked={includeDrawn} />
 
       <Box
         component="form"

@@ -5,10 +5,11 @@ import accessService from "./access.service.ts";
 import { readChatLimits, readWfsTimeoutMs } from "./config.ts";
 import { createWfsAccess } from "./features/wfsAccess.ts";
 import instructionsService from "./instructions.ts";
+import { readMcpExtensions } from "./mcp/servers/index.ts";
 import { Orchestrator } from "./orchestrator.ts";
 import { createProvider } from "./providers/index.ts";
 import searchService from "./search/search.service.ts";
-import { registry } from "./tools.ts";
+import { createRegistry } from "./tools.ts";
 
 const logger = log4js.getLogger("service.ai.chat");
 
@@ -22,7 +23,7 @@ async function create(): Promise<Orchestrator> {
     access: accessService,
     search: searchService,
     wfs: createWfsAccess(readWfsTimeoutMs()),
-    registry,
+    registry: createRegistry(readMcpExtensions()),
     limits: readChatLimits(),
     instructions: instructionsService,
   });

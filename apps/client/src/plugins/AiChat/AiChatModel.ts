@@ -1,5 +1,6 @@
 import type Feature from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
+import type OlMap from "ol/Map";
 
 import type LayerControlModel from "../../models/LayerControlModel";
 import type SearchModel from "../../models/SearchModel";
@@ -7,24 +8,38 @@ import type ToolControlModel from "../../models/ToolControlModel";
 import { hfetch } from "../../utils/FetchWrapper";
 
 import { ERRORS, REQUEST_ERRORS, TURN_ERRORS, UI_STRINGS } from "./constants";
+import { DrawnFeatures } from "./drawnFeatures";
+import {
+  collectFeatures,
+  downloadFeatures,
+  hasGpxContent,
+  routeName,
+} from "./exportDrawn";
+import { RouteLayer } from "./routeLayer";
 import { readEvents } from "./sse";
 import type {
   AiChatApp,
+  AiChatOptions,
   ChatAction,
   ChatEvent,
   ChatMessage,
   ChatState,
+  DownloadFormat,
+  DrawnItems,
   FeatureSet,
   LayerSnapshot,
   Preset,
   PresentedLayer,
+  RouteAction,
   SearchSource,
+  SharedDrawing,
 } from "./types";
 
 const EMPTY_STATE: ChatState = {
   messages: [],
   running: false,
   activeTool: null,
+  includeDrawn: false,
 };
 
 /** Unique within a list of layers. Search-only layers have no id. */
@@ -64,6 +79,16 @@ export default class AiChatModel {
   #toolControl: ToolControlModel;
   #globalObserver: AiChatApp["globalObserver"];
   #presets: Preset[];
+  #olMap: OlMap;
+  readonly routeLayer: RouteLayer;
+  /** What the user has drawn with Sketch, or null if the map doesn't allow it */
+  readonly drawings: DrawnFeatures | null;
+  /** What each answer drew, by its id, for the downloads */
+  #drawn = new Map<number, DrawnItems>();
+  /** Counts what was shown or cleared, so that a slow fetch can't win. */
+  #routesShown = 0;
+  /** Whether this conversation has put results in Search, that are still there */
+  #searchShown = false;
   #state: ChatState = EMPTY_STATE;
   #listeners = new Set<() => void>();
   #conversationId: string | null = null;
@@ -71,8 +96,18 @@ export default class AiChatModel {
   #nextMessageId = 1;
   #notifyScheduled = false;
 
-  constructor(app: AiChatApp) {
+  constructor(app: AiChatApp, map: OlMap, options: AiChatOptions = {}) {
     this.#app = app;
+    this.#olMap = map;
+    this.routeLayer = new RouteLayer(map);
+    this.drawings =
+      options.drawnFeatures === false ? null : new DrawnFeatures(map);
+    // With nothing drawn there's nothing to take, and the next drawing starts off
+    this.drawings?.subscribe(() => {
+      if (this.drawings?.getCount() === 0 && this.#state.includeDrawn) {
+        this.#setState({ includeDrawn: false });
+      }
+    });
     const appConfig = app.config.appConfig as { mapserviceBase: string };
     this.#url = `${appConfig.mapserviceBase}/ai/chat`;
     this.#map = app.config.activeMap as string;
@@ -94,15 +129,59 @@ export default class AiChatModel {
 
   getState = (): ChatState => this.#state;
 
+  /** Whether the next question takes what the user has drawn */
+  setIncludeDrawn = (include: boolean): void => {
+    this.#setState({
+      includeDrawn: include && (this.drawings?.getCount() ?? 0) > 0,
+    });
+  };
+
   /** Stop the running answer. Backend discards the turn. */
   stop = (): void => this.#abort?.abort();
 
-  /** Leave the conversation and start over */
+  /** Leave the conversation and start over, without what it drew on the map */
   reset = (): void => {
     this.stop();
     this.#abort = null;
     this.#conversationId = null;
-    this.#setState(EMPTY_STATE);
+    this.#drawn.clear();
+    this.#clearMap();
+    // About the drawings, not the conversation, so it stays as the user left it
+    this.#setState({ ...EMPTY_STATE, includeDrawn: this.#state.includeDrawn });
+  };
+
+  /**
+   * @summary Remove the routes and the search results that the chat drew.
+   * @description Search is only cleared if the chat put results there, so that
+   * a search the user made without the chat is left alone.
+   */
+  #clearMap(): void {
+    this.#routesShown += 1;
+    this.routeLayer.clear();
+    if (this.#searchShown && this.#getSearchModel() !== null) {
+      this.#globalObserver.publish("search.clearResults");
+    }
+    this.#searchShown = false;
+  }
+
+  /**
+   * @summary Download what an answer drew on the map, also after newer answers
+   * have replaced it there. Routes that are unchecked on the map are left out.
+   */
+  download = (answerId: number, format: DownloadFormat): void => {
+    const drawn = this.#drawn.get(answerId);
+    if (drawn === undefined) {
+      return;
+    }
+    const features = collectFeatures(
+      drawn,
+      this.routeLayer,
+      this.#app.plugins.search?.options ?? {}
+    );
+    const projection = this.#olMap.getView().getProjection();
+    if (!downloadFeatures(format, features, projection)) {
+      this.#addNotice(answerId, UI_STRINGS.nothingToDownload);
+    }
   };
 
   /**
@@ -127,7 +206,14 @@ export default class AiChatModel {
 
     const abort = new AbortController();
     this.#abort = abort;
-    const question = this.#createMessage("user", message);
+    // Read once, so that a question asked again after a lost conversation
+    // takes the same drawings
+    const drawn =
+      this.#state.includeDrawn && this.drawings ? this.drawings.collect() : [];
+    const question = {
+      ...this.#createMessage("user", message),
+      drawnShared: drawn.length,
+    };
     const answer = this.#createMessage("assistant", "");
     this.#setState({
       running: true,
@@ -136,7 +222,7 @@ export default class AiChatModel {
     });
 
     try {
-      await this.#runTurn(message, answer.id, abort.signal);
+      await this.#runTurn(message, drawn, answer.id, abort.signal);
     } catch (error) {
       if (!abort.signal.aborted) {
         console.error("AiChat: the answer failed", error);
@@ -158,7 +244,11 @@ export default class AiChatModel {
       id: this.#nextMessageId++,
       role,
       text,
+      drawnShared: 0,
       layers: [],
+      routes: [],
+      routesShownId: null,
+      download: null,
       notices: [],
       error: null,
       stopped: false,
@@ -210,7 +300,11 @@ export default class AiChatModel {
     };
   }
 
-  #post(message: string, signal: AbortSignal): Promise<Response> {
+  #post(
+    message: string,
+    drawn: SharedDrawing[],
+    signal: AbortSignal
+  ): Promise<Response> {
     return hfetch(this.#url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -219,17 +313,18 @@ export default class AiChatModel {
         map: this.#map,
         conversationId: this.#conversationId,
         message,
-        mapState: this.#getMapState(),
+        mapState: { ...this.#getMapState(), drawn },
       }),
     });
   }
 
   async #runTurn(
     message: string,
+    drawn: SharedDrawing[],
     answerId: number,
     signal: AbortSignal
   ): Promise<void> {
-    let response = await this.#post(message, signal);
+    let response = await this.#post(message, drawn, signal);
     let code = await readErrorCode(response);
 
     // Happens after a restart, a long pause or a very long conversation. The
@@ -237,7 +332,7 @@ export default class AiChatModel {
     if (code === "conversation_lost") {
       this.#conversationId = null;
       this.#addNotice(answerId, UI_STRINGS.conversationRestarted);
-      response = await this.#post(message, signal);
+      response = await this.#post(message, drawn, signal);
       code = await readErrorCode(response);
     }
 
@@ -318,6 +413,26 @@ export default class AiChatModel {
     }));
   }
 
+  #addDrawn(
+    answerId: number,
+    update: (drawn: DrawnItems) => Partial<DrawnItems>
+  ): void {
+    const before = this.#drawn.get(answerId) ?? {
+      routes: [],
+      routesShownId: null,
+      routeNames: [],
+      features: [],
+    };
+    const drawn = { ...before, ...update(before) };
+    this.#drawn.set(answerId, drawn);
+    const empty =
+      drawn.routes.every((route) => route === null) &&
+      drawn.features.length === 0;
+    this.#updateMessage(answerId, () => ({
+      download: empty ? null : { gpx: hasGpxContent(drawn) },
+    }));
+  }
+
   #addLayers(answerId: number, items: PresentedLayer[]): void {
     this.#updateMessage(answerId, ({ layers }) => {
       const shown = new Set(layers.map(layerKey));
@@ -363,6 +478,51 @@ export default class AiChatModel {
 
     if (results.length > 0) {
       this.#globalObserver.publish("search.showFeatureCollections", results);
+      this.#searchShown = true;
+      this.#addDrawn(answerId, ({ features }) => ({
+        features: [...features, ...results.flatMap((r) => r.value.features)],
+      }));
+    }
+  }
+
+  /**
+   * @summary Show the details under the answer, and fetch the geometry straight
+   * from the MCP server, so it never passes Backend or the model.
+   */
+  async #showRoutes({ routes }: RouteAction, answerId: number): Promise<void> {
+    const shown = ++this.#routesShown;
+    this.#updateMessage(answerId, () => ({
+      routes: routes.map((route) => route.summary),
+      routesShownId: shown,
+    }));
+    const signal = this.#abort?.signal;
+    // Cross-origin calls to another server, so no cookies and not hfetch
+    const results = await Promise.allSettled(
+      routes.map(async ({ url }) => {
+        const response = await fetch(url, { credentials: "omit", signal });
+        if (!response.ok) {
+          throw new Error(`Status ${response.status}`);
+        }
+        return (await response.json()) as object;
+      })
+    );
+    // Routes shown or cleared since then win, however slow these were
+    if (shown !== this.#routesShown || signal?.aborted) {
+      return;
+    }
+    const collections = results.map((r) =>
+      r.status === "fulfilled" ? r.value : null
+    );
+    this.routeLayer.show(collections, shown);
+    this.#addDrawn(answerId, () => ({
+      routes: collections,
+      routesShownId: shown,
+      routeNames: routes.map(({ summary }, i) => routeName(summary, i)),
+    }));
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length > 0) {
+      console.error("AiChat: couldn't show routes", failed);
+      this.#addNotice(answerId, UI_STRINGS.routeUnavailable);
     }
   }
 
@@ -393,12 +553,18 @@ export default class AiChatModel {
       this.#showFeatures(action.collections, answerId);
       return;
     }
+    if (action.action === "show_route") {
+      void this.#showRoutes(action, answerId);
+      return;
+    }
     if (action.action === "clear_features") {
       if (this.#getSearchModel() === null) {
         this.#addNotice(answerId, UI_STRINGS.searchUnavailable);
       } else {
-        this.#globalObserver.publish("search.clearResults");
+        // Asked for, so whatever is in Search goes, the user's own too
+        this.#searchShown = true;
       }
+      this.#clearMap();
       return;
     }
     action.ids.forEach((id) =>

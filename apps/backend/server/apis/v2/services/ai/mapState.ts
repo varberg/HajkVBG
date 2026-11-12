@@ -1,10 +1,22 @@
 import type { UserCatalog } from "./access.service.ts";
+import { describeDrawn, sanitizeDrawn } from "./features/drawn.ts";
+import type { DrawnFeature } from "./features/drawn.ts";
 
 /** What the browser reports as being on the map right now. */
 export interface MapState {
   layers: Array<{ id: string; visibleSubLayers: string[] }>;
   background: string | null;
+  /** What the user drew and chose to share, see drawn.ts */
+  drawn: DrawnFeature[];
+  /** Drawn features that failed the checks or the limits */
+  drawnSkipped: number;
+  /** As YYYY-MM-DD, for questions such as which road works are going on */
+  today: string;
 }
+
+/** The date where the backend runs, which is where the map is */
+export const localDate = (date: Date = new Date()): string =>
+  date.toLocaleDateString("sv-SE");
 
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -22,10 +34,15 @@ const strings = (value: unknown): string[] =>
  */
 export function sanitizeMapState(
   raw: unknown,
-  userCatalog: UserCatalog
+  userCatalog: UserCatalog,
+  today: string = localDate()
 ): MapState {
-  const { allowed, recordsById } = userCatalog;
-  const input = (raw ?? {}) as { layers?: unknown; background?: unknown };
+  const { allowed, recordsById, mapInfo } = userCatalog;
+  const input = (raw ?? {}) as {
+    layers?: unknown;
+    background?: unknown;
+    drawn?: unknown;
+  };
   const entries = Array.isArray(input.layers) ? input.layers : [];
 
   const layers = new Map<string, string[]>();
@@ -41,6 +58,10 @@ export function sanitizeMapState(
   }
 
   const { background } = input;
+  // A map that doesn't take them ignores them, whatever the browser sends
+  const drawn = mapInfo.drawnFeatures
+    ? sanitizeDrawn(input.drawn, mapInfo.extent)
+    : { features: [], skipped: 0 };
   return {
     layers: [...layers]
       .map(([id, visibleSubLayers]) => ({ id, visibleSubLayers }))
@@ -49,6 +70,9 @@ export function sanitizeMapState(
       typeof background === "string" && allowed.backgrounds.has(background)
         ? background
         : null,
+    drawn: drawn.features,
+    drawnSkipped: drawn.skipped,
+    today,
   };
 }
 
@@ -81,5 +105,13 @@ export function renderMapState(
           id: state.background,
           caption: recordsById.get(state.background)?.caption,
         };
-  return JSON.stringify({ layers, background });
+  // Only when there are any, so that a map without drawings reads as before
+  const drawn =
+    state.drawn.length > 0 || state.drawnSkipped > 0
+      ? {
+          drawn: state.drawn.map(describeDrawn),
+          ...(state.drawnSkipped > 0 && { drawnSkipped: state.drawnSkipped }),
+        }
+      : {};
+  return JSON.stringify({ today: state.today, layers, background, ...drawn });
 }

@@ -482,6 +482,21 @@ describe("limits of a turn", () => {
     );
   });
 
+  test("a client that left before the turn started costs no model call", async () => {
+    const client = new AbortController();
+    const fake = fakeProvider([answer("Första")]);
+    const chat = orchestrator({ provider: fake.provider });
+    const turn = await chat.beginTurn(request());
+    client.abort();
+
+    const events: ChatEvent[] = [];
+    await chat.runTurn(turn, (event) => events.push(event), client.signal);
+    assert.equal(fake.steps.length, 1);
+    assert.equal(ofType(events, "error").length, 0);
+    assert.equal(turn.conversation.running, false);
+    assert.equal(fake.sessions[0].history.items.length, 0);
+  });
+
   test("no event is sent after an abort during a tool", async () => {
     const client = new AbortController();
     const { provider } = fakeProvider([callTools(call("act"))]);

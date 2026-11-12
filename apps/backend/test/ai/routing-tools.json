@@ -1,0 +1,946 @@
+{
+  "instructions": "Routing by car, bike, walking and public transport, and road information, for Varbergs kommun, on the Swedish national road database (NVDB) and Hallandstrafiken's timetable (GTFS). Pass coordinates as {x, y, srid}: srid 4326 means x = longitude, y = latitude; SWEREF 99 (3006, 3007-3018) and other EPSG codes are accepted too. Geocode addresses and places with your own tools first. Results contain a geometry_url for the map; do not fetch it or repeat it to the user, the application displays it. Modes: car = bilnät, speed limit per direction (urban driving at 85% of the limit, roundabouts ≤30 km/h, small time penalties for speed bumps, stop and give-way signs), one-way streets and the network's turn restrictions respected by route and multi_stop_route (travel_time_matrix and reachable_within ignore them, a minor difference). bike = car and cycle network except motorways, fixed cycling speed (lower on gravel), one-way respected on car roads; route and multi_stop_route prefer cycle paths over fast roads, roundabouts and roads with a cycle path alongside (and avoid turning between road and crossing) even if slightly longer, while travel_time_matrix and reachable_within use the fastest path. walk = everything except motorways, both directions. Not modelled: access bans (Förbud mot trafik), weight/height limits, time-dependent rules, traffic. transit = public transport (Hallandstrafiken's scheduled timetable, GTFS) plus walking to, from and between stops: a typical trip time for one analysis period (see data_status), with the average wait (half the time between departures of the line at the stop, capped) instead of exact connections, and a penalty per boarding so routes with fewer changes are preferred (the penalty is not counted in the minutes; travel_time_matrix and reachable_within ignore it). Not modelled: exact connections, delays, cancellations; results only hold for the analysis date and period. Walking is part of the transit network, so where no bus runs the fastest 'transit' trip is a long walk: route and multi_stop_route then return status no_transit_connection (one walk longer than the limit, see data_status) - say that public transport does not serve the trip and don't present it as a bus trip. travel_time_matrix and reachable_within have no such check: their transit times may be mostly walking. avoid (route, multi_stop_route, travel_time_matrix, reachable_within): areas such as road works or closures as GeoJSON; every road link touching an area is closed as a whole (draw areas tightly), for all modes or the modes given; in transit it closes walking, never buses. Coverage: Varbergs kommun plus about 15 km around it. Never state departure or arrival clock times, next departures or timetables, and don't plan an exact trip: the data is a scheduled timetable without cancellations or delays, and this server only gives typical travel times for analysis (walk, average wait, ride). For actual trips and departures, refer people to Hallandstrafiken (hallandstrafiken.se or its app).",
+  "tools": [
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Fastest route between two points on the NVDB road network, or by public transport (mode transit). Returns minutes, km, how far each point was from the road (snap_m) and a geometry_url for the map; for car/bike/walk the streets/roads along the route in order, for transit the walk, wait and ride steps (walk_min, wait_min, ride_min, lines used with trips per hour, number of changes). Transit times are typical for the analysis period with average waits: never turn them into departure times. With avoid: the road links closed per area, and minutes_without_avoid to show the detour's cost.",
+      "inputSchema": {
+        "properties": {
+          "origin": {
+            "$ref": "#/$defs/Point"
+          },
+          "destination": {
+            "$ref": "#/$defs/Point"
+          },
+          "mode": {
+            "default": "car",
+            "description": "car, bike, walk or transit (public transport + walking)",
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "avoid": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/AvoidArea"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Areas to avoid (road works, closures, events, ...); road links touching them are closed.",
+            "title": "Avoid"
+          }
+        },
+        "required": [
+          "origin",
+          "destination"
+        ],
+        "type": "object",
+        "$defs": {
+          "AvoidArea": {
+            "properties": {
+              "geojson": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                ],
+                "description": "GeoJSON geometry (Polygon, MultiPolygon, LineString, Point, ...), Feature or FeatureCollection, as an object or as JSON text. Every road link that touches it is closed.",
+                "title": "Geojson"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of the coordinates (4326 = lon/lat)",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "buffer_m": {
+                "anyOf": [
+                  {
+                    "maximum": 2000,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Widen the area by this many metres. Default 0 for polygons, 15 for points and lines (a line along a closed street; buffer_m 0 with a line drawn across a road blocks just that road)",
+                "title": "Buffer M"
+              },
+              "modes": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Modes it is closed for; default all. E.g. ['car'] for road works that cyclists and pedestrians may pass. Transit follows 'walk' (it only closes walking).",
+                "title": "Modes"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "geojson"
+            ],
+            "title": "AvoidArea",
+            "type": "object"
+          },
+          "Point": {
+            "properties": {
+              "x": {
+                "description": "lon if srid is 4326, else easting",
+                "title": "X",
+                "type": "number"
+              },
+              "y": {
+                "description": "lat if srid is 4326, else northing",
+                "title": "Y",
+                "type": "number"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of x/y",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "title": "Point",
+            "type": "object"
+          }
+        },
+        "title": "routeArguments"
+      },
+      "name": "route"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Route through 2–30 stops: the first is the start, the last the end (repeat the first stop at the end for a round trip). With optimize=true the stops in between are reordered for the shortest total time (exact up to 9 intermediate stops). Returns the order used, minutes and km per leg and in total, and a geometry_url for the map. With transit, each leg is a separate typical trip.",
+      "inputSchema": {
+        "properties": {
+          "stops": {
+            "items": {
+              "$ref": "#/$defs/Point"
+            },
+            "maxItems": 30,
+            "minItems": 2,
+            "title": "Stops",
+            "type": "array"
+          },
+          "mode": {
+            "default": "car",
+            "description": "car, bike, walk or transit (public transport + walking)",
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "optimize": {
+            "default": false,
+            "title": "Optimize",
+            "type": "boolean"
+          },
+          "avoid": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/AvoidArea"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Areas to avoid (road works, closures, events, ...); road links touching them are closed.",
+            "title": "Avoid"
+          }
+        },
+        "required": [
+          "stops"
+        ],
+        "type": "object",
+        "$defs": {
+          "AvoidArea": {
+            "properties": {
+              "geojson": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                ],
+                "description": "GeoJSON geometry (Polygon, MultiPolygon, LineString, Point, ...), Feature or FeatureCollection, as an object or as JSON text. Every road link that touches it is closed.",
+                "title": "Geojson"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of the coordinates (4326 = lon/lat)",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "buffer_m": {
+                "anyOf": [
+                  {
+                    "maximum": 2000,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Widen the area by this many metres. Default 0 for polygons, 15 for points and lines (a line along a closed street; buffer_m 0 with a line drawn across a road blocks just that road)",
+                "title": "Buffer M"
+              },
+              "modes": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Modes it is closed for; default all. E.g. ['car'] for road works that cyclists and pedestrians may pass. Transit follows 'walk' (it only closes walking).",
+                "title": "Modes"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "geojson"
+            ],
+            "title": "AvoidArea",
+            "type": "object"
+          },
+          "Point": {
+            "properties": {
+              "x": {
+                "description": "lon if srid is 4326, else easting",
+                "title": "X",
+                "type": "number"
+              },
+              "y": {
+                "description": "lat if srid is 4326, else northing",
+                "title": "Y",
+                "type": "number"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of x/y",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "title": "Point",
+            "type": "object"
+          }
+        },
+        "title": "multi_stop_routeArguments"
+      },
+      "name": "multi_stop_route"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Travel time in minutes between every pair of 2–30 points (matrix[i][j] = from i to j; null = no route). Good for comparing which place is closest, also by public transport (transit; where no bus runs the time is walking, with no check for that - use route to see a trip's walking).",
+      "inputSchema": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/$defs/Point"
+            },
+            "maxItems": 30,
+            "minItems": 2,
+            "title": "Points",
+            "type": "array"
+          },
+          "mode": {
+            "default": "car",
+            "description": "car, bike, walk or transit (public transport + walking)",
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "avoid": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/AvoidArea"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Areas to avoid (road works, closures, events, ...); road links touching them are closed.",
+            "title": "Avoid"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "type": "object",
+        "$defs": {
+          "AvoidArea": {
+            "properties": {
+              "geojson": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                ],
+                "description": "GeoJSON geometry (Polygon, MultiPolygon, LineString, Point, ...), Feature or FeatureCollection, as an object or as JSON text. Every road link that touches it is closed.",
+                "title": "Geojson"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of the coordinates (4326 = lon/lat)",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "buffer_m": {
+                "anyOf": [
+                  {
+                    "maximum": 2000,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Widen the area by this many metres. Default 0 for polygons, 15 for points and lines (a line along a closed street; buffer_m 0 with a line drawn across a road blocks just that road)",
+                "title": "Buffer M"
+              },
+              "modes": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Modes it is closed for; default all. E.g. ['car'] for road works that cyclists and pedestrians may pass. Transit follows 'walk' (it only closes walking).",
+                "title": "Modes"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "geojson"
+            ],
+            "title": "AvoidArea",
+            "type": "object"
+          },
+          "Point": {
+            "properties": {
+              "x": {
+                "description": "lon if srid is 4326, else easting",
+                "title": "X",
+                "type": "number"
+              },
+              "y": {
+                "description": "lat if srid is 4326, else northing",
+                "title": "Y",
+                "type": "number"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of x/y",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "title": "Point",
+            "type": "object"
+          }
+        },
+        "title": "travel_time_matrixArguments"
+      },
+      "name": "travel_time_matrix"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Area reachable from a point within a number of minutes (isochrone). Returns km of road reachable, the area of the convex hull around it (an upper bound) and a geometry_url with the reachable roads for the map. With transit: the roads reachable on foot plus public transport (average waits, walking without a distance limit).",
+      "inputSchema": {
+        "properties": {
+          "origin": {
+            "$ref": "#/$defs/Point"
+          },
+          "minutes": {
+            "exclusiveMinimum": 0,
+            "maximum": 60,
+            "title": "Minutes",
+            "type": "number"
+          },
+          "mode": {
+            "default": "car",
+            "description": "car, bike, walk or transit (public transport + walking)",
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "avoid": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/AvoidArea"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Areas to avoid (road works, closures, events, ...); road links touching them are closed.",
+            "title": "Avoid"
+          }
+        },
+        "required": [
+          "origin",
+          "minutes"
+        ],
+        "type": "object",
+        "$defs": {
+          "AvoidArea": {
+            "properties": {
+              "geojson": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                ],
+                "description": "GeoJSON geometry (Polygon, MultiPolygon, LineString, Point, ...), Feature or FeatureCollection, as an object or as JSON text. Every road link that touches it is closed.",
+                "title": "Geojson"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of the coordinates (4326 = lon/lat)",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "buffer_m": {
+                "anyOf": [
+                  {
+                    "maximum": 2000,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Widen the area by this many metres. Default 0 for polygons, 15 for points and lines (a line along a closed street; buffer_m 0 with a line drawn across a road blocks just that road)",
+                "title": "Buffer M"
+              },
+              "modes": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Modes it is closed for; default all. E.g. ['car'] for road works that cyclists and pedestrians may pass. Transit follows 'walk' (it only closes walking).",
+                "title": "Modes"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "geojson"
+            ],
+            "title": "AvoidArea",
+            "type": "object"
+          },
+          "Point": {
+            "properties": {
+              "x": {
+                "description": "lon if srid is 4326, else easting",
+                "title": "X",
+                "type": "number"
+              },
+              "y": {
+                "description": "lat if srid is 4326, else northing",
+                "title": "Y",
+                "type": "number"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of x/y",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "title": "Point",
+            "type": "object"
+          }
+        },
+        "title": "reachable_withinArguments"
+      },
+      "name": "reachable_within"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Find a street by name in NVDB (inside Varbergs kommun). Returns one point (lon/lat, srid 4326) in the middle of each separate stretch with that name; several results mean the name is used in several places. Use your own address search for house numbers. Suggests similar names when nothing matches.",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 2,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "title": "find_streetArguments"
+      },
+      "name": "find_street"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Road information at a point: the nearest roads in NVDB within radius_m (street name, road number, network type, functional road class 0–9 (0 = most important), speed limits, one-way, surface, cycle/footway type, urban area).",
+      "inputSchema": {
+        "properties": {
+          "point": {
+            "$ref": "#/$defs/Point"
+          },
+          "radius_m": {
+            "default": 50,
+            "exclusiveMinimum": 0,
+            "maximum": 500,
+            "title": "Radius M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "point"
+        ],
+        "type": "object",
+        "$defs": {
+          "Point": {
+            "properties": {
+              "x": {
+                "description": "lon if srid is 4326, else easting",
+                "title": "X",
+                "type": "number"
+              },
+              "y": {
+                "description": "lat if srid is 4326, else northing",
+                "title": "Y",
+                "type": "number"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of x/y",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "title": "Point",
+            "type": "object"
+          }
+        },
+        "title": "road_infoArguments"
+      },
+      "name": "road_info"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "When the NVDB and public transport (GTFS) data were last loaded, how much there is, and the analysis date and period that transit times hold for.",
+      "inputSchema": {
+        "properties": {},
+        "type": "object",
+        "title": "data_statusArguments"
+      },
+      "name": "data_status"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "A public transport line (Hallandstrafiken, GTFS): its stops in order per direction with the typical minutes from the first stop, the total run time and trips per hour in the analysis period, and a geometry_url for the map. `line` is the line number (e.g. '2', '650'), a route_id from an earlier result, or part of the line's name. Several matches return a list to choose from. No departure times: refer to Hallandstrafiken for those.",
+      "inputSchema": {
+        "properties": {
+          "line": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Line",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line"
+        ],
+        "type": "object",
+        "title": "line_infoArguments"
+      },
+      "name": "line_info"
+    },
+    {
+      "annotations": {
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Nearest public transport stops (hållplatser, Hallandstrafiken) for each of 1–100 points, by walking along the road network: per point the `limit` closest stops with walk_min and walk_m, the stop's lon/lat, the lines that stop there, departures_per_hour (all lines and directions, each within its service hours) and departures_in_period. Stops without departures in the period are left out. For access to public transport, e.g. which schools are furthest from a stop: pass all the places in one call and compare walk_m.",
+      "inputSchema": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/$defs/Point"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Points",
+            "type": "array"
+          },
+          "limit": {
+            "default": 3,
+            "description": "stops per point",
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "type": "object",
+        "$defs": {
+          "Point": {
+            "properties": {
+              "x": {
+                "description": "lon if srid is 4326, else easting",
+                "title": "X",
+                "type": "number"
+              },
+              "y": {
+                "description": "lat if srid is 4326, else northing",
+                "title": "Y",
+                "type": "number"
+              },
+              "srid": {
+                "default": 4326,
+                "description": "EPSG code of x/y",
+                "maximum": 998999,
+                "minimum": 1,
+                "title": "Srid",
+                "type": "integer"
+              },
+              "label": {
+                "anyOf": [
+                  {
+                    "maxLength": 100,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Name used in results",
+                "title": "Label"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "title": "Point",
+            "type": "object"
+          }
+        },
+        "title": "nearest_stopsArguments"
+      },
+      "name": "nearest_stops"
+    }
+  ]
+}

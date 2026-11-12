@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.5.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "activedirectory2": "^2.2.0",
     "altcha-lib": "^2.6.0",
     "chokidar": "^5.0.0",

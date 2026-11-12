@@ -83,6 +83,11 @@ export interface CatalogRecord {
   date: string | null;
   /** Places only: going there also replaces the layers on the map. */
   changesLayers?: boolean;
+  /**
+   * Places only: the name exactly as in the map config, which the client looks
+   * the place up by. The caption is cleaned, so it can differ.
+   */
+  presetName?: string;
 }
 
 export interface CatalogGroup {
@@ -135,6 +140,7 @@ interface WalkedPlace {
   caption: string;
   groupPath: string[];
   changesLayers: boolean;
+  presetName: string;
 }
 
 export interface WalkedFeatureSource {
@@ -147,11 +153,16 @@ export interface WalkedFeatureSource {
  * What the chat may tell about a map. Tool options are left out on purpose, as
  * some tools carry restricted configuration. The exceptions are the names of the
  * `preset` tool's places, which become records, see walkPlaces, and the feature
- * sources of the `aichat` tool, see walkFeatureSources.
+ * sources of the `aichat` tool, see walkFeatureSources, and whether it takes
+ * drawn features.
  */
 export interface MapInfo {
   title: string | null;
   projection: string | null;
+  /** The map's extent in its projection, if the config has a valid one */
+  extent: number[] | null;
+  /** Whether users may share what they drew with the chat, see drawn.ts */
+  drawnFeatures: boolean;
   tools: MapTool[];
 }
 
@@ -199,7 +210,7 @@ interface RawFeatureSource {
 }
 
 export interface RawMapConfig {
-  map?: { title?: unknown; projection?: unknown };
+  map?: { title?: unknown; projection?: unknown; extent?: unknown };
   tools?: unknown;
   error?: Error;
 }
@@ -395,6 +406,7 @@ function walkPlaces(options: RawTool["options"]): WalkedPlace[] {
         caption,
         groupPath,
         changesLayers: Boolean(new URLSearchParams(url).get("l")),
+        presetName: String(raw.name),
       });
     }
   }
@@ -451,6 +463,17 @@ function walkFeatureSources(
   return [...sources.values()];
 }
 
+/** @returns `[minX, minY, maxX, maxY]`, or null if it isn't one */
+function readExtent(value: unknown): number[] | null {
+  return Array.isArray(value) &&
+    value.length === 4 &&
+    value.every((n) => typeof n === "number" && Number.isFinite(n)) &&
+    value[0] < value[2] &&
+    value[1] < value[3]
+    ? (value as number[])
+    : null;
+}
+
 /**
  * @summary The one tree walker. Runs both on the raw map config, to build the
  * catalog, and on a user's washed map config, to find out what they may access.
@@ -466,6 +489,9 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
     info: {
       title: cleanInline(mapConfig.map?.title),
       projection: cleanInline(mapConfig.map?.projection),
+      extent: readExtent(mapConfig.map?.extent),
+      // On unless the aichat tool turns it off
+      drawnFeatures: aichat?.drawnFeatures !== false,
       tools: tools.filter((t) => typeof t.type === "string").map(toMapTool),
     },
     tree: [],

@@ -8,6 +8,7 @@ import {
 } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import type { RawMapConfig } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import { FeatureResultStore } from "../../server/apis/v2/services/ai/features/featureResults.ts";
+import { McpResultStore } from "../../server/apis/v2/services/ai/mcp/mcpResults.ts";
 import type {
   Feature,
   Geometry,
@@ -95,9 +96,19 @@ const context = (
   search: { search: async () => ({ hits: [], mode: "keyword" }) },
   wfs,
   featureResults: new FeatureResultStore(),
+  mcpResults: new McpResultStore(),
   signal: new AbortController().signal,
   wfsRequests: 0,
+  wfsResponses: new Map(),
+  drawn: new Map(),
   ...overrides,
+});
+
+/** The next message of the same conversation, with its own requests */
+const nextTurn = (ctx: ToolContext): ToolContext => ({
+  ...ctx,
+  wfsRequests: 0,
+  wfsResponses: new Map(),
 });
 
 const NO_CRITERIA = {
@@ -731,10 +742,39 @@ describe("search_features", () => {
       const { wfs, calls } = fakeWfs(() => []);
       const ctx = context(wfs);
       const runs = await Promise.all(
-        Array.from({ length: 30 }, () => search(ctx))
+        Array.from({ length: 30 }, (_, i) => search(ctx, { text: `Gata ${i}` }))
       );
       assert.equal(calls.length, 20);
       assert.equal(runs.filter((run) => run.isError).length, 10);
+    });
+
+    test("isn't used up by the same request again", async () => {
+      const { wfs, calls } = fakeWfs(() => []);
+      const ctx = context(wfs);
+      const runs = await Promise.all(
+        Array.from({ length: 30 }, () => search(ctx, { text: "Kungsgatan" }))
+      );
+      assert.equal(calls.length, 1);
+      assert.equal(ctx.wfsRequests, 1);
+      assert.equal(runs.filter((run) => run.isError).length, 0);
+    });
+
+    test("tries a failed request again", async () => {
+      let failing = true;
+      const fake = fakeWfs(() => []);
+      const ctx = context({
+        ...fake.wfs,
+        async query(target, options, signal) {
+          if (failing) {
+            throw new Error("Nej");
+          }
+          return fake.wfs.query(target, options, signal);
+        },
+      });
+      assert.equal((await search(ctx)).isError, true);
+      failing = false;
+      assert.equal((await search(ctx)).isError, false);
+      assert.equal(ctx.wfsRequests, 2);
     });
 
     test("tells the model what to do", async () => {
@@ -816,9 +856,19 @@ describe("show_features", () => {
     const { wfs, calls } = fakeWfs(() => features(2));
     const ctx = context(wfs);
     const { result } = await search(ctx, { text: "Kungsgatan" });
-    await show(ctx, [result.resultId]);
+    await show(nextTurn(ctx), [result.resultId]);
     assert.equal(calls.length, 2);
     assert.deepEqual(calls[1], calls[0]);
+  });
+
+  test("uses what the search fetched in the same turn", async () => {
+    const { wfs, calls } = fakeWfs(() => features(2));
+    const ctx = context(wfs);
+    const { result } = await search(ctx, { text: "Kungsgatan" });
+    const { result: shown } = await show(ctx, [result.resultId]);
+    assert.equal(shown.shown, 2);
+    assert.equal(calls.length, 1);
+    assert.equal(ctx.wfsRequests, 1);
   });
 
   test("reports what was shown", async () => {
@@ -963,7 +1013,7 @@ describe("show_features", () => {
     const first = await search(ctx);
     const second = await search(ctx, { source_id: "sjo" });
     failing = true;
-    const { result } = await show(ctx, [
+    const { result } = await show(nextTurn(ctx), [
       first.result.resultId,
       second.result.resultId,
     ]);
@@ -1030,5 +1080,100 @@ describe("the prompt", () => {
 
   test("stays the same, as prompt caching relies on it", () => {
     assert.equal(buildSystemPrompt(view()), prompt);
+  });
+});
+
+describe("drawn features", () => {
+  const AREA: Geometry = {
+    type: "Polygon",
+    coordinates: [
+      [
+        [100, 100],
+        [200, 100],
+        [200, 200],
+        [100, 100],
+      ],
+    ],
+  };
+  const drawn = new Map([
+    ["s1", { id: "s1", title: "Mitt område", geometry: AREA }],
+  ]);
+
+  test("work in near, with their geometry and without a request for them", async () => {
+    const { wfs, calls } = fakeWfs(() => [feature("sjo.1")]);
+    const ctx = context(wfs, { drawn });
+    const { isError } = await search(ctx, {
+      source_id: "sjo",
+      ...nearInput("s1", 0),
+    });
+    assert.equal(isError, false);
+    assert.ok(calls.every((c) => !c.options.filter.includes("ResourceId")));
+    const { filter } = calls.at(-1)!.options;
+    assert.match(filter, /<fes:Intersects>/);
+    assert.match(filter, /<gml:Polygon srsName="EPSG:3007">/);
+    assert.match(filter, /100 100 200 100 200 200 100 100/);
+  });
+
+  test("are refused when they aren't in this message's map state", async () => {
+    const { wfs, calls } = fakeWfs(() => [feature("sjo.1")]);
+    const { isError, result } = await search(context(wfs), {
+      source_id: "sjo",
+      ...nearInput("s1", 0),
+    });
+    assert.equal(isError, true);
+    assert.match(result.error, /latest map state/);
+    assert.equal(calls.length, 0);
+  });
+
+  test("stay in a result, so it can be shown after the drawing is gone", async () => {
+    const { wfs, calls } = fakeWfs(() => [feature("sjo.1")]);
+    const ctx = context(wfs, { drawn });
+    const { result } = await search(ctx, {
+      source_id: "sjo",
+      ...nearInput("s1", 0),
+    });
+    const later = context(wfs, { featureResults: ctx.featureResults });
+    const shown = await show(later, [result.resultId]);
+    assert.equal(shown.isError, false);
+    assert.equal(shown.result.shown, 1);
+    assert.match(calls.at(-1)!.options.filter, /<gml:Polygon/);
+  });
+
+  test("never reach the model's result as coordinates", async () => {
+    const { wfs } = fakeWfs(() => [feature("sjo.1")]);
+    const { content } = await runTool(
+      "search_features",
+      { source_id: "sjo", ...NO_CRITERIA, ...nearInput("s1", 0) },
+      context(wfs, { drawn })
+    );
+    assert.equal(content.includes("200 200"), false);
+    assert.equal(content.includes("[200,200]"), false);
+  });
+});
+
+describe("the prompt and drawn features", () => {
+  test("tells the model about them on a map that takes them", () => {
+    assert.ok(buildSystemPrompt(view()).includes("Ta med ritade objekt"));
+  });
+
+  test("leaves them out on a map that turns them off", () => {
+    const base = featureMapConfig();
+    const config: RawMapConfig = {
+      ...base,
+      tools: base.tools.map((tool) =>
+        tool.type === "aichat"
+          ? { ...tool, options: { ...tool.options, drawnFeatures: false } }
+          : tool
+      ),
+    };
+    const catalog = buildUserCatalog(
+      buildCatalog("demo", config, featureStore()),
+      walkMapConfig(config)
+    );
+    assert.equal(catalog.mapInfo.drawnFeatures, false);
+    assert.equal(
+      buildSystemPrompt(catalog).includes("Ta med ritade objekt"),
+      false
+    );
   });
 });

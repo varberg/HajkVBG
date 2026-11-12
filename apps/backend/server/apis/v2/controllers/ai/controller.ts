@@ -74,7 +74,27 @@ function publicError(error: { code?: string; statusCode?: number } & Error) {
   return new AiChatError("unavailable", 500, "The chat request failed.");
 }
 
-async function stream(res: Response, orchestrator: Orchestrator, turn: Turn) {
+/**
+ * @summary An abort for when the client goes away. Made before the turn is set
+ * up: a client that leaves meanwhile has already closed, which would be missed
+ * by a listener added later, and the turn would then run with no one listening.
+ */
+function disconnectSignal(res: Response): AbortSignal {
+  const disconnect = new AbortController();
+  res.on("close", () => {
+    if (!res.writableFinished) {
+      disconnect.abort();
+    }
+  });
+  return disconnect.signal;
+}
+
+async function stream(
+  res: Response,
+  orchestrator: Orchestrator,
+  turn: Turn,
+  signal: AbortSignal
+) {
   res.status(200).set({
     "Content-Type": "text/event-stream; charset=utf-8",
     // no-transform also keeps compression() from buffering the stream
@@ -83,13 +103,6 @@ async function stream(res: Response, orchestrator: Orchestrator, turn: Turn) {
     "X-Accel-Buffering": "no",
   });
   res.flushHeaders();
-
-  const disconnect = new AbortController();
-  res.on("close", () => {
-    if (!res.writableFinished) {
-      disconnect.abort();
-    }
-  });
 
   const write = (chunk: string) => {
     if (!res.writableEnded && !res.destroyed) {
@@ -101,7 +114,8 @@ async function stream(res: Response, orchestrator: Orchestrator, turn: Turn) {
 
   const keepAlive = setInterval(() => write(": keep-alive\n\n"), KEEP_ALIVE_MS);
   try {
-    await orchestrator.runTurn(turn, send, disconnect.signal);
+    // Also when the client has already gone, as only runTurn releases the turn
+    await orchestrator.runTurn(turn, send, signal);
   } finally {
     clearInterval(keepAlive);
     res.end();
@@ -119,6 +133,7 @@ export const createChatHandler =
     isEnabled: () => boolean = isChatEnabled
   ): RequestHandler =>
   async (req, res) => {
+    const disconnected = disconnectSignal(res);
     let orchestrator: Orchestrator;
     let turn: Turn;
 
@@ -139,7 +154,7 @@ export const createChatHandler =
     }
 
     try {
-      await stream(res, orchestrator, turn);
+      await stream(res, orchestrator, turn, disconnected);
     } catch (error) {
       logger.error(`Chat stream failed: ${(error as Error).message}`);
     }

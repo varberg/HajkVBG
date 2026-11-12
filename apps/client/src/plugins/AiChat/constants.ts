@@ -15,9 +15,7 @@ export const UI_STRINGS = {
   stopped: "Du stoppade svaret.",
   newConversation: "Ny konversation",
   thinking: "Tänker…",
-  useBackground: "Använd",
   goToPlace: "Gå till",
-  backgroundInUse: "Används",
   layerList: "Lager från svaret",
   conversationRestarted:
     "Den förra konversationen hade upphört, så frågan skickades som en ny konversation.",
@@ -26,6 +24,79 @@ export const UI_STRINGS = {
   placeUnavailable: "Platsen kunde inte visas.",
   searchUnavailable: "Sökningen är inte tillgänglig i den här kartan.",
   eventFailed: "En del av svaret kunde inte visas.",
+  showRoute: "Visa rutten på kartan",
+  routeUnavailable: "En eller flera rutter kunde inte visas på kartan.",
+  route: "Rutt",
+  reach: "Nåbart område",
+  line: "Linje",
+  streets: "Gator längs vägen",
+  legs: "Delsträckor",
+  steps: "Resans delar",
+  stops: "Hållplatser",
+  nearestStops: "Närmaste hållplatser",
+  places: (count: number) => (count === 1 ? "1 plats" : `${count} platser`),
+  departuresPerHour: (departures: string) => `${departures} avg./h`,
+  meters: "m",
+  walk: "Gå",
+  walkTime: "gång",
+  waitTime: "väntan",
+  rideTime: "åktid",
+  waitAt: (line: string | undefined, at: string | undefined) =>
+    ["Vänta", line && `på linje ${line}`, at && `vid ${at}`]
+      .filter(Boolean)
+      .join(" "),
+  towards: "mot",
+  changes: (count: number) =>
+    count === 0 ? "inga byten" : count === 1 ? "1 byte" : `${count} byten`,
+  tripsPerHour: (trips: string) => `${trips} turer/h`,
+  transitNote:
+    "Typisk restid med genomsnittlig väntan, inte en tidtabell. Se trafikbolaget för avgångar.",
+  moreStreets: (count: number) => `och ${count} till`,
+  seconds: "s",
+  minutes: "min",
+  hours: "h",
+  km: "km",
+  roadKm: "km väg",
+  download: "Ladda ner",
+  downloadLabel: "Ladda ner det som visas på kartan",
+  nothingToDownload: "Det fanns inget att ladda ner.",
+  // The model tells users to turn on "Ta med ritade objekt", see prompt.ts in Backend
+  includeDrawn: (count: number, max: number) =>
+    count > max
+      ? `Ta med ritade objekt (${max} av ${count})`
+      : `Ta med ritade objekt (${count})`,
+  includeDrawnHint:
+    "Låter assistenten använda det du ritat, till exempel för att söka inom ett område eller undvika det i en rutt. Bara former och titlar skickas.",
+  drawnShared: (count: number) =>
+    count === 1 ? "Med 1 ritat objekt" : `Med ${count} ritade objekt`,
+  avoided: (count: number) =>
+    count === 1 ? "Undviker 1 område" : `Undviker ${count} områden`,
+  detour: (time: string) => `${time} längre än utan`,
+  noDetour: "ingen omväg",
+};
+
+/** The choices in the download menu, see DownloadMenu */
+export const DOWNLOAD_FORMATS = [
+  {
+    format: "kml",
+    name: "KML",
+    hint: "Google Earth och Hajks ritverktyg, med färger",
+  },
+  { format: "gpx", name: "GPX", hint: "GPS och mobilappar" },
+  { format: "geojson", name: "GeoJSON", hint: "GIS, till exempel QGIS" },
+] as const;
+
+export const GPX_UNAVAILABLE = "Ytor kan inte sparas som GPX";
+
+export const MODE_NAMES: Record<string, string> = {
+  car: "Bil",
+  bike: "Cykel",
+  walk: "Gång",
+  transit: "Kollektivtrafik",
+  bus: "Buss",
+  rail: "Tåg",
+  tram: "Spårvagn",
+  ferry: "Färja",
 };
 
 export const TOOL_STATUS: Record<string, string> = {
@@ -41,6 +112,15 @@ export const TOOL_STATUS: Record<string, string> = {
   search_features: "Söker i kartans data…",
   show_features: "Visar träffarna på kartan…",
   clear_features: "Rensar sökresultaten…",
+  route: "Beräknar rutten…",
+  multi_stop_route: "Beräknar rutten…",
+  travel_time_matrix: "Jämför restider…",
+  reachable_within: "Beräknar nåbart område…",
+  find_street: "Letar efter gatan…",
+  road_info: "Läser om vägen…",
+  line_info: "Läser om linjen…",
+  nearest_stops: "Letar efter närmaste hållplatser…",
+  show_route: "Visar rutten på kartan…",
 };
 
 const GENERIC_ERROR = "Det gick inte att få ett svar. Försök igen senare.";

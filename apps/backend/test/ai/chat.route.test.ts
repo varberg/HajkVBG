@@ -157,6 +157,35 @@ describe("POST /ai/chat", () => {
     server.close();
   });
 
+  test("a client that leaves before the stream starts aborts the turn", async () => {
+    const client = new AbortController();
+    let signalOfTurn: AbortSignal | null = null;
+    let ran: () => void;
+    const turnRan = new Promise<void>((resolve) => (ran = resolve));
+    const handler = createChatHandler(
+      async () =>
+        fakeChat(
+          async (_emit, signal) => {
+            signalOfTurn = signal;
+            ran();
+          },
+          // The client goes away while the turn is still being set up
+          async () => {
+            client.abort();
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            return {};
+          }
+        ),
+      () => true
+    );
+    const { server, url } = await serve(handler);
+
+    await assert.rejects(post(url, body, client.signal));
+    await turnRan;
+    assert.equal(signalOfTurn!.aborted, true);
+    server.close();
+  });
+
   const statusOf = async (handler: express.RequestHandler, payload = body) => {
     const { server, url } = await serve(handler);
     const response = await post(url, payload);

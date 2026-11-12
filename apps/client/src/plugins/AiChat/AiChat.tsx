@@ -18,7 +18,9 @@ import type { AiChatProps } from "./types";
  * answers. Runs on Backend's chat, see AI_* in Backend's .env.
  */
 const AiChat: React.FC<AiChatProps> = (props) => {
-  const [model] = React.useState(() => new AiChatModel(props.app));
+  const [model] = React.useState(
+    () => new AiChatModel(props.app, props.map, props.options)
+  );
   const { app, options } = props;
 
   return (
