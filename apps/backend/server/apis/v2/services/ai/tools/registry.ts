@@ -117,7 +117,7 @@ export function createRegistry(
       }
       loaded.set(extension.name, part);
       rebuild();
-      logger.info(`${extension.name}: ${part.tools.length} tools.`);
+      logger.debug(`${extension.name}: ${part.tools.length} tools.`);
     } catch (error) {
       logger.warn(
         `Could not load the ${extension.name} tools, the chat runs without them: ${(error as Error).message}`

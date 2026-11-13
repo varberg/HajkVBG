@@ -54,6 +54,7 @@ export interface AiChatViewProps {
 export interface DrawnToggleProps {
   model: AiChatModel;
   checked: boolean;
+  count: number;
 }
 
 export interface ChatMessageItemProps {

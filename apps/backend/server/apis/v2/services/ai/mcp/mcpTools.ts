@@ -54,10 +54,11 @@ export async function callMcp(
       result = await server.connection.call(tool, args, signal);
     } catch (error) {
       signal.throwIfAborted();
-      const reason = hidden ? "" : `: ${(error as Error).message}`;
-      const next = attempt < ATTEMPTS ? ", trying again" : "";
-      logger.warn(`The ${server.name} tool "${tool}" failed${reason}${next}`);
       if (attempt >= ATTEMPTS) {
+        const reason = hidden ? "" : `: ${(error as Error).message}`;
+        logger.warn(
+          `The ${server.name} tool "${tool}" failed ${ATTEMPTS} times${reason}`
+        );
         // A server that answered with an error is up, so only this call failed
         if (!isErrorAnswer(error)) {
           server.downUntil = now() + DOWN_MS;

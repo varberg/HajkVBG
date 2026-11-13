@@ -1,6 +1,13 @@
 import { useId, useState } from "react";
 
-import { Box, Button, ListItemText, Menu, MenuItem } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Tooltip,
+} from "@mui/material";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import { DOWNLOAD_FORMATS, GPX_UNAVAILABLE, UI_STRINGS } from "./constants";
@@ -14,18 +21,19 @@ function DownloadMenu({ gpx, onDownload }: DownloadMenuProps) {
 
   return (
     <Box>
-      <Button
-        size="small"
-        startIcon={<FileDownloadOutlinedIcon />}
-        onClick={(event) => setAnchor(event.currentTarget)}
-        aria-label={UI_STRINGS.downloadLabel}
-        aria-haspopup="menu"
-        aria-controls={open ? menuId : undefined}
-        aria-expanded={open}
-        sx={{ px: 0.5 }}
-      >
-        {UI_STRINGS.download}
-      </Button>
+      <Tooltip title={UI_STRINGS.downloadLabel}>
+        <IconButton
+          size="small"
+          color="primary"
+          onClick={(event) => setAnchor(event.currentTarget)}
+          aria-label={UI_STRINGS.downloadLabel}
+          aria-haspopup="menu"
+          aria-controls={open ? menuId : undefined}
+          aria-expanded={open}
+        >
+          <FileDownloadOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <Menu
         id={menuId}
         anchorEl={anchor}

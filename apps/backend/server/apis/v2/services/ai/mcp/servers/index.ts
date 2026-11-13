@@ -23,7 +23,7 @@ export function readMcpExtensions(): ToolExtension[] {
     const config = readMcpServerConfig(name);
     if (config === null) {
       const label = name.charAt(0) + name.slice(1).toLowerCase();
-      logger.info(
+      logger.debug(
         `${label} is off, as AI_${name}_MCP_URL or AI_${name}_MCP_TOKEN isn't set.`
       );
       continue;

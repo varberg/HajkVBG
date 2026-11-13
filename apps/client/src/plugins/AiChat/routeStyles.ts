@@ -90,6 +90,11 @@ const AVOIDED_STYLE = [
   }),
 ];
 
+/** One style per feature in a download, so without the white edge */
+const AVOIDED_EXPORT_STYLE = new Style({
+  stroke: new Stroke({ color: "#d32f2f", width: 3, lineDash: [6, 6] }),
+});
+
 // Bright green (#00c853) and red (#ff1744), each mixed with 10 % white
 const START_FILL = "#1ace64";
 const END_FILL = "#ff2e57";
@@ -229,7 +234,7 @@ function stopIconSrc(fill: string, color: string, nr: string, radius: number) {
  * `readRoute`. A KML file can't hold a style function.
  * @description A stop becomes an image with its name as the label. The stroke
  * of a stop isn't drawn, but gives GeoJSON its marker color. KML has no dashed
- * lines, so the edge of a reachable area and a walk are solid there.
+ * lines, so the dashes are kept for Hajk only, see `hajkStyleOf`.
  */
 export function exportStyleOf(feature: Feature): Style {
   const color = routeColor(feature.get("route") ?? 0);
@@ -247,6 +252,9 @@ export function exportStyleOf(feature: Feature): Style {
       }),
       stroke: new Stroke({ color }),
     });
+  }
+  if (kind === AVOIDED_KIND) {
+    return AVOIDED_EXPORT_STYLE;
   }
   if (kind !== "stop" && kind !== "point") {
     return lineStyle(lineKind(feature), color);
@@ -266,5 +274,39 @@ export function exportStyleOf(feature: Feature): Style {
       fill: new Fill({ color: "#212121" }),
     }),
     stroke: new Stroke({ color }),
+  });
+}
+
+/**
+ * @summary A dashed line or area in the form Sketch saves its style in KML, so
+ * that it's dashed again when imported into Hajk. Other viewers ignore it.
+ * @param feature With a style from `exportStyleOf`
+ * @returns JSON for the `EXTRACTED_STYLE` property, or null if it isn't dashed
+ */
+export function hajkStyleOf(feature: Feature): string | null {
+  const style = feature.getStyle();
+  const stroke = style instanceof Style ? style.getStroke() : null;
+  const dash = stroke?.getLineDash();
+  if (
+    !stroke ||
+    !dash?.length ||
+    /Point$/.test(feature.getGeometry()?.getType() ?? "")
+  ) {
+    return null;
+  }
+  const rgba = (color: unknown) => {
+    const [r, g, b, a] = asArray(color as string);
+    return `rgba(${r},${g},${b},${a})`;
+  };
+  const fill = (style as Style).getFill()?.getColor();
+  return JSON.stringify({
+    strokeStyle: {
+      color: rgba(stroke.getColor()),
+      dash,
+      width: stroke.getWidth(),
+    },
+    fillStyle: fill ? { color: rgba(fill) } : null,
+    imageStyle: null,
+    zIndex: 0,
   });
 }

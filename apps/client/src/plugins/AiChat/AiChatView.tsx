@@ -26,6 +26,7 @@ import { isMobile } from "../../utils/IsMobile";
 
 import ChatMessageItem from "./ChatMessageItem";
 import DrawnToggle from "./DrawnToggle";
+import { useDrawnCount } from "./drawnFeatures";
 import { MAX_MESSAGE_LENGTH, TOOL_STATUS, UI_STRINGS } from "./constants";
 import type { AiChatViewProps } from "./types";
 
@@ -37,6 +38,7 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
     model.subscribe,
     model.getState
   );
+  const drawnCount = useDrawnCount(model.drawings);
   const [draft, setDraft] = useState("");
   const warningId = useId();
   const { scrollToTop } = useWindowSheetScroll();
@@ -88,6 +90,29 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
   // input stays near the top. Later the chat fills the 70% snap, less the header.
   const mobileHeight = messages.length === 0 ? "auto" : "calc(70dvh - 56px)";
 
+  const hasDrawn = drawnCount > 0;
+  const status = (
+    <Box
+      role="status"
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        // Only takes room above the toggle while there is something to show
+        ...(hasDrawn && running && { minHeight: 24, px: 1.5 }),
+      }}
+    >
+      {running && (
+        <>
+          <CircularProgress size={14} />
+          <Typography variant="caption" color="text.secondary">
+            {(activeTool && TOOL_STATUS[activeTool]) || UI_STRINGS.thinking}
+          </Typography>
+        </>
+      )}
+    </Box>
+  );
+
   return (
     <Stack sx={{ height: isMobile ? mobileHeight : "100%", minHeight: 0 }}>
       <Stack
@@ -125,40 +150,38 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
         ))}
       </Stack>
 
+      {/* With drawings the status sits above the toggle, else beside the button */}
+      {hasDrawn && status}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 1,
           minHeight: 32,
           px: 1.5,
         }}
       >
-        <Box
-          role="status"
-          sx={{ display: "flex", alignItems: "center", gap: 1 }}
-        >
-          {running && (
-            <>
-              <CircularProgress size={14} />
-              <Typography variant="caption" color="text.secondary">
-                {(activeTool && TOOL_STATUS[activeTool]) || UI_STRINGS.thinking}
-              </Typography>
-            </>
-          )}
-        </Box>
+        {hasDrawn ? (
+          <DrawnToggle
+            model={model}
+            checked={includeDrawn}
+            count={drawnCount}
+          />
+        ) : (
+          status
+        )}
         {messages.length > 0 && (
           <Button
             size="small"
             startIcon={<RestartAltIcon />}
             onClick={model.reset}
+            sx={{ flexShrink: 0 }}
           >
             {UI_STRINGS.newConversation}
           </Button>
         )}
       </Box>
-
-      <DrawnToggle model={model} checked={includeDrawn} />
 
       <Box
         component="form"
@@ -195,7 +218,11 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
         />
         {running ? (
           <Tooltip title={UI_STRINGS.stop}>
-            <IconButton aria-label={UI_STRINGS.stop} onClick={model.stop}>
+            <IconButton
+              color="primary"
+              aria-label={UI_STRINGS.stop}
+              onClick={model.stop}
+            >
               <StopIcon />
             </IconButton>
           </Tooltip>

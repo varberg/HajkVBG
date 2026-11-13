@@ -57,8 +57,7 @@ export const UI_STRINGS = {
   hours: "h",
   km: "km",
   roadKm: "km väg",
-  download: "Ladda ner",
-  downloadLabel: "Ladda ner det som visas på kartan",
+  downloadLabel: "Ladda ner svarets kartdata",
   nothingToDownload: "Det fanns inget att ladda ner.",
   includeDrawn: (count: number, max: number) =>
     count > max
@@ -72,6 +71,7 @@ export const UI_STRINGS = {
     count === 1 ? "Undviker 1 område" : `Undviker ${count} områden`,
   detour: (time: string) => `${time} längre än utan`,
   noDetour: "ingen omväg",
+  closedRoads: "Avstängda vägar",
 };
 
 /** The choices in the download menu, see DownloadMenu */

@@ -7,7 +7,10 @@ import {
   walkMapConfig,
 } from "../../server/apis/v2/services/ai/catalog.service.ts";
 import type { ChatLimits } from "../../server/apis/v2/services/ai/config.ts";
-import { Orchestrator } from "../../server/apis/v2/services/ai/orchestrator.ts";
+import {
+  describeCalls,
+  Orchestrator,
+} from "../../server/apis/v2/services/ai/orchestrator.ts";
 import type {
   ChatEvent,
   TurnRequest,
@@ -965,5 +968,31 @@ describe("feature searches across turns", () => {
     const results = seen[0].featureResults;
     await runTwoTurns();
     assert.notEqual(seen[0].featureResults, results);
+  });
+});
+
+describe("describeCalls", () => {
+  test("lists the tools of each model call, with repeats counted", () => {
+    assert.equal(
+      describeCalls([
+        ["search_features", "search_features", "search_features"],
+        ["multi_stop_route"],
+        ["show_route"],
+        [],
+      ]),
+      "4 calls (search_features x3 > multi_stop_route > show_route > answer)"
+    );
+  });
+
+  test("names mixed tools of one call", () => {
+    assert.equal(
+      describeCalls([["search_layers", "search_features"], []]),
+      "2 calls (search_layers + search_features > answer)"
+    );
+  });
+
+  test("handles a turn that never reached the model", () => {
+    assert.equal(describeCalls([]), "0 calls");
+    assert.equal(describeCalls([[]]), "1 call (answer)");
   });
 });

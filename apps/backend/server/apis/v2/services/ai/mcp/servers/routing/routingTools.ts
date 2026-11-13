@@ -81,7 +81,7 @@ export function buildRoutingPrompt(serverInstructions: string | null): string {
   const text = serverInstructions.trim();
   const capped = capText(text, MAX_SERVER_INSTRUCTIONS);
   if (capped.length < text.length) {
-    logger.warn(
+    logger.debug(
       `The routing server's instructions are ${text.length} characters, cut to ${capped.length}.`
     );
   }

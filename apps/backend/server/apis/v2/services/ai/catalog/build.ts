@@ -173,11 +173,8 @@ export function buildCatalog(
     place: WalkedLayer | null
   ): void => {
     if (recordsById.has(id)) {
-      // Roles are added in priority order, so the first one wins. The same
-      // layer in two tree groups is unexpected and worth a log line though.
-      if (place !== null) {
-        logger.warn(`Layer "${id}" is in several groups in map "${map}".`);
-      }
+      // Roles are added in priority order, so the first one wins, also for a
+      // layer that is in several tree groups.
       return;
     }
 

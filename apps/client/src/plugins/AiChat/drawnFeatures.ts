@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from "react";
+
 import type Feature from "ol/Feature";
 import type { EventsKey } from "ol/events";
 import GeoJSON from "ol/format/GeoJSON";
@@ -152,4 +154,15 @@ export class DrawnFeatures {
     }
     return id;
   }
+}
+
+const noDrawings = () => () => {};
+const zero = () => 0;
+
+/** Follows Sketch, so that it shows up and goes away as the user draws */
+export function useDrawnCount(drawings: DrawnFeatures | null): number {
+  return useSyncExternalStore(
+    drawings?.subscribe ?? noDrawings,
+    drawings?.getCount ?? zero
+  );
 }

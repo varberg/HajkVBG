@@ -112,6 +112,26 @@ function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
 }
 
 /**
+ * @summary The model calls of a turn for the log, such as `4 calls
+ * (search_features x3 > multi_stop_route > show_route > answer)`. Each call
+ * sends the whole prompt again, which is what the input tokens add up.
+ */
+export function describeCalls(calls: string[][]): string {
+  const steps = calls.map((names) => {
+    if (names.length === 0) {
+      return "answer";
+    }
+    const counts = new Map<string, number>();
+    names.forEach((name) => counts.set(name, (counts.get(name) ?? 0) + 1));
+    return [...counts]
+      .map(([name, count]) => (count > 1 ? `${name} x${count}` : name))
+      .join(" + ");
+  });
+  const count = `${calls.length} call${calls.length === 1 ? "" : "s"}`;
+  return steps.length === 0 ? count : `${count} (${steps.join(" > ")})`;
+}
+
+/**
  * @summary Runs the single agent loop of the chat.
  * @description It knows nothing about HTTP, as everything it has to say goes out
  * through `emit`. It knows nothing about vendors either, only the provider
@@ -239,6 +259,8 @@ export class Orchestrator {
       AbortSignal.timeout(this.#limits.turnTimeoutMs),
     ]);
     const usage: Usage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 };
+    // The tools asked for by each model call, for the log
+    const calls: string[][] = [];
     let outcome: string = "completed";
 
     emit({ type: "start", conversationId: conversation.id });
@@ -268,6 +290,7 @@ export class Orchestrator {
         conversation,
         context,
         usage,
+        calls,
         emit,
         turnSignal
       );
@@ -284,7 +307,7 @@ export class Orchestrator {
       conversation.running = false;
       this.#conversations.touch(conversation);
       logger.info(
-        `Turn ${outcome} on ${this.#provider.id}: ${usage.inputTokens} input tokens (${usage.cachedTokens} cached), ${usage.outputTokens} output tokens.`
+        `Turn ${outcome} on ${this.#provider.id} in ${describeCalls(calls)}: ${usage.inputTokens} input tokens (${usage.cachedTokens} cached), ${usage.outputTokens} output tokens.`
       );
     }
   }
@@ -293,6 +316,7 @@ export class Orchestrator {
     { session }: Conversation,
     context: ToolContext,
     usage: Usage,
+    calls: string[][],
     emit: Emit,
     signal: AbortSignal
   ): Promise<boolean> {
@@ -307,6 +331,7 @@ export class Orchestrator {
       usage.inputTokens += result.usage.inputTokens;
       usage.outputTokens += result.usage.outputTokens;
       usage.cachedTokens += result.usage.cachedTokens;
+      calls.push(result.toolCalls.map((call) => call.name));
 
       if (result.stopReason === "refusal") {
         throw new TurnStop("refusal");
