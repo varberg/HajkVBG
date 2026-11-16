@@ -178,6 +178,14 @@ describe("sanitizeDrawn", () => {
     assert.equal(titles[2], null);
     assert.equal(titles[3], null);
   });
+
+  test("masks personal numbers in a title", () => {
+    const [feature] = sanitizeDrawn(
+      [drawn("s1", square(), "Hos 19791027-5934")],
+      EXTENT
+    ).features;
+    assert.equal(feature.title, "Hos xxxxxxxx-xxxx");
+  });
 });
 
 describe("describeDrawn", () => {

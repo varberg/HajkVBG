@@ -12,6 +12,7 @@ import {
 import { ERRORS, TURN_ERRORS, UI_STRINGS } from "./constants";
 import { DrawnFeatures } from "./drawnFeatures";
 import { MapActions } from "./mapActions";
+import { maskPersonalNumbers } from "./personalNumbers";
 import { RouteLayer } from "./routeLayer";
 import type {
   AiChatApp,
@@ -103,11 +104,13 @@ export default class AiChatModel {
   goToPlace = (name: string): boolean => this.#actions.goToPlace(name);
 
   send = async (text: string): Promise<void> => {
-    const message = text.trim();
+    const typed = text.trim();
     const state = this.getState();
-    if (message === "" || state.running) {
+    if (typed === "" || state.running) {
       return;
     }
+    // Never sent, and the question shows what was
+    const message = maskPersonalNumbers(typed);
 
     const abort = new AbortController();
     this.#abort = abort;
@@ -118,6 +121,7 @@ export default class AiChatModel {
     const question = {
       ...this.#store.createMessage("user", message),
       drawnShared: drawn.length,
+      personalNumberMasked: message !== typed,
     };
     const answer = this.#store.createMessage("assistant", "");
     this.#store.update({
@@ -237,6 +241,11 @@ export default class AiChatModel {
             ],
           };
         });
+        break;
+      case "suggestions":
+        this.#store.updateMessage(answerId, () => ({
+          suggestions: event.items,
+        }));
         break;
       case "action":
         this.#actions.runAction(event, answerId, signal);

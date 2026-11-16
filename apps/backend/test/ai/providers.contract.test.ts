@@ -493,4 +493,29 @@ describe("Anthropic adapter", () => {
       ]
     );
   });
+
+  test("joins a question to the tool results that ended the last turn", async () => {
+    const h = anthropicHarness();
+    h.queue({ calls: [{ id: "a", name: "last", input: {} }] });
+    const session = open(h);
+    session.addUserMessage("Hej");
+    await run(session);
+    session.addToolResults([{ callId: "a", content: "ok", isError: false }]);
+    session.commit();
+    session.addUserMessage("Och sen?");
+    await run(session);
+
+    const sent = h.sentHistory() as Array<{
+      role: string;
+      content: Array<{ type: string }>;
+    }>;
+    assert.deepEqual(
+      sent.map((m) => m.role),
+      ["user", "assistant", "user"]
+    );
+    assert.deepEqual(
+      sent[2].content.map((c) => c.type),
+      ["tool_result", "text"]
+    );
+  });
 });

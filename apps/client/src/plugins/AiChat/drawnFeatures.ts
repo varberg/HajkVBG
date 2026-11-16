@@ -12,6 +12,7 @@ import type OlMap from "ol/Map";
 import { unByKey } from "ol/Observable";
 import type VectorSource from "ol/source/Vector";
 
+import { maskPersonalNumbers } from "./personalNumbers";
 import type { SharedDrawing } from "./types";
 
 /** The layer Sketch draws in, see Sketch.jsx */
@@ -93,7 +94,10 @@ export class DrawnFeatures {
         const title = feature.get("FEATURE_TITLE");
         return {
           id: this.#idOf(feature),
-          title: typeof title === "string" && title.trim() ? title : null,
+          title:
+            typeof title === "string" && title.trim()
+              ? maskPersonalNumbers(title)
+              : null,
           geometry: format.writeGeometryObject(
             shareable(feature.getGeometry()!)
           ),

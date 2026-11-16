@@ -35,6 +35,13 @@ export interface ToolDefinition {
   description: string;
   kind: ToolKind;
   inputSchema: JsonSchema;
+  /**
+   * Called last, after the answer: when a model turn calls nothing else, the
+   * turn ends without handing the result back to the model, which saves a call.
+   */
+  endsTurn?: boolean;
+  /** Left out of the conversations of maps where this is false. */
+  isAvailable?: (userCatalog: UserCatalog) => boolean;
 }
 
 export interface ToolContext {

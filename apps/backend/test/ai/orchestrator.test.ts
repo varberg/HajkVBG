@@ -328,6 +328,95 @@ describe("the agent loop", () => {
   });
 });
 
+describe("tools that end the turn", () => {
+  const withText = (text: string, ...toolCalls: ToolCall[]): ModelTurn => ({
+    text,
+    toolCalls,
+    stopReason: "tool_calls",
+    usage: NO_USAGE,
+  });
+  const registry = (run: ToolRegistry["run"] = async () => okRun) =>
+    fakeRegistry(run, [
+      definition("act", "action"),
+      { ...definition("last", "action"), endsTurn: true },
+    ]);
+
+  test("end it after the answer, without another model call", async () => {
+    const fake = fakeProvider([withText("Svar", call("last")), answer("Mer")]);
+    const event = { type: "suggestions" as const, items: ["Gå dit"] };
+    const chat = orchestrator({
+      provider: fake.provider,
+      registry: registry(async () => ({ ...okRun, events: [event] })),
+    });
+
+    const { events } = await ask(chat);
+
+    assert.equal(fake.steps.length, 1);
+    assert.deepEqual(ofType(events, "suggestions"), [event]);
+    assert.deepEqual(events.at(-1), { type: "done", truncated: false });
+    // The call keeps its result, so the history stays valid for the next turn
+    const last = fake.sessions[0].history.items.at(-1);
+    assert.ok(last !== undefined && "results" in last);
+  });
+
+  test("count an answer from an earlier call of the turn", async () => {
+    const fake = fakeProvider([
+      withText("Svar", call("act")),
+      callTools(call("last")),
+      answer("Mer"),
+    ]);
+    await ask(orchestrator({ provider: fake.provider, registry: registry() }));
+    assert.equal(fake.steps.length, 1);
+  });
+
+  test("don't end it before there is an answer", async () => {
+    const fake = fakeProvider([callTools(call("last")), answer("Svar")]);
+    const { events } = await ask(
+      orchestrator({ provider: fake.provider, registry: registry() })
+    );
+    assert.equal(fake.steps.length, 0);
+    assert.deepEqual(
+      ofType(events, "text").map((e) => e.delta),
+      ["Svar"]
+    );
+  });
+
+  test("don't end it when called with other tools", async () => {
+    const fake = fakeProvider([
+      withText("Svar", call("act"), call("last")),
+      answer("Mer"),
+    ]);
+    await ask(orchestrator({ provider: fake.provider, registry: registry() }));
+    assert.equal(fake.steps.length, 0);
+  });
+});
+
+describe("tools of a map", () => {
+  test("leaves out the tools a map doesn't have", async () => {
+    const fake = fakeProvider();
+    const offered: string[][] = [];
+    const createSession = fake.provider.createSession.bind(fake.provider);
+    fake.provider.createSession = (options) => {
+      offered.push(options.tools.map((tool) => tool.name));
+      return createSession(options);
+    };
+    const chat = orchestrator({
+      provider: fake.provider,
+      registry: fakeRegistry(
+        async () => okRun,
+        [
+          definition("act", "action"),
+          { ...definition("never", "action"), isAvailable: () => false },
+          { ...definition("always", "action"), isAvailable: () => true },
+        ]
+      ),
+    });
+
+    await ask(chat);
+    assert.deepEqual(offered, [["act", "always"]]);
+  });
+});
+
 describe("limits of a turn", () => {
   test("stops at the iteration limit", async () => {
     const steps = Array.from({ length: 10 }, () => callTools(call("read_a")));

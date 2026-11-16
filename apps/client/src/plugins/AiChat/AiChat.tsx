@@ -45,6 +45,7 @@ const AiChat: React.FC<AiChatProps> = (props) => {
         model={model}
         layerControl={app.layerControl}
         introText={options.introText || DEFAULT_INTRO_TEXT}
+        privacyPolicyUrl={options.privacyPolicyUrl}
       />
     </BaseWindowPlugin>
   );

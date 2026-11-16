@@ -231,13 +231,13 @@ export class Orchestrator {
           instructions,
           this.#registry.promptSections
         ),
-        tools: this.#registry.tools.map(
-          ({ name, description, inputSchema }) => ({
+        tools: this.#registry.tools
+          .filter((tool) => tool.isAvailable?.(userCatalog) ?? true)
+          .map(({ name, description, inputSchema }) => ({
             name,
             description,
             inputSchema,
-          })
-        ),
+          })),
       })
     );
     conversation.running = true;
@@ -320,6 +320,8 @@ export class Orchestrator {
     emit: Emit,
     signal: AbortSignal
   ): Promise<boolean> {
+    // Whether the user has got any text, which a turn mustn't end without
+    let answered = false;
     for (let i = 0; i < this.#limits.maxIterations; i++) {
       // A client that is already gone, maybe before the turn started, costs nothing
       signal.throwIfAborted();
@@ -332,6 +334,7 @@ export class Orchestrator {
       usage.outputTokens += result.usage.outputTokens;
       usage.cachedTokens += result.usage.cachedTokens;
       calls.push(result.toolCalls.map((call) => call.name));
+      answered ||= result.text.trim() !== "";
 
       if (result.stopReason === "refusal") {
         throw new TurnStop("refusal");
@@ -357,6 +360,11 @@ export class Orchestrator {
       session.addToolResults(
         await this.#dispatch(result.toolCalls, context, emit, signal)
       );
+
+      // Such as the follow-up questions, which come after the answer
+      if (answered && result.toolCalls.every((call) => this.#endsTurn(call))) {
+        return false;
+      }
     }
     throw new TurnStop("max_iterations");
   }
@@ -387,8 +395,7 @@ export class Orchestrator {
       results.set(call.id, { callId: call.id, content, isError });
     };
 
-    const isRead = (call: ToolCall) =>
-      this.#registry.tools.find((t) => t.name === call.name)?.kind === "read";
+    const isRead = (call: ToolCall) => this.#toolOf(call)?.kind === "read";
 
     await untilAborted(Promise.all(calls.filter(isRead).map(execute)), signal);
     // Actions change the map, so they run one at a time, in the order asked for
@@ -397,6 +404,14 @@ export class Orchestrator {
     }
 
     return calls.map((call) => results.get(call.id) as ToolResult);
+  }
+
+  #toolOf(call: ToolCall) {
+    return this.#registry.tools.find((t) => t.name === call.name);
+  }
+
+  #endsTurn(call: ToolCall): boolean {
+    return this.#toolOf(call)?.endsTurn === true;
   }
 
   #report(

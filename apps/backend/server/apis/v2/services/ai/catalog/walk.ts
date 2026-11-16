@@ -258,6 +258,8 @@ export function walkMapConfig(mapConfig: RawMapConfig): WalkedMap {
       extent: readExtent(mapConfig.map?.extent),
       // On unless the aichat tool turns it off
       drawnFeatures: aichat?.drawnFeatures !== false,
+      // Off unless the aichat tool turns it on
+      suggestions: aichat?.suggestions === true,
       tools: tools.filter((t) => typeof t.type === "string").map(toMapTool),
     },
     tree: [],

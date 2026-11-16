@@ -112,6 +112,8 @@ export interface MapInfo {
   extent: number[] | null;
   /** Whether users may share what they drew with the chat, see drawn.ts */
   drawnFeatures: boolean;
+  /** Whether answers end with follow-up questions, see suggestionTools.ts */
+  suggestions: boolean;
   tools: MapTool[];
 }
 

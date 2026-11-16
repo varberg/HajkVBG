@@ -46,14 +46,16 @@ renders and acts on.
 
 ### Options
 
-| Option                                                    | Used by | Description                                                                                   |
-| --------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------- |
-| `title`                                                   | Client  | Window title. Default `AI-chatt`.                                                             |
-| `description`                                             | Client  | Tooltip and drawer text.                                                                      |
-| `introText`                                               | Client  | Shown before the first question. Newlines are kept.                                           |
-| `drawnFeatures`                                           | Client  | Whether users may share their Sketch drawings. On unless `false`.                             |
-| `target`, `position`, `width`, `height`, `visibleAtStart` | Client  | The usual window options.                                                                     |
-| `featureSources`                                          | Backend | WFS sources the assistant may query, see below. Opt-in: without it there's no feature search. |
+| Option                                                    | Used by | Description                                                                                                                |
+| --------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `title`                                                   | Client  | Window title. Default `AI-chatt`.                                                                                          |
+| `description`                                             | Client  | Tooltip and drawer text.                                                                                                   |
+| `introText`                                               | Client  | Shown before the first question. Lines starting with `•` or `-` become clickable examples.                                 |
+| `privacyPolicyUrl`                                        | Client  | Web page that the intro's warning links to ("Läs mer i kommunens integritetspolicy"), and the warning under the input too ("Läs mer om GDPR"), so it's always there. Without it, the warnings have no link. |
+| `drawnFeatures`                                           | Client  | Whether users may share their Sketch drawings. On unless `false`.                                                          |
+| `suggestions`                                             | Backend | Whether answers end with 2–3 clickable follow-up questions. Off unless `true`.                                             |
+| `target`, `position`, `width`, `height`, `visibleAtStart` | Client  | The usual window options.                                                                                                  |
+| `featureSources`                                          | Backend | WFS sources the assistant may query, see below. Opt-in: without it there's no feature search.                              |
 
 **`featureSources`** – each entry is `{ id, description, extraFields? }`:
 
@@ -172,11 +174,14 @@ answers have replaced it on the map. Routes unchecked on the map are left out.
 | `sse.ts`                                             | Server-sent events over `fetch` (`EventSource` can't POST)  |
 | `mapActions.ts`                                      | Runs actions on the map, keeps what each answer drew        |
 | `drawnFeatures.ts`                                   | Reads Sketch drawings to share                              |
+| `personalNumbers.ts`                                 | Masks personal numbers before a question is sent            |
 | `routeLayer.ts`                                      | The layer that shows routes and reachable areas             |
 | `routeStyles.ts`                                     | Route colors and styles, on the map and in downloads        |
 | `routeFormat.ts`                                     | Formatting of times, distances and frequencies              |
 | `exportDrawn.ts`                                     | KML, GPX and GeoJSON downloads                              |
 | `AiChatView.tsx`                                     | The window: message list, status, input                     |
+| `IntroPanel.tsx`                                     | The intro, its example questions and the warning            |
+| `SuggestionList.tsx`                                 | Questions to send with a click                              |
 | `ChatMessageItem.tsx`                                | One message, with its Markdown, layers, routes and notices  |
 | `LayerResultList.tsx`                                | The layer list under an answer                              |
 | `RouteCard.tsx`, `RouteDetails.tsx`, `RouteRows.tsx` | A route's summary and its details                           |
@@ -203,6 +208,9 @@ answers have replaced it on the map. Routes unchecked on the map are left out.
   through `ToolControlModel`, as everywhere else in the client.
 - **Text is Swedish** and lives in `constants.ts`.
 - **Sensitive data.** The input warns against personal data, as questions go
-  to a cloud model. MCP servers with `client` exposure would keep results away
+  to a cloud model. Swedish personal and coordination numbers in a question or
+  a drawing's title are masked with `x` before they're sent
+  (`personalNumbers.ts`, kept the same as Backend's), and the question tells
+  the user in red. MCP servers with `client` exposure would keep results away
   from the model. The `mcp_result` event exists for that, but Backend keeps such
   servers off until the client can show their results.

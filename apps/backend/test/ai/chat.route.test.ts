@@ -299,6 +299,32 @@ describe("POST /ai/chat", () => {
     assert.equal(JSON.stringify(json).includes("/srv"), false);
   });
 
+  test("masks personal numbers before the turn begins", async () => {
+    let received: unknown;
+    const handler = createChatHandler(
+      async () =>
+        fakeChat(
+          async (emit) => emit({ type: "done", truncated: false }),
+          async (...args: unknown[]) => {
+            received = args[0];
+            return {};
+          }
+        ),
+      () => true
+    );
+    const { server, url } = await serve(handler);
+    const response = await post(url, {
+      ...body,
+      message: "Jag heter 19791027-5934",
+    });
+    await response.text();
+    assert.equal(
+      (received as { message: string }).message,
+      "Jag heter xxxxxxxx-xxxx"
+    );
+    server.close();
+  });
+
   test("an access error keeps its status", async () => {
     const { status } = await statusOf(failingBeginTurn(new AccessError("No")));
     assert.equal(status, 403);

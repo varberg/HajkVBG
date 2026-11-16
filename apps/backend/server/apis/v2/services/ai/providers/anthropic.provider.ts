@@ -53,6 +53,34 @@ function stopReasonOf(message: BetaMessage, calls: ToolCall[]): StopReason {
   }
 }
 
+/**
+ * @summary Join consecutive user messages into one. A turn can end on tool
+ * results, see ToolDefinition.endsTurn, so the next question follows them.
+ */
+export function joinUserMessages(
+  messages: BetaMessageParam[]
+): BetaMessageParam[] {
+  const blocks = (
+    content: BetaMessageParam["content"]
+  ): BetaContentBlockParam[] =>
+    typeof content === "string"
+      ? [{ type: "text", text: content }]
+      : ((content ?? []) as BetaContentBlockParam[]);
+
+  return messages.reduce<BetaMessageParam[]>((joined, message) => {
+    const last = joined.at(-1);
+    if (last?.role === "user" && message.role === "user") {
+      joined[joined.length - 1] = {
+        role: "user",
+        content: [...blocks(last.content), ...blocks(message.content)],
+      };
+    } else {
+      joined.push(message);
+    }
+    return joined;
+  }, []);
+}
+
 class AnthropicSession implements ProviderSession {
   #client: Anthropic;
   #model: string;
@@ -109,7 +137,7 @@ class AnthropicSession implements ProviderSession {
         ],
         cache_control: { type: "ephemeral" },
         tools: this.#tools,
-        messages: this.#history.items,
+        messages: joinUserMessages(this.#history.items),
         ...(this.#fallback && {
           betas: [FALLBACK_BETA],
           fallbacks: "default",

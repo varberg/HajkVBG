@@ -1,15 +1,25 @@
 export const DEFAULT_TITLE = "AI-chatt";
 export const DEFAULT_DESCRIPTION = "Hitta och tänd kartlager genom att fråga";
 export const DEFAULT_INTRO_TEXT =
-  "Fråga mig om kartan, så hjälper jag dig. Du kan till exempel skriva:\n\n• Vilka lager finns om naturvård?\n• Tänd lagret med skolor\n• Byt bakgrund till flygfoto\n• Öppna ritverktyget";
+  "Fråga mig om kartan, så hjälper jag dig att hitta lager, byta bakgrund och öppna verktyg. Prova till exempel:\n\n• Vilka lager finns om naturvård?\n• Tänd lagret med skolor\n• Byt bakgrund till flygfoto\n• Öppna ritverktyget";
 
 // Also enforced by Backend, see controllers/ai/controller.ts
 export const MAX_MESSAGE_LENGTH = 4000;
 
 export const UI_STRINGS = {
   inputLabel: "Skriv din fråga",
+  examples: "Exempel på frågor",
+  suggestions: "Förslag på följdfrågor",
   sensitiveWarning:
     "Skriv inte in känsliga uppgifter, till exempel personnummer.",
+  introWarning:
+    "Obs! Skriv aldrig in känslig information, till exempel personnummer, andra personuppgifter eller sekretessbelagda uppgifter.",
+  // Only shown with privacyPolicyUrl, with the middle part as the link
+  privacyPolicy: ["Läs mer i ", "kommunens integritetspolicy", "."],
+  // The link under the input, only shown with privacyPolicyUrl
+  privacyPolicyShort: "Läs mer om GDPR",
+  personalNumberMasked:
+    "Skriv inte personnummer i chatten. Numret ersattes med x och skickades inte till AI:n.",
   send: "Skicka",
   stop: "Stoppa",
   stopped: "Du stoppade svaret.",

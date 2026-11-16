@@ -203,6 +203,7 @@ describe("tool order", () => {
         "search_features",
         "show_features",
         "clear_features",
+        "suggest_follow_ups",
       ]
     );
   });
@@ -263,6 +264,7 @@ describe("tool schemas", () => {
       "set_background",
       "set_layer_visibility",
       "show_features",
+      "suggest_follow_ups",
     ]);
   });
 });
@@ -1038,6 +1040,81 @@ describe("places", () => {
       assert.equal(content.includes("presetUrl"), false);
       assert.equal(content.includes("100.5"), false);
     }
+  });
+});
+
+// The map config with `suggestions` set in the options of the aichat tool
+const withSuggestions = (suggestions: boolean) => {
+  const base = mapConfig();
+  const config: RawMapConfig = {
+    ...base,
+    tools: base.tools.map((tool) =>
+      tool.type === "aichat"
+        ? { ...tool, options: { ...tool.options, suggestions } }
+        : tool
+    ),
+  };
+  return view(config);
+};
+
+describe("suggest_follow_ups", () => {
+  const suggest = (questions: string[], suggestions = true) =>
+    call(
+      "suggest_follow_ups",
+      { questions },
+      context(withSuggestions(suggestions))
+    );
+
+  test("are off unless the map turns them on", () => {
+    assert.equal(view().mapInfo.suggestions, false);
+    assert.equal(withSuggestions(true).mapInfo.suggestions, true);
+  });
+
+  test("sends the questions, tidied, without repeats and too long ones", async () => {
+    const { result, events } = await suggest([
+      "  Tänd  lagret ",
+      "Tänd lagret",
+      "",
+      "x".repeat(81),
+      "Gå dit",
+      "Visa med cykel",
+      "En fjärde",
+    ]);
+    assert.equal(result.shown, 3);
+    assert.deepEqual(events, [
+      {
+        type: "suggestions",
+        items: ["Tänd lagret", "Gå dit", "Visa med cykel"],
+      },
+    ]);
+  });
+
+  test("sends nothing when no question is left", async () => {
+    const { result, events } = await suggest([" "]);
+    assert.equal(result.shown, 0);
+    assert.deepEqual(events, []);
+  });
+
+  test("sends nothing on a map that hasn't turned them on", async () => {
+    const { events } = await suggest(["Gå dit"], false);
+    assert.deepEqual(events, []);
+  });
+
+  test("are only explained in the prompt of a map that turns them on", () => {
+    assert.ok(
+      buildSystemPrompt(withSuggestions(true)).includes("suggest_follow_ups")
+    );
+    assert.equal(
+      buildSystemPrompt(view()).includes("suggest_follow_ups"),
+      false
+    );
+  });
+
+  test("are only offered to a map that turns them on", () => {
+    const tool = tools.find((t) => t.name === "suggest_follow_ups")!;
+    assert.equal(tool.endsTurn, true);
+    assert.equal(tool.isAvailable?.(view()), false);
+    assert.equal(tool.isAvailable?.(withSuggestions(true)), true);
   });
 });
 

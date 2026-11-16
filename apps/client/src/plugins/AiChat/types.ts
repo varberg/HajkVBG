@@ -16,8 +16,12 @@ export interface AiChatOptions {
   description?: string;
   /** Text shown before the first question */
   introText?: string;
+  /** Web page that the intro's warning links to as the municipality's privacy policy */
+  privacyPolicyUrl?: string;
   /** Whether users may share what they draw with Sketch. On unless false. */
   drawnFeatures?: boolean;
+  /** Read by Backend: whether answers end with follow-up questions. Off unless true. */
+  suggestions?: boolean;
   target?: string;
   position?: string;
   width?: number;
@@ -49,6 +53,7 @@ export interface AiChatViewProps {
   model: AiChatModel;
   layerControl: LayerControlModel;
   introText: string;
+  privacyPolicyUrl?: string;
 }
 
 export interface DrawnToggleProps {
@@ -248,6 +253,7 @@ export type ChatEvent =
   | { type: "text"; delta: string }
   | { type: "tool_status"; tool: string; status: "running" | "done" | "failed" }
   | { type: "layers"; items: PresentedLayer[] }
+  | { type: "suggestions"; items: string[] }
   | ({ type: "action" } & ChatAction)
   // From an MCP server with `client` exposure. Backend turns those servers off
   // for now, see readMcpExtensions, so nothing shows it yet.
@@ -289,7 +295,11 @@ export interface ChatMessage {
   text: string;
   /** A question only: how many drawings were shared with it */
   drawnShared: number;
+  /** A question only: whether personal numbers were masked in it */
+  personalNumberMasked: boolean;
   layers: PresentedLayer[];
+  /** Follow-up questions, shown under the latest answer only */
+  suggestions: string[];
   /** The routes this answer showed on the map, in the order of their colors */
   routes: RouteSummary[];
   /** Which showing on the map they are, see RouteLayer */

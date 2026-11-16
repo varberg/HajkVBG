@@ -86,6 +86,10 @@ write, so the design is about what it can _see_ and what it can _do_.
   the model. Anything but `model` means `client`, which fails closed. Every
   bridged result passes `mcp/exposure.ts`. `client` servers are kept off for
   now, as the browser can't show their results yet.
+- **No personal numbers.** Swedish personal and coordination numbers in the
+  question and in drawing titles are masked with `x` (`personalNumbers.ts`).
+  Client masks them too, this is for callers without it. Tool results aren't
+  masked.
 - **Tokens stay here.** MCP tokens never reach the browser. Route geometry is
   fetched by the browser from short-lived signed URLs that the MCP server
   issues.
@@ -98,12 +102,18 @@ Tools are provider independent and live in `tools/`. Each has a `kind`:
 - `action`: changes the map through events to the browser, run one at a time
   in the order asked for.
 
-| Module                  | Tools                                                                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tools/layerTools.ts`   | `search_layers`, `filter_layers`, `get_layer_details`, `present_layers`, `set_layer_visibility`                                               |
-| `tools/mapTools.ts`     | `set_background`, `open_plugin`, `close_plugin`, `go_to_place`                                                                                |
-| `tools/featureTools.ts` | `search_features`, `show_features`, `clear_features`                                                                                          |
-| routing MCP             | `route`, `multi_stop_route`, `travel_time_matrix`, `reachable_within`, `find_street`, `road_info`, `line_info`, `nearest_stops`, `show_route` |
+| Module                     | Tools                                                                                                                                         |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tools/layerTools.ts`      | `search_layers`, `filter_layers`, `get_layer_details`, `present_layers`, `set_layer_visibility`                                               |
+| `tools/mapTools.ts`        | `set_background`, `open_plugin`, `close_plugin`, `go_to_place`                                                                                |
+| `tools/featureTools.ts`    | `search_features`, `show_features`, `clear_features`                                                                                          |
+| `tools/suggestionTools.ts` | `suggest_follow_ups`, only on maps with `suggestions: true`                                                                                   |
+| routing MCP                | `route`, `multi_stop_route`, `travel_time_matrix`, `reachable_within`, `find_street`, `road_info`, `line_info`, `nearest_stops`, `show_route` |
+
+A tool with `endsTurn` is called last, after the answer: when a model call asks
+for nothing else, the turn ends without handing its result back, which saves a
+model call. A tool with `isAvailable` is left out of the conversations of maps
+where it gives false.
 
 `tools/registry.ts` validates input against the schema and runs the tool. It
 never throws: a failing tool returns `{ error }` to the model, which can often

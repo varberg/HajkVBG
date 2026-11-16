@@ -63,6 +63,12 @@ const DRAWN_INSTRUCTIONS = `Drawn features:
 - Use a drawn id wherever a feature id is taken, such as in \`near\`, with \`distance_m\` 0 for what lies inside a drawn area, as a point for routing, or in \`avoid\`. Only the ones in the latest map state can be used.
 - If the user mentions something they drew and the map state has no drawn features, tell them to turn on the switch for drawn objects above the message input, which shows once they have drawn something. \`drawnSkipped\` counts drawings that couldn't be used, as they were too many or too detailed.`;
 
+// Only on maps that turn them on, see suggestionTools.ts
+const SUGGESTION_INSTRUCTIONS = `Follow-up questions:
+- After the text of your answer, in the same response, call suggest_follow_ups with two or three short questions that the user is likely to ask next, written as they would write them and in their language.
+- Only suggest what you can do on this map with your tools, and build on the answer, such as showing a layer you mentioned, going to a place you found, or another way to travel.
+- Write nothing after the call. Skip it when you ask the user something, or when you couldn't help.`;
+
 /**
  * @summary The group tree as compact text for the prompt, one group per line:
  * `- Name [id] (allowed leaf layers)`, with nesting shown by indentation.
@@ -141,12 +147,15 @@ export function buildSystemPrompt(
 
   const extra = sections.map((section) => `${section}\n\n`).join("");
   const drawn = mapInfo.drawnFeatures ? `${DRAWN_INSTRUCTIONS}\n\n` : "";
+  const suggestions = mapInfo.suggestions
+    ? `${SUGGESTION_INSTRUCTIONS}\n\n`
+    : "";
 
   return `${INSTRUCTIONS}${renderInstructions(instructions)}
 
 ${renderFeatureSources(userCatalog)}
 
-${drawn}${extra}${openable}${otherTools}
+${drawn}${suggestions}${extra}${openable}${otherTools}
 
 The map is called "${title}".${projection} These are its layer groups, one per line, as \`- Name [group id] (number of layers)\`, with subgroups indented:
 

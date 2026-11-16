@@ -7,6 +7,7 @@ import type {
   Orchestrator,
   Turn,
 } from "../../services/ai/orchestrator.ts";
+import { maskPersonalNumbers } from "../../services/ai/personalNumbers.ts";
 import { AiChatError } from "../../utils/AiChatError.ts";
 import handleStandardResponse from "../../utils/handleStandardResponse.js";
 
@@ -54,7 +55,8 @@ function readTurnRequest(req: Request, res: Response) {
     map,
     user: res.locals.authUser as string | undefined,
     conversationId,
-    message: message.trim(),
+    // Never sent to the model. Client masks them too, but anyone can call this.
+    message: maskPersonalNumbers(message.trim()),
     mapState,
   };
 }

@@ -5,6 +5,7 @@ import { featureTools } from "./featureTools.ts";
 import { layerTools } from "./layerTools.ts";
 import { mapTools } from "./mapTools.ts";
 import { validateInput } from "./schema.ts";
+import { suggestionTools } from "./suggestionTools.ts";
 import type {
   Tool,
   ToolContext,
@@ -19,7 +20,12 @@ const logger = log4js.getLogger("service.ai.tools");
  * The tools of the chat. Independent of transport and provider, and the order
  * is fixed, because a changed tool list breaks the prompt cache.
  */
-export const tools: Tool[] = [...layerTools, ...mapTools, ...featureTools];
+export const tools: Tool[] = [
+  ...layerTools,
+  ...mapTools,
+  ...featureTools,
+  ...suggestionTools,
+];
 
 const byName = (list: Tool[]) => new Map(list.map((tool) => [tool.name, tool]));
 

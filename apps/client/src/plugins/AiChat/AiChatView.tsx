@@ -26,6 +26,9 @@ import { isMobile } from "../../utils/IsMobile";
 
 import ChatMessageItem from "./ChatMessageItem";
 import DrawnToggle from "./DrawnToggle";
+import IntroPanel from "./IntroPanel";
+import PrivacyPolicyLink from "./PrivacyPolicyLink";
+import SuggestionList from "./SuggestionList";
 import { useDrawnCount } from "./drawnFeatures";
 import { MAX_MESSAGE_LENGTH, TOOL_STATUS, UI_STRINGS } from "./constants";
 import type { AiChatViewProps } from "./types";
@@ -33,7 +36,12 @@ import type { AiChatViewProps } from "./types";
 // How close to the end counts as following along, in pixels
 const FOLLOW_MARGIN = 40;
 
-function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
+function AiChatView({
+  model,
+  layerControl,
+  introText,
+  privacyPolicyUrl,
+}: AiChatViewProps) {
   const { messages, running, activeTool, includeDrawn } = useSyncExternalStore(
     model.subscribe,
     model.getState
@@ -52,7 +60,8 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
     if (list && followRef.current) {
       list.scrollTop = list.scrollHeight;
     }
-  }, [messages, activeTool]);
+    // `running` too, as the follow-up questions show once the answer is done
+  }, [messages, activeTool, running]);
 
   const handleScroll = () => {
     const list = listRef.current;
@@ -62,12 +71,12 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
     }
   };
 
-  const send = () => {
-    if (running || draft.trim() === "") {
+  const send = (text = draft) => {
+    if (running || text.trim() === "") {
       return;
     }
     followRef.current = true;
-    model.send(draft);
+    model.send(text);
     setDraft("");
 
     // A phone's sheet holds a focused input at its top, above the keyboard, which
@@ -89,6 +98,16 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
   // A sheet follows its content and opens low, so with nothing to scroll the
   // input stays near the top. Later the chat fills the 70% snap, less the header.
   const mobileHeight = messages.length === 0 ? "auto" : "calc(70dvh - 56px)";
+
+  // Only the latest answer has them, as older ones no longer fit the map
+  const lastMessage = messages.at(-1);
+  const suggestions =
+    !running &&
+    lastMessage?.role === "assistant" &&
+    lastMessage.error === null &&
+    !lastMessage.stopped
+      ? lastMessage.suggestions
+      : [];
 
   const hasDrawn = drawnCount > 0;
   const status = (
@@ -130,13 +149,12 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
         }}
       >
         {messages.length === 0 && (
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ whiteSpace: "pre-line" }}
-          >
-            {introText}
-          </Typography>
+          <IntroPanel
+            introText={introText}
+            privacyPolicyUrl={privacyPolicyUrl}
+            disabled={running}
+            onExample={send}
+          />
         )}
         {messages.map((message) => (
           <ChatMessageItem
@@ -148,6 +166,15 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
             onDownload={model.download}
           />
         ))}
+        {suggestions.length > 0 && (
+          <SuggestionList
+            items={suggestions}
+            label={UI_STRINGS.suggestions}
+            disabled={running}
+            small
+            onPick={send}
+          />
+        )}
       </Stack>
 
       {/* With drawings the status sits above the toggle, else beside the button */}
@@ -249,6 +276,9 @@ function AiChatView({ model, layerControl, introText }: AiChatViewProps) {
         sx={{ px: 1.5, pb: 1 }}
       >
         {UI_STRINGS.sensitiveWarning}
+        <PrivacyPolicyLink url={privacyPolicyUrl} newLine>
+          {UI_STRINGS.privacyPolicyShort}
+        </PrivacyPolicyLink>
       </Typography>
     </Stack>
   );

@@ -1,3 +1,4 @@
+import { maskPersonalNumbers } from "../personalNumbers.ts";
 import type { Geometry, Position } from "./geojson.ts";
 
 /**
@@ -141,7 +142,7 @@ function cleanTitle(value: unknown): string | null {
     .replace(/[\u0000-\u001f\u007f<>`]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return text.slice(0, MAX_TITLE) || null;
+  return maskPersonalNumbers(text.slice(0, MAX_TITLE)) || null;
 }
 
 function insideCheck(extent: number[] | null): Check {

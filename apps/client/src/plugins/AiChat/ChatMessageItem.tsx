@@ -63,6 +63,15 @@ function ChatMessageItem({
             {UI_STRINGS.drawnShared(message.drawnShared)}
           </Typography>
         )}
+        {message.personalNumberMasked && (
+          <Typography
+            variant="caption"
+            color="error"
+            sx={{ mt: 0.25, textAlign: "right" }}
+          >
+            {UI_STRINGS.personalNumberMasked}
+          </Typography>
+        )}
       </Stack>
     );
   }
@@ -75,7 +84,8 @@ function ChatMessageItem({
         </Alert>
       ))}
       {message.text !== "" && (
-        <Box>
+        // The Stack spaces what follows, not the last paragraph's margin
+        <Box sx={{ "& > :last-child": { mb: 0 } }}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}

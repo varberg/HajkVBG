@@ -44,6 +44,8 @@ export interface ShownRoute {
 
 export type ToolEvent =
   | { type: "layers"; items: PresentedLayer[] }
+  /** Follow-up questions the user can send with a click. */
+  | { type: "suggestions"; items: string[] }
   | {
       type: "action";
       action: "set_layer_visibility";
