@@ -49,6 +49,7 @@ export const ROUTING_INSTRUCTIONS = `Routing:
 - line_info describes a line: its stops in order and how often it runs. When several lines match, call it again with the \`route_id\` of the right one.
 - A large \`snap_m\` or any \`warnings\` mean that a point may be wrong. Tell the user.
 - To compare many places, use travel_time_matrix, and only use route for the one you answer with.
+- The nearest places by foot, bike, car or public transport, such as the three nearest shelters on foot, are not always the nearest as the crow flies, which is how search_features with \`near\` sorts them. So take more of them than asked for, about 10, compare them with travel_time_matrix in that mode, and route to the nearest ones by that time. Then they are the nearest in that mode, so don't say "as the crow flies".
 - The tools give times in minutes with decimals. Write them as people say them: under a minute in seconds ("20 s"), then in whole minutes ("7 min", never "7,3 min" or "0,3 min"), and from an hour as "1 h 15 min". The same goes for tables.
 - When the answer is about routes, reachable areas, lines or nearest stops, call show_route once, with the \`resultId\` of every one of them. That shows them on the map, with their streets, steps or stops under your answer, so don't list the streets or the stops of a line yourself.
 - show_route marks the start and end of each route, and the user can turn each route on and off. So don't call show_features for the places of a route, unlike for other answers about features.`;
