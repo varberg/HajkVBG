@@ -114,7 +114,12 @@ describe("toRegistrySchema", () => {
     const schema = convert(schemaOf("reachable_within"));
     const origin = { x: 12.25, y: 57.1, srid: null, label: "Station" };
     assert.equal(
-      validateInput(schema, { origin, minutes: 10, mode: null, avoid: null }),
+      validateInput(schema, {
+        origin,
+        minutes: [5, 10],
+        mode: null,
+        avoid: null,
+      }),
       null
     );
     assert.match(

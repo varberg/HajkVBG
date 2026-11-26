@@ -1,5 +1,5 @@
 {
-  "instructions": "Routing by car, bike, walking and public transport, and road information, for Varbergs kommun, on the Swedish national road database (NVDB) and Hallandstrafiken's timetable (GTFS). Pass coordinates as {x, y, srid}: srid 4326 means x = longitude, y = latitude; SWEREF 99 (3006, 3007-3018) and other EPSG codes are accepted too. Geocode addresses and places with your own tools first. Results contain a geometry_url for the map; do not fetch it or repeat it to the user, the application displays it. Modes: car = bilnät, speed limit per direction (urban driving at 85% of the limit, roundabouts ≤30 km/h, small time penalties for speed bumps, stop and give-way signs), one-way streets and the network's turn restrictions respected by route and multi_stop_route (travel_time_matrix and reachable_within ignore them, a minor difference). bike = car and cycle network except motorways, fixed cycling speed (lower on gravel), one-way respected on car roads; route and multi_stop_route prefer cycle paths over fast roads, roundabouts and roads with a cycle path alongside (and avoid turning between road and crossing) even if slightly longer, while travel_time_matrix and reachable_within use the fastest path. walk = everything except motorways, both directions. Not modelled: access bans (Förbud mot trafik), weight/height limits, time-dependent rules, traffic. transit = public transport (Hallandstrafiken's scheduled timetable, GTFS) plus walking to, from and between stops: a typical trip time for one analysis period (see data_status), with the average wait (half the time between departures of the line at the stop, capped) instead of exact connections, and a penalty per boarding so routes with fewer changes are preferred (the penalty is not counted in the minutes; travel_time_matrix and reachable_within ignore it). Not modelled: exact connections, delays, cancellations; results only hold for the analysis date and period. Walking is part of the transit network, so where no bus runs the fastest 'transit' trip is a long walk: route and multi_stop_route then return status no_transit_connection (one walk longer than the limit, see data_status) - say that public transport does not serve the trip and don't present it as a bus trip. travel_time_matrix and reachable_within have no such check: their transit times may be mostly walking. avoid (route, multi_stop_route, travel_time_matrix, reachable_within): areas such as road works or closures as GeoJSON; roads are closed where they run through an area, the parts outside stay open up to its edge (dead ends), for all modes or the modes given; in transit it closes walking, never buses. Coverage: Varbergs kommun plus about 15 km around it. Never state departure or arrival clock times, next departures or timetables, and don't plan an exact trip: the data is a scheduled timetable without cancellations or delays, and this server only gives typical travel times for analysis (walk, average wait, ride). For actual trips and departures, refer people to Hallandstrafiken (hallandstrafiken.se or its app).",
+  "instructions": "Routing by car, bike, walking and public transport, and road information, for Varbergs kommun, on the Swedish national road database (NVDB) and Hallandstrafiken's timetable (GTFS). Pass coordinates as {x, y, srid}: srid 4326 means x = longitude, y = latitude; SWEREF 99 (3006, 3007-3018) and other EPSG codes are accepted too. Geocode addresses and places with your own tools first. Results contain a geometry_url for the map; do not fetch it or repeat it to the user, the application displays it. Modes: car = bilnät, speed limit per direction (urban driving at 85% of the limit, roundabouts ≤30 km/h, small time penalties for speed bumps, stop and give-way signs), one-way streets and the network's turn restrictions respected by route and multi_stop_route (travel_time_matrix and reachable_within ignore them, a minor difference). bike = car and cycle network except motorways, fixed cycling speed (lower on gravel), one-way respected on car roads; route and multi_stop_route prefer cycle paths over fast roads, roundabouts and roads with a cycle path alongside (and avoid turning between road and crossing) even if slightly longer, while travel_time_matrix and reachable_within use the fastest path. walk = everything except motorways, both directions; route and multi_stop_route prefer a sidewalk or footway over the road next to it. Full traffic bans (Förbud mot trafik) are respected for car and bike (bike: on car roads, unless cyclists are exempt). Not modelled: through-traffic-only and time-limited bans, truck bans, gågata/gångfartsområde, weight/height limits, other time-dependent rules, traffic. transit = public transport (Hallandstrafiken's scheduled timetable, GTFS) plus walking to, from and between stops: a typical trip time for one analysis period (see data_status), with the average wait (half the time between departures of the line at the stop, capped) instead of exact connections, and a penalty per boarding so routes with fewer changes are preferred (the penalty is not counted in the minutes; travel_time_matrix and reachable_within ignore it). Not modelled: exact connections, delays, cancellations; results only hold for the analysis date and period. Walking is part of the transit network, so where no bus runs the fastest 'transit' trip is a long walk: route and multi_stop_route then return status no_transit_connection (one walk longer than the limit, see data_status) - say that public transport does not serve the trip and don't present it as a bus trip. travel_time_matrix and reachable_within have no such check: their transit times may be mostly walking. avoid (route, multi_stop_route, travel_time_matrix, reachable_within): areas such as road works or closures as GeoJSON; roads are closed where they run through an area, the parts outside stay open up to its edge (dead ends), for all modes or the modes given; in transit it closes walking, never buses. Coverage: Varbergs kommun plus about 15 km around it. Never state departure or arrival clock times, next departures or timetables, and don't plan an exact trip: the data is a scheduled timetable without cancellations or delays, and this server only gives typical travel times for analysis (walk, average wait, ride). For actual trips and departures, refer people to Hallandstrafiken (hallandstrafiken.se or its app).",
   "tools": [
     {
       "name": "route",
@@ -16,7 +16,12 @@
           "mode": {
             "default": "car",
             "description": "car, bike, walk or transit (public transport + walking)",
-            "enum": ["car", "bike", "walk", "transit"],
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -38,7 +43,10 @@
             "title": "Avoid"
           }
         },
-        "required": ["origin", "destination"],
+        "required": [
+          "origin",
+          "destination"
+        ],
         "$defs": {
           "AvoidArea": {
             "properties": {
@@ -82,7 +90,12 @@
                 "anyOf": [
                   {
                     "items": {
-                      "enum": ["car", "bike", "walk", "transit"],
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
                       "type": "string"
                     },
                     "type": "array"
@@ -110,7 +123,9 @@
                 "title": "Label"
               }
             },
-            "required": ["geojson"],
+            "required": [
+              "geojson"
+            ],
             "title": "AvoidArea",
             "type": "object"
           },
@@ -149,7 +164,10 @@
                 "title": "Label"
               }
             },
-            "required": ["x", "y"],
+            "required": [
+              "x",
+              "y"
+            ],
             "title": "Point",
             "type": "object"
           }
@@ -180,7 +198,12 @@
           "mode": {
             "default": "car",
             "description": "car, bike, walk or transit (public transport + walking)",
-            "enum": ["car", "bike", "walk", "transit"],
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -207,7 +230,9 @@
             "title": "Avoid"
           }
         },
-        "required": ["stops"],
+        "required": [
+          "stops"
+        ],
         "$defs": {
           "AvoidArea": {
             "properties": {
@@ -251,7 +276,12 @@
                 "anyOf": [
                   {
                     "items": {
-                      "enum": ["car", "bike", "walk", "transit"],
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
                       "type": "string"
                     },
                     "type": "array"
@@ -279,7 +309,9 @@
                 "title": "Label"
               }
             },
-            "required": ["geojson"],
+            "required": [
+              "geojson"
+            ],
             "title": "AvoidArea",
             "type": "object"
           },
@@ -318,7 +350,10 @@
                 "title": "Label"
               }
             },
-            "required": ["x", "y"],
+            "required": [
+              "x",
+              "y"
+            ],
             "title": "Point",
             "type": "object"
           }
@@ -349,7 +384,12 @@
           "mode": {
             "default": "car",
             "description": "car, bike, walk or transit (public transport + walking)",
-            "enum": ["car", "bike", "walk", "transit"],
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -371,7 +411,9 @@
             "title": "Avoid"
           }
         },
-        "required": ["points"],
+        "required": [
+          "points"
+        ],
         "$defs": {
           "AvoidArea": {
             "properties": {
@@ -415,7 +457,12 @@
                 "anyOf": [
                   {
                     "items": {
-                      "enum": ["car", "bike", "walk", "transit"],
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
                       "type": "string"
                     },
                     "type": "array"
@@ -443,7 +490,9 @@
                 "title": "Label"
               }
             },
-            "required": ["geojson"],
+            "required": [
+              "geojson"
+            ],
             "title": "AvoidArea",
             "type": "object"
           },
@@ -482,7 +531,10 @@
                 "title": "Label"
               }
             },
-            "required": ["x", "y"],
+            "required": [
+              "x",
+              "y"
+            ],
             "title": "Point",
             "type": "object"
           }
@@ -497,7 +549,7 @@
     },
     {
       "name": "reachable_within",
-      "description": "Area reachable from a point within a number of minutes (isochrone). Returns km of road reachable, the area of the convex hull around it (an upper bound) and a geometry_url with the reachable roads for the map. With transit: the roads reachable on foot plus public transport (average waits, walking without a distance limit).",
+      "description": "Areas reachable from a point within one or more travel times (isochrones), e.g. minutes [5, 10, 15, 20] for how far one gets in 5, 10, 15 and 20 minutes. Per time: area_km2, road_km reachable, max_km and km_by_direction (straight-line distance from the origin to the farthest point reached, overall and per compass sector N, NE, ...), farthest_road (street or road number there) and cell_m. The area is land within about half a grid cell (cell_m) of a road reached in time, plus roadless areas enclosed by it (fields, forest, lakes); turn restrictions are ignored. Separate islands are normal for transit (around stops) and near motorway exits by car (no stopping on the motorway). geometry_url has the areas for the map. With transit: on foot plus public transport (average waits, walking without a distance limit).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -505,15 +557,26 @@
             "$ref": "#/$defs/Point"
           },
           "minutes": {
-            "exclusiveMinimum": 0,
-            "maximum": 60,
+            "description": "1–6 travel times in minutes, e.g. [5, 10, 15, 20]; one area per time",
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 60,
+              "type": "number"
+            },
+            "maxItems": 6,
+            "minItems": 1,
             "title": "Minutes",
-            "type": "number"
+            "type": "array"
           },
           "mode": {
             "default": "car",
             "description": "car, bike, walk or transit (public transport + walking)",
-            "enum": ["car", "bike", "walk", "transit"],
+            "enum": [
+              "car",
+              "bike",
+              "walk",
+              "transit"
+            ],
             "title": "Mode",
             "type": "string"
           },
@@ -535,7 +598,10 @@
             "title": "Avoid"
           }
         },
-        "required": ["origin", "minutes"],
+        "required": [
+          "origin",
+          "minutes"
+        ],
         "$defs": {
           "AvoidArea": {
             "properties": {
@@ -579,7 +645,12 @@
                 "anyOf": [
                   {
                     "items": {
-                      "enum": ["car", "bike", "walk", "transit"],
+                      "enum": [
+                        "car",
+                        "bike",
+                        "walk",
+                        "transit"
+                      ],
                       "type": "string"
                     },
                     "type": "array"
@@ -607,7 +678,9 @@
                 "title": "Label"
               }
             },
-            "required": ["geojson"],
+            "required": [
+              "geojson"
+            ],
             "title": "AvoidArea",
             "type": "object"
           },
@@ -646,7 +719,10 @@
                 "title": "Label"
               }
             },
-            "required": ["x", "y"],
+            "required": [
+              "x",
+              "y"
+            ],
             "title": "Point",
             "type": "object"
           }
@@ -672,7 +748,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "title": "find_streetArguments"
       },
       "annotations": {
@@ -683,7 +761,7 @@
     },
     {
       "name": "road_info",
-      "description": "Road information at a point: the nearest roads in NVDB within radius_m (street name, road number, network type, functional road class 0–9 (0 = most important), speed limits, one-way, surface, cycle/footway type, urban area).",
+      "description": "Road information at a point: the nearest roads in NVDB within radius_m (street name, road number, network type, functional road class 0–9 (0 = most important), speed limits, one-way, surface, cycle/footway type, urban area, closed_to: modes a full traffic ban (Förbud mot trafik) closes the road to in at least one direction - explains a detour).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -698,7 +776,9 @@
             "type": "number"
           }
         },
-        "required": ["point"],
+        "required": [
+          "point"
+        ],
         "$defs": {
           "Point": {
             "properties": {
@@ -735,7 +815,10 @@
                 "title": "Label"
               }
             },
-            "required": ["x", "y"],
+            "required": [
+              "x",
+              "y"
+            ],
             "title": "Point",
             "type": "object"
           }
@@ -775,7 +858,9 @@
             "type": "string"
           }
         },
-        "required": ["line"],
+        "required": [
+          "line"
+        ],
         "title": "line_infoArguments"
       },
       "annotations": {
@@ -808,7 +893,9 @@
             "type": "integer"
           }
         },
-        "required": ["points"],
+        "required": [
+          "points"
+        ],
         "$defs": {
           "Point": {
             "properties": {
@@ -845,7 +932,10 @@
                 "title": "Label"
               }
             },
-            "required": ["x", "y"],
+            "required": [
+              "x",
+              "y"
+            ],
             "title": "Point",
             "type": "object"
           }

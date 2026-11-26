@@ -191,6 +191,18 @@ export interface PlaceStops {
   stops: NearStop[];
 }
 
+/** How far one gets within one of the times of reachable_within */
+export interface ReachBand {
+  minutes: number;
+  area_km2?: number;
+  road_km?: number;
+  /** As the crow flies, to the farthest point reached */
+  max_km?: number;
+  km_by_direction?: Record<string, number>;
+  farthest_road?: string | null;
+  cell_m?: number;
+}
+
 /**
  * The whole result of a routing tool, which the model only sees a part of. The
  * fields depend on `tool` and `mode`, see the routing MCP server.
@@ -207,7 +219,8 @@ export interface RouteSummary {
   legs?: RouteLeg[];
   total_minutes?: number;
   total_km?: number;
-  road_km?: number;
+  /** reachable_within, one per time, shortest first */
+  bands?: ReachBand[];
   /** Transit */
   walk_min?: number;
   wait_min?: number;

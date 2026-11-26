@@ -11,6 +11,7 @@ import type { Style } from "ol/style";
 import FeatureStyle from "../../components/Search/utils/FeatureStyle";
 
 import { UI_STRINGS } from "./constants";
+import { duration } from "./routeFormat";
 import { readRoute, type RouteLayer } from "./routeLayer";
 import { AVOIDED_KIND, exportStyleOf, hajkStyleOf } from "./routeStyles";
 import type { DownloadFormat, DrawnItems, RouteSummary } from "./types";
@@ -55,7 +56,7 @@ export function routeName(summary: RouteSummary, index: number): string {
 
 /**
  * A place by its label, a public transport stop by its name, closed roads as
- * such, else the route
+ * such, a reachable area by its time, else the route
  */
 function featureName(feature: Feature, routeName: string): string {
   switch (feature.get("kind")) {
@@ -67,6 +68,10 @@ function featureName(feature: Feature, routeName: string): string {
     case "line_stop":
     case "transit_stop":
       return feature.get("stop");
+    case "isochrone": {
+      const time = duration(feature.get("minutes"));
+      return time === null ? routeName : `${routeName} – ${time}`;
+    }
     default:
       return routeName;
   }

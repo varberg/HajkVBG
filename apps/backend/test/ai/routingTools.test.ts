@@ -582,19 +582,25 @@ describe("show_route", () => {
     const { run } = await setup(() => ({
       structured: {
         mode: "car",
-        minutes: 10,
-        road_km: 40,
+        from: "A",
+        bands: [
+          { minutes: 5, area_km2: 3.1, road_km: 12, max_km: 2.5 },
+          { minutes: 10, area_km2: 11.8, road_km: 40, max_km: 5.2 },
+        ],
+        snap_m: 20,
         geometry_url: `${URL_BASE}/r`,
       },
     }));
     await run("reachable_within", {
       origin: place(),
-      minutes: 10,
+      minutes: [5, 10],
       mode: "car",
       avoid: null,
     });
     const { events } = await run("show_route", show("m1"));
-    assert.equal(shownRoute(events).kind, "reach");
+    const route = shownRoute(events);
+    assert.equal(route.kind, "reach");
+    assert.equal((route.summary.bands as unknown[]).length, 2);
   });
 
   test("calls a public transport line `line`, with its stops", async () => {

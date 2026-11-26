@@ -35,7 +35,6 @@ const lineStyles = new Map<string, Style>();
 
 /** By the `kind` the server gives: a bus ride or line is wide, a walk dashed */
 const LINE_WIDTHS: Record<string, number> = {
-  reachable_roads: 2,
   ride: 5,
   line: 5,
 };
@@ -51,10 +50,11 @@ function lineStyle(kind: string, color: string): Style {
   let style = lineStyles.get(key);
   if (style === undefined) {
     style =
-      kind === "hull"
-        ? new Style({
-            fill: new Fill({ color: translucent(color, 0.12) }),
-            stroke: new Stroke({ color, width: 1, lineDash: [6, 6] }),
+      kind === "isochrone"
+        ? // One per time, the longest first, so the shorter ones are darker
+          new Style({
+            fill: new Fill({ color: translucent(color, 0.15) }),
+            stroke: new Stroke({ color, width: 1.5 }),
           })
         : new Style({
             stroke: new Stroke({

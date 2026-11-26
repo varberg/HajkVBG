@@ -12,8 +12,9 @@ export const UI_STRINGS = {
   suggestions: "Förslag på följdfrågor",
   sensitiveWarning:
     "Skriv inte in känsliga uppgifter, till exempel personnummer.",
+  // After a bold "Obs!", see IntroPanel
   introWarning:
-    "Obs! Skriv aldrig in känslig information, till exempel personnummer, andra personuppgifter eller sekretessbelagda uppgifter.",
+    "Skriv aldrig in känslig information, till exempel personnummer, andra personuppgifter eller sekretessbelagda uppgifter.",
   // Only shown with privacyPolicyUrl, with the middle part as the link
   privacyPolicy: ["Läs mer i ", "kommunens integritetspolicy", "."],
   // The link under the input, only shown with privacyPolicyUrl
@@ -66,7 +67,7 @@ export const UI_STRINGS = {
   minutes: "min",
   hours: "h",
   km: "km",
-  roadKm: "km väg",
+  squareKm: "km²",
   downloadLabel: "Ladda ner svarets kartdata",
   nothingToDownload: "Det fanns inget att ladda ner.",
   includeDrawn: (count: number, max: number) =>

@@ -58,8 +58,8 @@ function IntroPanel({
           onPick={onExample}
         />
       )}
-      <Typography variant="body2" color="error">
-        {UI_STRINGS.introWarning}
+      <Typography variant="body2" color="text.secondary">
+        <strong>Obs!</strong> {UI_STRINGS.introWarning}
         <PrivacyPolicyLink url={privacyPolicyUrl} before={before} after={after}>
           {linkText}
         </PrivacyPolicyLink>

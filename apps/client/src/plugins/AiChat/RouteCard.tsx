@@ -47,6 +47,16 @@ const stopsTexts = (summary: RouteSummary) => ({
   totals: "",
 });
 
+/** The area reached within each time, such as "5 min 0,3 km² · 10 min 1,2 km²" */
+const reachTotals = (summary: RouteSummary) =>
+  joined(
+    ...(summary.bands ?? []).map((band) =>
+      [duration(band.minutes), amount(band.area_km2, UI_STRINGS.squareKm)]
+        .filter(Boolean)
+        .join(" ")
+    )
+  );
+
 function routeTexts(summary: RouteSummary) {
   const reach = summary.tool === "reachable_within";
   const title = joined(
@@ -62,10 +72,7 @@ function routeTexts(summary: RouteSummary) {
     </>
   ) : null;
   const totals = reach
-    ? joined(
-        duration(summary.minutes),
-        amount(summary.road_km, UI_STRINGS.roadKm)
-      )
+    ? reachTotals(summary)
     : joined(
         duration(summary.minutes ?? summary.total_minutes),
         amount(summary.km ?? summary.total_km, UI_STRINGS.km)
